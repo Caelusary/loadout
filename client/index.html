@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e4e8f1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#07060f" media="(prefers-color-scheme: dark)" />
+    <meta
+      name="description"
+      content="Loadout: keyboards, mice, headsets and webcams from independent shops, filterable by the specs that matter."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Loadout</title>
+    <script>
+      // Set the theme before first paint so there is no flash of the wrong one.
+      try {
+        var t = localStorage.getItem('theme');
+        // Night City (dark) is the default look; light is opt-in from the toggle.
+        if (t !== 'light' && t !== 'dark') t = 'dark';
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
