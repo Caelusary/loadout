@@ -1,0 +1,195 @@
+@import 'tailwindcss';
+
+/* Daylight (light) is the base; Night City (dark, the default) overrides the same tokens below.
+   Neon-on-black tech: cyan does the work, magenta glows around it, and signal yellow is kept for warnings. */
+@theme {
+  --color-bg: #e4e8f1;
+  --color-plate: #ffffff;
+  --color-raised: #d9deea;
+  --color-seam: #b4bcd3;
+  --color-edge: #465075;
+  --color-ink: #070918;
+  --color-ink-2: #262c4c;
+  --color-ink-3: #434a6b;
+  /* accent fills buttons (dark text on it); accent-ink is for accent-coloured text, rings and borders */
+  --color-accent: #00c2d6;
+  --color-accent-soft: #2dd3e4;
+  --color-accent-ink: #005f6a;
+  --color-on-accent: #021216;
+  /* second neon, for glows and the backdrop only */
+  --color-neon: #b3128f;
+  --color-linear: #c2185b;
+  --color-tactile: #a15c00;
+  --color-clicky: #1d5fd0;
+  --color-magnetic: #555d78;
+  --color-ok: #0f7a4a;
+  --color-warn: #7a6400;
+  --color-bad: #c0223b;
+  --color-info: #1d5fd0;
+
+  --font-display: 'Chakra Petch', 'Arial Narrow', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  --radius-control: 6px;
+  --radius-panel: 12px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+:root {
+  /* Height of the phone tab bar; bottom-fixed UI sits above it. Zero from the sm breakpoint up. */
+  --dock: 0px;
+  /* Light mode: a crisp lit edge rather than a bloom, which only reads as blur on a pale page. */
+  --glow: 0 0 0 1px color-mix(in oklab, var(--color-accent-ink) 35%, transparent), 0 2px 10px -3px color-mix(in oklab, var(--color-accent-ink) 45%, transparent);
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #07060f;
+  --color-plate: #0e0c1b;
+  --color-raised: #161329;
+  --color-seam: #28224a;
+  --color-edge: #6f66a8;
+  --color-ink: #eeeaff;
+  --color-ink-2: #bbb5e8;
+  --color-ink-3: #938dc6;
+  --color-accent: #00f0ff;
+  --color-accent-soft: #6cf6ff;
+  --color-accent-ink: #4ff3ff;
+  --color-on-accent: #021418;
+  --color-neon: #ff2bd6;
+  --color-linear: #ff4f9a;
+  --color-tactile: #ffb547;
+  --color-clicky: #4da3ff;
+  --color-magnetic: #b7bdd6;
+  --color-ok: #3dffa8;
+  --color-warn: #fcee0a;
+  --color-bad: #ff4f6d;
+  --color-info: #4da3ff;
+  --glow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 55%, transparent), 0 0 22px -2px color-mix(in oklab, var(--color-accent) 60%, transparent), 0 0 44px -10px color-mix(in oklab, var(--color-neon) 55%, transparent);
+}
+
+@media (max-width: 639px) {
+  :root {
+    --dock: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Accent-filled controls glow like a lit tube. Scoped to controls (plus an explicit .glow) so thin fills,
+   such as timeline connectors, stay crisp lines instead of blooming into bars. */
+:is(button, a, label, [role='button'], [role='option']).bg-accent,
+.glow {
+  box-shadow: var(--glow);
+}
+
+@utility wide {
+  font-family: var(--font-display);
+  font-stretch: 118%;
+}
+
+@utility widest {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+}
+
+@layer base {
+  /* Edge adds its own show-password eye; PasswordField already has one. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+
+  html {
+    color-scheme: light;
+    background: var(--color-bg);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    min-height: 100dvh;
+    /* No body background: html carries it, so the fixed neon backdrop canvas can show through. */
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent-ink);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+  dialog::backdrop {
+    background: rgb(20 16 12 / 0.6);
+  }
+}
+
+@keyframes scroll-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* The stage's "Drag to turn" hand: a few side-to-side nudges, then it rests. */
+@keyframes nudge {
+  0%,
+  100% {
+    translate: 0;
+  }
+  30% {
+    translate: -5px;
+  }
+  70% {
+    translate: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reticle cursor (NeonCursor): hide the native pointer once it runs, but keep the text caret in fields. */
+.neon-cursor,
+.neon-cursor * {
+  cursor: none !important;
+}
+.neon-cursor :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, [contenteditable='true']) {
+  cursor: text !important;
+}
+.neon-pulse {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-accent);
+  box-shadow: 0 0 12px var(--color-accent), inset 0 0 8px color-mix(in oklab, var(--color-neon) 60%, transparent);
+  animation: neon-pulse 520ms var(--ease-out) forwards;
+}
+@keyframes neon-pulse {
+  to {
+    transform: scale(7);
+    opacity: 0;
+  }
+}
