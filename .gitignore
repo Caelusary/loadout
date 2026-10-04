@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+server/uploads/
+.claude/
+client/models-raw/
+.vercel/
+.vscode/
+.idea/
+.eslintcache
+*.log
+.DS_Store
+Thumbs.db
+~$*
+
+# Course documents and planning notes stay local; only the code goes to GitHub.
+docs/
+*.pdf
+*.docx
+CLAUDE.md
