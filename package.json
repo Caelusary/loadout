@@ -1,0 +1,24 @@
+{
+  "name": "loadout",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w client",
+    "test": "npm test -w server && npm test -w client",
+    "lint": "npm run lint -w client && npm run lint -w server",
+    "format": "prettier --write .",
+    "seed": "npm run seed -w server --"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4",
+    "prettier": "^3.9.9"
+  }
+}
