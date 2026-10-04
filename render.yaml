@@ -1,0 +1,43 @@
+# Render Blueprint for the API (the client deploys to Vercel from client/). Render > New > Blueprint,
+# point it at this repo, then fill in the values marked sync: false when prompted.
+services:
+  - type: web
+    name: loadout-api
+    runtime: node
+    plan: free
+    # Only the server's runtime dependencies. Skipping dev dependencies also skips the
+    # mongodb-memory-server download, which production never uses.
+    buildCommand: npm ci --omit=dev --workspace=server
+    startCommand: npm start --workspace=server
+    healthCheckPath: /api/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - server/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      # MongoDB Atlas connection string.
+      - key: MONGODB_URI
+        sync: false
+      # The Vercel URL (comma-separate several, e.g. production and preview domains).
+      - key: CLIENT_URL
+        sync: false
+      # Without Cloudinary, uploads go to local disk, which Render wipes on every deploy and restart.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
