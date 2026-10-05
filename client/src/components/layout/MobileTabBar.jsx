@@ -55,42 +55,82 @@ function AccountSheet({ onClose }) {
     </dialog>
   );
 }
-set +H
-git clean -f client/src/components/ui/
-mkdir -p client/src/components/ui
-cat > client/src/components/ui/ArcArrowLink.jsx <<'LOADOUT_EOF'
-import { ArrowRight } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 
-const R = 17;
-const C = 2 * Math.PI * R;
-const GAP = C * 0.24; // open on the side the arrow points to
+// Phones get app-style navigation within thumb reach instead of a crowded top bar.
+// Its height is the --dock token (index.css), which every bottom-fixed element sits above.
+export function MobileTabBar() {
+  const { user, isAdmin } = useAuth();
+  const { count } = useCart();
+  const [sheet, setSheet] = useState(false);
+  const { pathname } = useLocation();
+  const inAccountArea = /^\/(account|seller|admin)(\/|$)/.test(pathname) && !pathname.startsWith('/account/wishlist');
 
-// A round "go" link: an open ring around an arrow. The ring is open where the arrow points and
-// closes on hover or focus, with the arrow nudging through.
-export function ArcArrowLink({ to, label, className = '' }) {
+  const tabs = [
+    { to: '/', label: 'Home', icon: House, end: true },
+    { to: '/shop', label: 'Shop', icon: Storefront },
+    { to: '/loadout', label: 'Build', icon: SquaresFour },
+    ...(!isAdmin ? [{ to: '/account/wishlist', label: 'Saved', icon: Heart }] : []),
+    ...(!isAdmin ? [{ to: '/cart', label: 'Cart', icon: ShoppingBagOpen, badge: count }] : []),
+  ];
+
   return (
-    <Link
-      to={to}
-      aria-label={label}
-      title={label}
-      className={`group/arc relative grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:text-accent-ink focus-visible:text-accent-ink ${className}`}
+    <nav
+      aria-label="Main"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-seam bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden"
     >
-      <svg viewBox="0 0 40 40" className="absolute inset-0 size-full" aria-hidden="true">
-        <circle
-          cx="20"
-          cy="20"
-          r={R}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          // Dash offset of arc + gap/2 centres the gap on the right, where the stroke starts.
-          style={{ '--arc': C - GAP, '--gap': GAP, '--off': C - GAP / 2, '--c': C }}
-          className="opacity-60 transition-[stroke-dasharray,stroke-dashoffset,opacity] duration-300 ease-out [stroke-dasharray:var(--arc)_var(--gap)] [stroke-dashoffset:var(--off)] group-hover/arc:opacity-100 group-hover/arc:[stroke-dasharray:var(--c)_0] group-hover/arc:[stroke-dashoffset:var(--c)] group-focus-visible/arc:opacity-100 group-focus-visible/arc:[stroke-dasharray:var(--c)_0] group-focus-visible/arc:[stroke-dashoffset:var(--c)]"
-        />
-      </svg>
-      <ArrowRight size={16} weight="bold" className="transition-transform duration-200 ease-out group-hover/arc:translate-x-0.5" />
-    </Link>
+      <ul className="flex h-[60px] items-stretch">
+        {tabs.map(({ to, label, icon: Icon, end, badge }) => (
+          <li key={label} className="flex-1">
+            <NavLink
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `relative flex h-full flex-col items-center justify-center gap-1 text-[11px] transition-colors ${isActive ? 'text-accent-ink' : 'text-ink-3 active:text-ink'}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-accent-ink" aria-hidden="true" />}
+                  <span className="relative">
+                    <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
+                    {badge > 0 && (
+                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 font-mono text-[10px] font-medium text-on-accent tabular-nums">
+                        {badge}
+                      </span>
+                    )}
+                  </span>
+                  {label}
+                </>
+              )}
+            </NavLink>
+          </li>
+        ))}
+        <li className="flex-1">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => setSheet(true)}
+              aria-haspopup="dialog"
+              className={`relative flex h-full w-full flex-col items-center justify-center gap-1 text-[11px] transition-colors ${inAccountArea ? 'text-accent-ink' : 'text-ink-3 active:text-ink'}`}
+            >
+              {inAccountArea && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-accent-ink" aria-hidden="true" />}
+              <UserCircle size={22} weight={inAccountArea ? 'fill' : 'regular'} />
+              Account
+            </button>
+          ) : (
+            <NavLink
+              to="/login"
+              className={({ isActive }) =>
+                `relative flex h-full flex-col items-center justify-center gap-1 text-[11px] transition-colors ${isActive ? 'text-accent-ink' : 'text-ink-3 active:text-ink'}`
+              }
+            >
+              <UserCircle size={22} />
+              Sign in
+            </NavLink>
+          )}
+        </li>
+      </ul>
+      {sheet && user && <AccountSheet onClose={() => setSheet(false)} />}
+    </nav>
   );
 }
