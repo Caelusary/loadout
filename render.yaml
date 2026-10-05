@@ -5,6 +5,7 @@ services:
     name: loadout-api
     runtime: node
     plan: free
+    region: singapore
     # Only the server's runtime dependencies. Skipping dev dependencies also skips the
     # mongodb-memory-server download, which production never uses.
     buildCommand: npm ci --omit=dev --workspace=server
