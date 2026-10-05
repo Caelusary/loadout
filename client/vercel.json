@@ -34,7 +34,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://REPLACE-WITH-RENDER-SERVICE.onrender.com/api/:path*"
+      "destination": "https://loadout-api-lk00.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
