@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { Price, StatusPill } from '../../components/ui/chips.jsx';
+import { OrderStatus, Price } from '../../components/ui/chips.jsx';
 import { formatDate, orderNumber } from '../../lib/format.js';
 
 export const itemSummary = (order) => {
@@ -22,7 +22,7 @@ export function OrderRow({ order }) {
         </p>
       </div>
       <div className="flex flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-4">
-        <StatusPill status={order.status} />
+        <OrderStatus order={order} />
         <Price cents={order.totalCents} className="font-medium" />
       </div>
     </Link>
