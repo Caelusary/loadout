@@ -4,10 +4,12 @@ import { shippingFor } from '../../lib/constants.js';
 import { useCart } from '../../providers/CartProvider.jsx';
 
 // Joins the stored cart ({ productId, qty }) with live product data and groups it by seller,
-// because each seller becomes its own order at checkout.
-export function useCartLines() {
+// because each seller becomes its own order at checkout. Pass `items` to price something other than
+// the cart, such as a single "Buy now" item.
+export function useCartLines(items) {
   const cart = useCart();
-  const ids = cart.items.map((i) => i.productId).sort();
+  const list = items ?? cart.items;
+  const ids = list.map((i) => i.productId).sort();
   const query = useQuery({
     queryKey: ['products', { ids }],
     queryFn: ({ signal }) => api(`/products?ids=${ids.join(',')}`, { signal }).then((r) => r.items),
@@ -16,7 +18,7 @@ export function useCartLines() {
   });
 
   const byId = new Map((query.data ?? []).map((p) => [p._id, p]));
-  const lines = cart.items.map((item) => {
+  const lines = list.map((item) => {
     const product = byId.get(item.productId);
     const available = Boolean(product?.isActive) && product.stock > 0;
     return {
