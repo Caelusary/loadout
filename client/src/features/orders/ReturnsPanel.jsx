@@ -242,7 +242,8 @@ function ReturnForm({ items, orderId, onCancel, onSent }) {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(returnSchema),
-    defaultValues: { qty: Object.fromEntries(items.map((i) => [i.product, 0])), reason: '', details: '' },
+    // With only one product to return there's nothing to choose: it starts selected at 1.
+    defaultValues: { qty: Object.fromEntries(items.map((i) => [i.product, items.length === 1 ? 1 : 0])), reason: '', details: '' },
   });
 
   const submit = handleSubmit(async ({ qty, reason, details }) => {
@@ -260,22 +261,27 @@ function ReturnForm({ items, orderId, onCancel, onSent }) {
     <form onSubmit={submit} noValidate className="flex flex-col gap-5 rounded-panel border border-seam p-4">
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-[13px] font-medium text-ink-2">What are you returning?</legend>
-        {items.map((i) => (
-          <label key={i.product} className="flex items-center justify-between gap-3 text-sm">
-            <span className="min-w-0 truncate">{i.name}</span>
-            <select
-              aria-label={`How many ${i.name} to return`}
-              {...register(`qty.${i.product}`, { valueAsNumber: true })}
-              className="h-10 rounded-control border border-edge bg-bg px-3 text-sm focus:border-accent-ink focus:outline-none"
-            >
-              {Array.from({ length: i.left + 1 }, (_, n) => (
-                <option key={n} value={n}>
-                  {n === 0 ? 'None' : n}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+        {items.length === 1 && items[0].left === 1 ? (
+          // One unit of one product: just say what's going back (its qty stays 1 from the defaults).
+          <p className="text-sm">1 × {items[0].name}</p>
+        ) : (
+          items.map((i) => (
+            <label key={i.product} className="flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate">{i.name}</span>
+              <select
+                aria-label={`How many ${i.name} to return`}
+                {...register(`qty.${i.product}`, { valueAsNumber: true })}
+                className="h-10 rounded-control border border-edge bg-bg px-3 text-sm focus:border-accent-ink focus:outline-none"
+              >
+                {Array.from({ length: i.left + 1 }, (_, n) => (
+                  <option key={n} value={n}>
+                    {n === 0 ? 'None' : n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))
+        )}
         {errors.items && <p className="text-[13px] text-bad">{errors.items.message}</p>}
       </fieldset>
       <Controller
