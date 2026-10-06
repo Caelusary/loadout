@@ -177,6 +177,20 @@
 .neon-cursor :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, [contenteditable='true']) {
   cursor: text !important;
 }
+/* A modal <dialog> sits in the browser's top layer, above any z-index, so the reticle would be hidden
+   behind it with the native pointer gone too. While one is open, hand back the native cursor. */
+html.neon-cursor:has(dialog:modal) * {
+  cursor: auto !important;
+}
+html.neon-cursor:has(dialog:modal) :is(a, button, [role='button'], summary, select, label) {
+  cursor: pointer !important;
+}
+html.neon-cursor:has(dialog:modal) :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, [contenteditable='true']) {
+  cursor: text !important;
+}
+html:has(dialog:modal) .neon-layer {
+  display: none;
+}
 .neon-pulse {
   position: absolute;
   width: 8px;
