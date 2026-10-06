@@ -68,3 +68,6 @@ export const ADMIN_AREA_LABELS = { users: 'Users', sellers: 'Sellers', products:
 
 // A declined seller applicant may apply again this long after the decision.
 export const REAPPLY_WAIT_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Cache-buster on the bundled product photos; matches PHOTO_VERSION in server/src/seed/data.js.
+export const PHOTO_VERSION = 8;
