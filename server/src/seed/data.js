@@ -198,7 +198,7 @@ export const products = [
     name: 'Northpaw Numpad',
     brand: 'Northpaw',
     category: 'accessory',
-    description: 'Matte black wireless numpad with low-profile keys, for 60% to 75% boards that dropped the number keys.',
+    description: 'Matte black wired numpad with low-profile keys, for 60% to 75% boards that dropped the number keys.',
     priceCents: 179000,
     stock: 20,
     specs: { connectivity: 'wired' },
