@@ -100,11 +100,14 @@ export async function createOrders(req, res) {
       throw err;
     });
     // What was bought leaves the saved cart in the same transaction, so a failed checkout keeps it intact.
-    await User.updateOne(
-      { _id: req.user._id },
-      { $pull: { cart: { product: { $in: items.map((i) => i.productId) } } } },
-      { session },
-    );
+    // "Buy now" checks out one item on the side and leaves the cart exactly as it was.
+    if (body.buyNow !== true) {
+      await User.updateOne(
+        { _id: req.user._id },
+        { $pull: { cart: { product: { $in: items.map((i) => i.productId) } } } },
+        { session },
+      );
+    }
     return created;
   }).catch(async (err) => {
     if (err.code !== 'DUPLICATE_CHECKOUT' && err.code !== 11000) throw err;

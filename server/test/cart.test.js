@@ -90,4 +90,15 @@ describe('cart', () => {
     expect(failed.status).toBe(409);
     expect((await User.findById(user._id)).cart).toHaveLength(1);
   });
+
+  it('leaves the cart alone for a buy-now checkout, even when the item is also in the cart', async () => {
+    const mika = await signIn('mika');
+    await mika.post(`/api/cart/${productId(2)}`).send({ qty: 2 });
+
+    const res = await mika
+      .post('/api/orders')
+      .send({ buyNow: true, items: [{ productId: productId(2), qty: 1 }], shippingAddress: address, paymentMethod: 'cod' });
+    expect(res.status).toBe(201);
+    expect(items(await mika.get('/api/cart'))).toContainEqual({ productId: productId(2), qty: 2 });
+  });
 });

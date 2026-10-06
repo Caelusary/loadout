@@ -43,7 +43,10 @@ export function BuyBox({ product }) {
     );
   }, [user, cart, pendingAdd, product, toast, setParams]);
   const inCart = cart.items.find((i) => i.productId === product._id)?.qty ?? 0;
-  const maxQty = Math.min(product.stock, MAX_QTY) - inCart;
+  // Buy now skips the cart, so only stock limits it; Add to cart also counts what's already in the cart.
+  const buyMax = Math.min(product.stock, MAX_QTY);
+  const maxQty = buyMax - inCart;
+  const cartFull = maxQty <= 0;
   const ownProduct = user && product.seller?._id === user._id;
 
   useEffect(() => {
@@ -57,7 +60,6 @@ export function BuyBox({ product }) {
   else if (product.stock === 0) blocked = 'Sold out. Check back later.';
   else if (isAdmin) blocked = "Admin accounts can't buy products.";
   else if (ownProduct) blocked = 'This is your product.';
-  else if (maxQty <= 0) blocked = `You already have the most you can buy (${inCart}) in your cart.`;
 
   const buyRow = useRef(null);
   const [buyRowVisible, setBuyRowVisible] = useState(true);
@@ -83,6 +85,11 @@ export function BuyBox({ product }) {
     });
   };
 
+  const buyNow = () => {
+    const target = `/checkout?buy=${product._id}&qty=${Math.min(qty, buyMax)}`;
+    navigate(user ? target : `/login?next=${encodeURIComponent(target)}`);
+  };
+
   const stockNote =
     product.stock === 0 ? 'Sold out' : product.stock <= 5 ? `Only ${product.stock} left` : 'In stock';
 
@@ -100,8 +107,11 @@ export function BuyBox({ product }) {
         <p className="rounded-control border border-seam px-4 py-3 text-sm text-ink-2">{blocked}</p>
       ) : (
         <div ref={buyRow} className="flex flex-wrap gap-3">
-          <QtyStepper value={Math.min(qty, maxQty)} onChange={setQty} max={maxQty} />
-          <Button size="lg" className="min-w-44 flex-1 sm:flex-none" onClick={addToCart}>
+          <QtyStepper value={Math.min(qty, buyMax)} onChange={setQty} max={buyMax} />
+          <Button size="lg" className="min-w-36 flex-1 sm:flex-none" onClick={buyNow}>
+            Buy now
+          </Button>
+          <Button size="lg" variant="secondary" className="min-w-36 flex-1 sm:flex-none" onClick={addToCart} disabled={cartFull}>
             {added ? (
               <>
                 <Check size={18} weight="bold" /> Added
@@ -111,6 +121,9 @@ export function BuyBox({ product }) {
             )}
           </Button>
         </div>
+      )}
+      {!blocked && cartFull && (
+        <p className="text-[13px] text-ink-3">You already have the most you can buy ({inCart}) in your cart. Buy now still works.</p>
       )}
       {!blocked && !user && <p className="text-[13px] text-ink-3">You&apos;ll be asked to sign in first.</p>}
       {product.isActive && (
@@ -125,7 +138,12 @@ export function BuyBox({ product }) {
             <span className="truncate text-[13px] text-ink-2">{product.name}</span>
             <Price cents={product.priceCents} was={product.compareAtCents} tag={false} className="font-medium text-ink" />
           </div>
-          <Button onClick={addToCart}>{added ? 'Added' : 'Add to cart'}</Button>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="secondary" onClick={addToCart} disabled={cartFull}>
+              {added ? 'Added' : 'Add to cart'}
+            </Button>
+            <Button onClick={buyNow}>Buy now</Button>
+          </div>
         </div>
       )}
     </div>

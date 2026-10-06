@@ -20,8 +20,13 @@ const ANGLES = [
 
 // Turn first, then tip toward the camera (three applies X after Y in local space), so a flat
 // keyboard seen from the side is still tipped up instead of edge-on.
+// The top-down angle tips flat gear toward the camera, but tipped that far a webcam stares at the
+// ceiling, so webcams get a gentler tip and more of a turn.
+const WEBCAM_ABOVE = [0.22, -0.55, 0];
+
 function pose(product, angle) {
-  const [x, y, z] = product.category === 'keyboard' && angle === ANGLES[0] ? [0, 0, 0] : angle.rotation;
+  let [x, y, z] = product.category === 'keyboard' && angle === ANGLES[0] ? [0, 0, 0] : angle.rotation;
+  if (product.category === 'webcam' && angle === ANGLES[2]) [x, y, z] = WEBCAM_ABOVE;
   const tilt = product.modelUrl ? (MODEL_TILT[product.category] ?? 0) : 0;
   return [x + tilt, y, z];
 }
