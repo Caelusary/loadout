@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CaretRight } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -16,13 +15,6 @@ import { AuthShell } from './AuthShell.jsx';
 
 const schema = z.object({ email: emailField, password: z.string().min(1, 'Password is required') });
 
-const DEMO_ACCOUNTS = [
-  ['Customer', 'mika@loadout.test'],
-  ['Seller', 'northpaw@loadout.test'],
-  ['Admin', 'admin@loadout.test'],
-  ['Owner', 'owner@loadout.test'],
-];
-
 export default function LoginPage() {
   useTitle('Sign in');
   const { login } = useAuth();
@@ -32,7 +24,6 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema), mode: 'onBlur', reValidateMode: 'onChange' });
@@ -76,29 +67,6 @@ export default function LoginPage() {
           Sign in
         </Button>
       </form>
-      {/* The summary carries the padding, so the clickable row (and the cursor's frame) is the whole bordered box. */}
-      <details className="group mt-6 rounded-control border border-seam text-sm">
-        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-control px-4 py-3 text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
-          <CaretRight size={14} weight="bold" className="text-ink-3 transition-transform duration-150 group-open:rotate-90" />
-          Use a demo account
-        </summary>
-        <p className="px-4 text-[13px] text-ink-3">All demo accounts use the password password123.</p>
-        <div className="flex flex-wrap gap-2 px-4 pt-3 pb-4">
-          {DEMO_ACCOUNTS.map(([role, email]) => (
-            <Button
-              key={email}
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setValue('email', email, { shouldValidate: true });
-                setValue('password', 'password123', { shouldValidate: true });
-              }}
-            >
-              {role}
-            </Button>
-          ))}
-        </div>
-      </details>
     </AuthShell>
   );
 }
