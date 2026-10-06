@@ -5,7 +5,7 @@ import { useTitle } from '../../components/layout/Page.jsx';
 import { NotFound } from '../../components/layout/NotFound.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { ConfirmDialog } from '../../components/ui/Dialog.jsx';
-import { Price, StatusPill } from '../../components/ui/chips.jsx';
+import { OrderStatus, Price } from '../../components/ui/chips.jsx';
 import { ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { api } from '../../lib/api.js';
 import { ProductImage } from '../../components/ui/ProductImage.jsx';
@@ -128,7 +128,7 @@ export default function OrderDetailPage() {
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
             <h1 className="wide font-mono text-[28px] font-bold">{orderNumber(order._id)}</h1>
-            <StatusPill status={order.status} />
+            <OrderStatus order={order} />
           </div>
           <p className="text-sm text-ink-2">
             Placed {formatDateTime(order.createdAt)}
