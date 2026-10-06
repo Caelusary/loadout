@@ -8,6 +8,7 @@ import { MAX_QTY } from '../src/features/orders/cart.js';
 import { FREE_SHIPPING_MIN_CENTS, SHIPPING_FEE_CENTS } from '../src/features/orders/shipping.js';
 import { AUTO_DELIVER_DAYS } from '../src/features/orders/service.js';
 import { REAPPLY_WAIT_MS } from '../src/features/users/service.js';
+import { PHOTO_VERSION } from '../src/seed/data.js';
 
 // The client keeps its own copy of these for display and form checks (it deploys separately, so it
 // can't import server files). This fails the build the moment the two drift apart.
@@ -31,5 +32,6 @@ describe('client constants match the server', () => {
     expect(client.RETURN_WINDOW_DAYS).toBe(RETURN_WINDOW_DAYS);
     expect(client.AUTO_DELIVER_DAYS).toBe(AUTO_DELIVER_DAYS);
     expect(client.REAPPLY_WAIT_MS).toBe(REAPPLY_WAIT_MS);
+    expect(client.PHOTO_VERSION).toBe(PHOTO_VERSION);
   });
 });
