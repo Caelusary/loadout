@@ -92,7 +92,7 @@ export function SearchBox() {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Search keyboards, mouses, brands"
+          placeholder="Search keyboards, mice, brands"
           className="h-10 w-full rounded-control border border-seam bg-plate pr-3 pl-9 text-sm text-ink placeholder:text-ink-3 transition-colors hover:border-edge focus:border-accent-ink focus:outline-none focus:placeholder:text-transparent"
         />
       </form>

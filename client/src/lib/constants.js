@@ -9,7 +9,7 @@ export const PAYMENT_METHODS = ['cod', 'mock-card'];
 
 export const CATEGORY_LABELS = {
   keyboard: 'Keyboards',
-  mouse: 'Mouses',
+  mouse: 'Mice',
   headset: 'Headsets',
   webcam: 'Webcams',
   mousepad: 'Mousepads',

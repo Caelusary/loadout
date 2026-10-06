@@ -75,7 +75,7 @@ export default function SellApplicationPage() {
         description={
           canReapply
             ? 'Your last application was declined. You can send a new one; an admin reviews it again.'
-            : 'Open a shop for your keyboards, mouses, audio gear or accessories. An admin reviews every application.'
+            : 'Open a shop for your keyboards, mice, audio gear or accessories. An admin reviews every application.'
         }
       />
       <form
