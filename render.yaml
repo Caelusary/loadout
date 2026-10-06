@@ -25,6 +25,9 @@ services:
         value: production
       - key: JWT_SECRET
         generateValue: true
+      # The same random string as PROXY_SECRET on Vercel, so the API only answers requests from the site.
+      - key: PROXY_SECRET
+        sync: false
       # MongoDB Atlas connection string.
       - key: MONGODB_URI
         sync: false
