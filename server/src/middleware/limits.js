@@ -32,7 +32,7 @@ export const uploadLimiter = perUserFailures({
 
 // A ceiling for the whole API per visitor, far above what browsing uses (a shop page makes a handful
 // of requests), so a script hammering search or listings slows itself down instead of the database.
-// Behind Vercel, set TRUST_PROXY so req.ip is the visitor, or every visitor would share one count.
+// In production req.ip is the visitor address Vercel vouches for (middleware/proxy.js).
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 300,
