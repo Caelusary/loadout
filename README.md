@@ -28,7 +28,7 @@ Seed a live database once, then take its connection string out of your local `.e
 
 ### Demo accounts
 
-All use the password `password123`. The sign-in page has buttons that fill these in.
+All use the password `password123`.
 
 | Email | Role |
 |---|---|
@@ -164,29 +164,29 @@ Every seed product's 3D model, and the product photos rendered from it, comes fr
 | Northpaw Ledger Full | [Mechanical keyboard](https://sketchfab.com/3d-models/mechanical-keyboard-1ba4055c33674567b51b783701ed05ce) | [FelikinRuslan](https://sketchfab.com/FelikinRuslan) |
 | Northpaw Sable 65 Wireless | [white to cyan shade 60% keyboard](https://sketchfab.com/3d-models/white-to-cyan-shade-60-keyboard-b210156b0a86460db63d4acbb7ee3e33) | [powder](https://sketchfab.com/powder12) |
 | Northpaw Coiled USB-C Cable | [Coiled Keyboard Cable](https://sketchfab.com/3d-models/coiled-keyboard-cable-f0f765ea810840858235ba1b900c0d52) (recoloured violet) | [lapeche](https://sketchfab.com/Emily.Fodden) |
-| Northpaw Numpad | [Numpad](https://sketchfab.com/3d-models/numpad-cedbec5131c044aebc82119510deaf3f) | [yuriwatt](https://sketchfab.com/yuriwatt) |
+| Northpaw Numpad | [Numpad](https://sketchfab.com/3d-models/numpad-cedbec5131c044aebc82119510deaf3f) (laid flat) | [yuriwatt](https://sketchfab.com/yuriwatt) |
 | Glide Vane Pro | [Computer Mouse (low-poly)](https://sketchfab.com/3d-models/computer-mouse-low-poly-95eb7d0363bb4db79bd50168280ea1c7) | [LagzDesign](https://sketchfab.com/LagzDesign) |
-| Glide Vane Mini | [PC wireless mouse](https://sketchfab.com/3d-models/pc-wireless-mouse-df32a4319f304bc29330bf8c53c4adde) | [che_be](https://sketchfab.com/che_be) |
+| Glide Vane Mini | [PC wireless mouse](https://sketchfab.com/3d-models/pc-wireless-mouse-df32a4319f304bc29330bf8c53c4adde) (recoloured) | [che_be](https://sketchfab.com/che_be) |
 | Glide Orbit Ergo | [Stealth Series: Ergonomic Wireless Mouse Concept](https://sketchfab.com/3d-models/stealth-series-ergonomic-wireless-mouse-concept-be00cd1edd364f30a0a2da8c0511d5e0) | [yazz88](https://sketchfab.com/yazz88) |
 | Glide Flick Wired | [Ice Claw mouse](https://sketchfab.com/3d-models/ice-claw-mouse-43de4d030ae94667bd8b8a478dd371ac) | [dmitriy7776661111](https://sketchfab.com/dmitriy7776661111) |
 | Glide Drift Travel | [computer mouse](https://sketchfab.com/3d-models/computer-mouse-bd571d8034b040f2834da88173b5739e) | [ChoboiAssets](https://sketchfab.com/alsoliman905) |
 | Glide Glow Pad 49 | [RGB Gaming Mousepad](https://sketchfab.com/3d-models/rgb-gaming-mousepad-331317c7d6bf4555b4645dbcabdf7e40) | [poopdeckpercy](https://sketchfab.com/poopdeckpercy) |
-| Glide Cloth XL | [mouse pad (keyboard pad)](https://sketchfab.com/3d-models/mouse-pad-keyboard-pad-7690f727d87847aaa737c8110c8e6531) | [ｍｆｋ](https://sketchfab.com/mfkffzl) |
+| Glide Cloth XL | [mouse pad (keyboard pad)](https://sketchfab.com/3d-models/mouse-pad-keyboard-pad-7690f727d87847aaa737c8110c8e6531) (printed artwork added) | [ｍｆｋ](https://sketchfab.com/mfkffzl) |
 | Glide Control Pad M | [Damascus Mousepad](https://sketchfab.com/3d-models/damascus-mousepad-42dc83c9a40a49bfaaccd0ea50762f85) | [supahot](https://sketchfab.com/supahot) |
 | Hush Veil Wireless | [Headphones Free Model by Oscar Creative](https://sketchfab.com/3d-models/headphones-free-model-by-oscar-creative-db92168ca39541939d0110e64a37f92e) | [OSCAR CREATIVO](https://sketchfab.com/oscar_creativo) |
 | Hush Studio Open | [Studio Headphones](https://sketchfab.com/3d-models/studio-headphones-2f04830fbf884632a89445db0d170ba8) | [crow](https://sketchfab.com/crow.bite) |
 | Hush Lite Headset | [Wireless Headphones](https://sketchfab.com/3d-models/wireless-headphones-c5271140dfb442af9f8c45e1087d769f) | [ahtusik](https://sketchfab.com/ahtusik) |
 | Hush Frame 4K | [Web Camera](https://sketchfab.com/3d-models/web-camera-b6461ec1520748179686b87bef7089e9) | [darklord3d](https://sketchfab.com/erebus3d) |
 | Hush Frame 1080 | [Webcam](https://sketchfab.com/3d-models/webcam-6eb2066a95e04b87a322ef441933873c) | [Tus](https://sketchfab.com/Tus_R) |
-| Hush Frame Lite | [Cutecam Webcam](https://sketchfab.com/3d-models/cutecam-webcam-caea87526bb24d37b4ccfa8980858b84) | [CraySCU](https://sketchfab.com/CraySCU) |
+| Hush Frame Lite | [Webcam](https://sketchfab.com/3d-models/webcam-89d6eaf640c64d9aa6549e0b3fa54415) (recoloured) | [7124115](https://sketchfab.com/7124115) |
 | Northpaw Ridge 75 | [Red Mechanical Keyboard Monokei x TGR Tomo](https://sketchfab.com/3d-models/red-mechanical-keyboard-monokei-x-tgr-tomo-3f647039ee88471ba1ecbdee7cae65c3) | [RendyK](https://sketchfab.com/RendyK) |
-| Northpaw Cloud Wrist Rest | [Cloud Keyboard Wrist Rest](https://sketchfab.com/3d-models/cloud-keyboard-wrist-rest-0150d2e2541446d58b4a7f224f1bb421) (keyboard removed, recoloured) | [Ticcccccccccc](https://sketchfab.com/Ticcccccccccc) |
-| Glide Vane Air | [Wireless Mouse](https://sketchfab.com/3d-models/wireless-mouse-98c12fa57e674408b7694d3b2e7f3a6f) | [Maxime66410](https://sketchfab.com/Maxime66410) |
-| Glide Speed Pad L | [Mouse pad](https://sketchfab.com/3d-models/mouse-pad-d081ba4ce87d4088abe5dbb1b6ed8f55) | [oxygen3d](https://sketchfab.com/oxygen3d) |
+| Northpaw Cloud Wrist Rest | Modelled for this project | Loadout team |
+| Glide Vane Air | [Wireless Mouse](https://sketchfab.com/3d-models/wireless-mouse-98c12fa57e674408b7694d3b2e7f3a6f) (turned to face front) | [Maxime66410](https://sketchfab.com/Maxime66410) |
+| Glide Speed Pad L | [Mouse pad](https://sketchfab.com/3d-models/mouse-pad-d081ba4ce87d4088abe5dbb1b6ed8f55) (printed artwork added) | [oxygen3d](https://sketchfab.com/oxygen3d) |
 | Hush Pulse Wireless | [Wireless Gaming Headset](https://sketchfab.com/3d-models/wireless-gaming-headset-3075896c0ab84e23a6f085c300c33805) | [DatSketch](https://sketchfab.com/DatSketch) |
-| Hush Core Wired | [Red Dragon Headset](https://sketchfab.com/3d-models/red-dragon-headset-fc19b5826616472281c1717a71bd3cd8) (logo removed) | [abgreiver](https://sketchfab.com/abgreiver) |
-| Hush Frame Pro 1440 | [Logitech webcam C525](https://sketchfab.com/3d-models/logitech-webcam-c525-2ab18cb4ec8f4a1f8dec637602362054) (lettering removed) | [keivanh2001](https://sketchfab.com/keivanh2001) |
-| Lumen Halo Light Bar | [BenQ Screenbar Halo](https://sketchfab.com/3d-models/benq-screenbar-halo-af29991f303748b4a49b06e6e1e07baa) | [Virtuon](https://sketchfab.com/Virtuon) |
+| Hush Core Wired | [Red Dragon Headset](https://sketchfab.com/3d-models/red-dragon-headset-fc19b5826616472281c1717a71bd3cd8) (logo removed, turned to face front) | [abgreiver](https://sketchfab.com/abgreiver) |
+| Hush Frame Pro 1440 | [Insta360 Link 2 4K AI Webcam](https://sketchfab.com/3d-models/insta360-link-2-4k-ai-webcam-b6e5aa185a95459a923acabaf4e48005) (logos removed, simplified) | [bswlife](https://sketchfab.com/bswlife) |
+| Lumen Halo Light Bar | [BenQ Screenbar Halo](https://sketchfab.com/3d-models/benq-screenbar-halo-af29991f303748b4a49b06e6e1e07baa) (recoloured, LEDs lit) | [Virtuon](https://sketchfab.com/Virtuon) |
 | Lumen Perch Headphone Stand | [Headphone stand](https://sketchfab.com/3d-models/headphone-stand-06981a925b4245938a905b1921c44b26) | [raxar_](https://sketchfab.com/raxar_) |
-| Lumen Duo Felt Desk Mats | [(Free) Desk Mat Set - Pink and Blue](https://sketchfab.com/3d-models/free-desk-mat-set-pink-and-blue-11d247203dc54d2f9498facba5735d71) | [PolyDavid](https://sketchfab.com/PolyDavid) |
+| Lumen Duo Felt Desk Mats | [(Free) Desk Mat Set - Pink and Blue](https://sketchfab.com/3d-models/free-desk-mat-set-pink-and-blue-11d247203dc54d2f9498facba5735d71) (felt texture and mark replaced) | [PolyDavid](https://sketchfab.com/PolyDavid) |
 | Lumen Stream Cam | [Logitech Webcam](https://sketchfab.com/3d-models/logitech-webcam-0523fbf537cd4ea4a41e96b8293312ac) (lettering removed) | [qoodrat](https://sketchfab.com/qoodrat) |
