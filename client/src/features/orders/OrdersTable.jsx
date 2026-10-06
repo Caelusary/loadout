@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { Price, StatusPill } from '../../components/ui/chips.jsx';
+import { OrderStatus, Price } from '../../components/ui/chips.jsx';
 import { EmptyState } from '../../components/ui/feedback.jsx';
 import { Cell, Table } from '../../components/ui/Table.jsx';
 import { ORDER_STATUSES, STATUS_LABELS } from '../../lib/constants.js';
@@ -54,7 +54,7 @@ export function OrdersTable({ orders, showShop = false, action }) {
             <Price cents={o.totalCents} />
           </Cell>
           <Cell>
-            <StatusPill status={o.status} />
+            <OrderStatus order={o} />
           </Cell>
           {action && <Cell align="right">{action(o)}</Cell>}
         </tr>
