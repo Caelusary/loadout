@@ -26,12 +26,13 @@ export function SearchBox() {
   const [active, setActive] = useState(-1);
   const q = useDebounced(text.trim(), 220);
 
-  const { data: results = [], isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ['search', q],
-    queryFn: ({ signal }) => api(`/products?q=${encodeURIComponent(q)}&limit=6`, { signal }).then((r) => r.items),
+    queryFn: ({ signal }) => api(`/products?q=${encodeURIComponent(q)}&limit=6`, { signal }),
     enabled: q.length >= 2,
     staleTime: 60_000,
   });
+  const results = data?.items ?? [];
 
   useEffect(() => {
     const onDown = (e) => !box.current?.contains(e.target) && setOpen(false);
@@ -103,7 +104,25 @@ export function SearchBox() {
           className="absolute top-12 right-0 left-0 z-40 overflow-hidden rounded-panel border border-seam bg-plate p-1.5 shadow-[0_12px_32px_-16px_rgb(0_0_0/0.45)]"
         >
           {results.length === 0 && (
-            <li className="px-3 py-3 text-sm text-ink-3">{isFetching ? 'Searching…' : `No products match "${q}"`}</li>
+            <li className="px-3 py-3 text-sm text-ink-3">
+              {isFetching ? (
+                'Searching…'
+              ) : data?.suggestion ? (
+                <>
+                  No products match "{q}". Did you mean{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-accent-ink underline underline-offset-2 hover:no-underline"
+                    onClick={() => setText(data.suggestion)}
+                  >
+                    {data.suggestion}
+                  </button>
+                  ?
+                </>
+              ) : (
+                `No products match "${q}"`
+              )}
+            </li>
           )}
           {options.map((option, i) => (
             <li
