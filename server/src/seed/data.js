@@ -104,11 +104,15 @@ export const users = {
   },
 };
 
+// Bump when the product photos are re-rendered, so browsers fetch the new files instead of their
+// cached copies. Mirrored in client/src/lib/constants.js; `npm run photos` updates a live database.
+export const PHOTO_VERSION = 8;
+
 // Three angles per product, rendered from its model (see client/scripts/shots.mjs).
 const shot = (slug, name) => [
-  { url: `/products/${slug}.webp?v=7`, alt: `${name}, front three-quarter view` },
-  { url: `/products/${slug}-2.webp?v=7`, alt: `${name}, side view` },
-  { url: `/products/${slug}-3.webp?v=7`, alt: `${name}, view from above` },
+  { url: `/products/${slug}.webp?v=${PHOTO_VERSION}`, alt: `${name}, front three-quarter view` },
+  { url: `/products/${slug}-2.webp?v=${PHOTO_VERSION}`, alt: `${name}, side view` },
+  { url: `/products/${slug}-3.webp?v=${PHOTO_VERSION}`, alt: `${name}, view from above` },
 ];
 
 const product = (n, seller, slug, fields) => ({
