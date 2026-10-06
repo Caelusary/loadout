@@ -3,7 +3,7 @@ import { ArcArrowLink } from '../../components/ui/ArcArrowLink.jsx';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from '../../components/layout/Page.jsx';
 import { ButtonLink } from '../../components/ui/Button.jsx';
-import { CATEGORIES, CATEGORY_LABELS } from '../../lib/constants.js';
+import { CATEGORIES, CATEGORY_LABELS, PHOTO_VERSION } from '../../lib/constants.js';
 import { canRender3D, useActiveOnScreen, useMediaQuery, useReducedMotion } from './capabilities.js';
 import { CATEGORY_MODELS } from './categoryModels.js';
 import { HeroSearch } from './HeroSearch.jsx';
@@ -188,7 +188,7 @@ export function CategoryHero() {
           {!threeD && (
             <img
               fetchPriority="high"
-              src={`/products/${CATEGORY_MODELS[active].shot}.webp?v=7`}
+              src={`/products/${CATEGORY_MODELS[active].shot}.webp?v=${PHOTO_VERSION}`}
               alt=""
               draggable="false"
               className="absolute inset-[8%] m-auto size-[84%] object-contain"
