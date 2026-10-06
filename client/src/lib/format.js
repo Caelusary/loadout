@@ -72,3 +72,10 @@ export const initials = (text = '') =>
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
     .join('');
+
+// Shipping isn't refunded, so an order counts as fully refunded once refunds cover what was paid for the items.
+export function refundLevel(order) {
+  if (!(order.refundedCents > 0)) return null;
+  const paidForItems = (order.subtotalCents ?? 0) - (order.discountCents ?? 0);
+  return order.refundedCents >= paidForItems ? 'full' : 'partial';
+}
