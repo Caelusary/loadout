@@ -7,7 +7,7 @@ import { escapeRegex, pageParams, paginate, pick, sameId } from '../../lib/reque
 import { deleteFile, isAllowedAssetUrl, saveFile } from '../../lib/storage.js';
 import { canManage } from '../../middleware/auth.js';
 import { record } from '../activity/service.js';
-import { cleanSpecs, searchFilter, searchScore } from './service.js';
+import { cleanSpecs, searchFilter, searchScore, relatedProducts, suggestSearch } from './service.js';
 
 const EDITABLE = ['name', 'brand', 'category', 'description', 'priceCents', 'compareAtCents', 'stock', 'specs', 'images', 'modelUrl'];
 const SELLER_FIELDS = 'sellerProfile.shopName sellerProfile.slug';
@@ -84,7 +84,18 @@ export async function listProducts(req, res) {
         ),
     Product.distinct('brand', { isActive: true }),
   ]);
-  res.json({ ...result, brands: brands.sort() });
+  // A search that found nothing offers a corrected spelling, but only one that finds something under the same
+  // filters (the guess's $and replaces the original search's).
+  let suggestion;
+  if (q.q && result.total === 0) {
+    const guess = await suggestSearch(String(q.q).slice(0, 80));
+    if (guess && (await Product.exists({ ...filter, ...searchFilter(guess) }))) suggestion = guess;
+  }
+  const related =
+    q.q && result.page === 1
+      ? await relatedProducts(filter, String(q.q).slice(0, 80), { path: 'seller', select: SELLER_FIELDS })
+      : [];
+  res.json({ ...result, brands: brands.sort(), ...(suggestion && { suggestion }), ...(related.length && { related }) });
 }
 
 async function rankedPage(filter, score, { page, limit, skip }) {
