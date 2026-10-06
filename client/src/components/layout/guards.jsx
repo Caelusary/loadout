@@ -32,6 +32,8 @@ export function RequireAuth({ allow }) {
   if (auth.status === 'loading') return <PageSpinner />;
   if (auth.status === 'error') return <ErrorState title="Can't reach the server" onRetry={auth.retry} />;
   if (!auth.user) {
+    // Someone who just signed out lands on the home page, not on a login screen for the page they left.
+    if (auth.signedOut) return <Navigate to="/" replace />;
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
   if (allow && !allow(auth)) return <Forbidden />;
