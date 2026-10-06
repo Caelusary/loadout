@@ -7,6 +7,7 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import { errorHandler, notFoundRoute } from './middleware/error.js';
 import { apiLimiter } from './middleware/limits.js';
+import { requireProxy } from './middleware/proxy.js';
 import { UPLOAD_DIR, isCloudinaryEnabled } from './lib/storage.js';
 import authRoutes from './features/auth/routes.js';
 import userRoutes from './features/users/routes.js';
@@ -26,7 +27,8 @@ export function createApp() {
   const app = express();
   const production = process.env.NODE_ENV === 'production';
 
-  // Vercel rewrites /api to Render, so the client IP sits behind one or two proxies.
+  // Only for requests the proxy check doesn't cover (health checks, local dev); behind Vercel,
+  // requireProxy sets req.ip from the visitor address Vercel passes along.
   app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 1));
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(
@@ -41,12 +43,14 @@ export function createApp() {
   app.use(cookieParser());
   if (process.env.NODE_ENV !== 'test') app.use(morgan(production ? 'combined' : 'dev'));
 
-  if (!isCloudinaryEnabled()) app.use('/api/files', express.static(UPLOAD_DIR, { index: false }));
   // Render routes traffic by this, so it has to fail when the database is down, not just when Node is.
+  // It sits before the proxy check because Render's own health checks don't come through Vercel.
   app.get('/api/health', (req, res) => {
     const ok = mongoose.connection.readyState === 1;
     res.status(ok ? 200 : 503).json({ ok });
   });
+  if (process.env.PROXY_SECRET) app.use('/api', requireProxy(process.env.PROXY_SECRET));
+  if (!isCloudinaryEnabled()) app.use('/api/files', express.static(UPLOAD_DIR, { index: false }));
   app.use('/api', apiLimiter);
   for (const routes of [
     authRoutes,
