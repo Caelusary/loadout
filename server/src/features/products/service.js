@@ -44,7 +44,7 @@ export function cleanSpecs(category, specs) {
 
 // Words people type for a category, mapped to the stored value.
 const CATEGORY_WORDS = {
-  keyboard: 'keyboard', keyboards: 'keyboard', keeb: 'keyboard', keebs: 'keyboard', numpad: 'accessory',
+  keyboard: 'keyboard', keyboards: 'keyboard', keeb: 'keyboard', keebs: 'keyboard',
   mouse: 'mouse', mice: 'mouse', mouses: 'mouse',
   headset: 'headset', headsets: 'headset', headphone: 'headset', headphones: 'headset',
   webcam: 'webcam', webcams: 'webcam', camera: 'webcam', cam: 'webcam',
@@ -67,15 +67,19 @@ const searchWords = (text) =>
 
 // Descriptions are long prose, so there a word only counts at the start of a word and only when it's
 // at least 4 letters: "pro" still finds "Pro" in a name, but no longer every "product" in a description.
+// Connectivity words come from the spec alone: a wired light bar whose description mentions its
+// "wireless dial" isn't a wireless product.
+const CONNECTIVITY_WORDS = new Set(['wired', 'wireless', 'bluetooth', 'tri-mode', 'trimode']);
 const descriptionMatch = (word) =>
-  word.length >= 4 ? [{ description: new RegExp(`\\b${escapeRegex(word)}`, 'i') }] : [];
+  word.length >= 4 && !CONNECTIVITY_WORDS.has(word) ? [{ description: new RegExp(`\\b${escapeRegex(word)}`, 'i') }] : [];
 
 export function searchFilter(text) {
   const words = searchWords(text);
   if (!words.length) return {};
   return {
     $and: words.map((word) => {
-      const re = new RegExp(escapeRegex(word), 'i');
+      // Words match from the start of a word, so "pad" finds "Speed Pad" but not "Numpad".
+      const re = new RegExp(`\\b${escapeRegex(word)}`, 'i');
       const or = [{ name: re }, { brand: re }, ...descriptionMatch(word), ...SPEC_TEXT.map((f) => ({ [f]: re }))];
       if (CATEGORY_WORDS[word]) or.push({ category: CATEGORY_WORDS[word] });
       return { $or: or };
@@ -88,7 +92,81 @@ export function searchFilter(text) {
 export function searchScore(text) {
   const words = searchWords(text);
   const hit = (field, word, points) => ({
-    $cond: [{ $regexMatch: { input: `$${field}`, regex: escapeRegex(word), options: 'i' } }, points, 0],
+    $cond: [{ $regexMatch: { input: `$${field}`, regex: `\\b${escapeRegex(word)}`, options: 'i' } }, points, 0],
   });
   return words.length ? { $add: words.flatMap((word) => [hit('name', word, 3), hit('brand', word, 2)]) } : 0;
+}
+
+function editDistance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+// "Did you mean": for a search that found nothing, swaps each word that matches nothing in the catalog
+// for the closest word that does (one typo for short words, two for longer ones). Null when no word
+// changes, or nothing close enough exists.
+export async function suggestSearch(text) {
+  const words = searchWords(text);
+  if (!words.length) return null;
+  const products = await Product.find({ isActive: true }, 'name brand specs').lean();
+  const vocab = new Set(Object.keys(CATEGORY_WORDS));
+  for (const p of products) {
+    const specText = SPEC_TEXT.map((f) => p.specs?.[f.slice(6)]).filter((v) => typeof v === 'string');
+    for (const token of [p.name, p.brand, ...specText].join(' ').toLowerCase().split(/[^a-z0-9-]+/)) {
+      if (token.length >= 3) vocab.add(token);
+    }
+  }
+  const tokens = [...vocab];
+  let changed = false;
+  const fixed = words.map((word) => {
+    if (tokens.some((t) => t.startsWith(word))) return word;
+    const limit = word.length <= 4 ? 1 : 2;
+    let best = null;
+    let bestDistance = limit + 1;
+    for (const t of tokens) {
+      if (Math.abs(t.length - word.length) > limit) continue;
+      const d = editDistance(word, t);
+      if (d < bestDistance) [best, bestDistance] = [t, d];
+    }
+    if (!best) return word;
+    changed = true;
+    return best;
+  });
+  return changed ? fixed.join(' ') : null;
+}
+
+// "Related" under a search: products that aren't results but come close. First ones where a word shows up
+// anywhere in the name or brand ("pad" in "Numpad"), then others from the results' categories. Price
+// and spec filters don't apply, so this can surface alternatives the filters hid.
+export async function relatedProducts(exactFilter, text, populate, limit = 8) {
+  const words = searchWords(text);
+  if (!words.length) return [];
+  const exact = await Product.find(exactFilter, 'category').lean();
+  const seen = exact.map((p) => p._id);
+  const categories = [...new Set(exact.map((p) => p.category))];
+  const near = words.flatMap((word) => {
+    const re = new RegExp(escapeRegex(word), 'i');
+    return [{ name: re }, { brand: re }];
+  });
+  const close = await Product.find({ isActive: true, _id: { $nin: seen }, $or: near })
+    .sort({ ratingAvg: -1, _id: 1 })
+    .limit(limit)
+    .populate(populate);
+  if (close.length >= limit || !categories.length) return close;
+  const sameCategory = await Product.find({
+    isActive: true,
+    _id: { $nin: [...seen, ...close.map((p) => p._id)] },
+    category: { $in: categories },
+  })
+    .sort({ ratingAvg: -1, _id: 1 })
+    .limit(limit - close.length)
+    .populate(populate);
+  return [...close, ...sameCategory];
 }
