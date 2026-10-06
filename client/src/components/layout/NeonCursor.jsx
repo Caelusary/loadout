@@ -96,7 +96,7 @@ export function NeonCursor() {
   }, []);
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[100] overflow-hidden">
+    <div aria-hidden="true" className="neon-layer pointer-events-none fixed inset-0 z-[100] overflow-hidden">
       <div ref={pulses} />
       <div
         ref={reticle}
