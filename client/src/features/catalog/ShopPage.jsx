@@ -96,6 +96,18 @@ export default function ShopPage() {
         <section aria-busy={isPending || isPlaceholderData} className={isPlaceholderData ? 'opacity-60 transition-opacity' : ''}>
           {isError ? (
             <ErrorState error={error} onRetry={refetch} />
+          ) : !isPending && data.items.length === 0 && data.suggestion ? (
+            <EmptyState title={`No results for "${q}"`}>
+              Did you mean{' '}
+              <button
+                type="button"
+                className="font-medium text-accent-ink underline underline-offset-2 hover:no-underline"
+                onClick={() => update({ q: data.suggestion })}
+              >
+                {data.suggestion}
+              </button>
+              ?
+            </EmptyState>
           ) : !isPending && data.items.length === 0 ? (
             <EmptyState
               title="Nothing matches these filters"
@@ -112,6 +124,15 @@ export default function ShopPage() {
               <ProductGrid products={data?.items ?? []} loading={isPending} />
               {data && <Pagination page={data.page} pages={data.pages} onPage={(page) => update({ page: String(page) })} />}
             </>
+          )}
+          {data?.related?.length > 0 && (
+            <section aria-labelledby="related-heading" className="mt-14 border-t border-seam pt-8">
+              <h2 id="related-heading" className="wide mb-1 text-lg font-bold text-ink">
+                Related
+              </h2>
+              <p className="mb-6 text-sm text-ink-3">Close to &quot;{q}&quot;, but not an exact match.</p>
+              <ProductGrid products={data.related} />
+            </section>
           )}
         </section>
       </div>
