@@ -9,6 +9,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
+    "photos": "node src/seed/photos.js",
     "test": "vitest run",
     "lint": "eslint ."
   },
