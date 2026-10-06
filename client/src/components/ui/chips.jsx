@@ -1,5 +1,5 @@
 import { STATUS_LABELS, SWITCH_LABELS } from '../../lib/constants.js';
-import { formatMoney } from '../../lib/format.js';
+import { formatMoney, refundLevel } from '../../lib/format.js';
 
 const SWITCH_COLORS = {
   linear: 'bg-linear',
@@ -33,6 +33,29 @@ export function StatusPill({ status }) {
       className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[12px] font-medium ${STATUS_STYLES[status]}`}
     >
       {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+// An order's status as people read it: a fully refunded order shows "Refunded" in place of "Delivered",
+// and a partly refunded one keeps its status with a second pill beside it.
+export function OrderStatus({ order }) {
+  const refund = refundLevel(order);
+  if (refund === 'full') {
+    return (
+      <span className="inline-flex h-6 items-center rounded-full border border-accent-ink/50 px-2.5 text-[12px] font-medium text-accent-ink">
+        Refunded
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <StatusPill status={order.status} />
+      {refund === 'partial' && (
+        <span className="inline-flex h-6 items-center rounded-full border border-accent-ink/50 px-2.5 text-[12px] font-medium text-accent-ink">
+          Partly refunded
+        </span>
+      )}
     </span>
   );
 }
