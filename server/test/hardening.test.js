@@ -323,6 +323,39 @@ describe('cart prices, search and codes', () => {
     expect(pro.body.items.every((p) => /pro/i.test(`${p.name} ${p.brand} ${Object.values(p.specs ?? {}).join(' ')}`))).toBe(true);
   });
 
+  it('matches words from their start, not from the middle of another word', async () => {
+    const names = (await request(app).get('/api/products?q=pad&limit=50')).body.items.map((p) => p.name);
+    expect(names.length).toBeGreaterThan(0);
+    expect(names).not.toContain('Northpaw Numpad');
+    expect((await request(app).get('/api/products?q=tri&limit=50')).body.total).toBeGreaterThan(0); // tri-mode
+  });
+
+  it('lists related products under a search, never repeating a result', async () => {
+    const res = await request(app).get('/api/products?q=pad&limit=50');
+    const results = res.body.items.map((p) => p._id);
+    const related = res.body.related.map((p) => p.name);
+    expect(related).toContain('Northpaw Numpad'); // "pad" mid-word
+    expect(res.body.related.every((p) => !results.includes(p._id))).toBe(true);
+    expect(res.body.related.length).toBeLessThanOrEqual(8);
+    expect((await request(app).get('/api/products?q=pad&page=2&limit=2')).body.related).toBeUndefined();
+  });
+
+  it('matches connectivity words on the spec only, not on a description that mentions them', async () => {
+    const res = await request(app).get('/api/products?q=wireless&limit=50');
+    expect(res.body.items.length).toBeGreaterThan(0);
+    expect(res.body.items.some((p) => p.specs?.connectivity === 'wired')).toBe(false);
+  });
+
+  it('suggests a corrected search only when nothing matched and the correction finds something', async () => {
+    const typo = await request(app).get('/api/products?q=wirless%20keybord');
+    expect(typo.body.total).toBe(0);
+    expect(typo.body.suggestion).toBe('wireless keyboard');
+    expect((await request(app).get(`/api/products?q=${encodeURIComponent(typo.body.suggestion)}`)).body.total).toBeGreaterThan(0);
+
+    expect((await request(app).get('/api/products?q=wireless')).body.suggestion).toBeUndefined();
+    expect((await request(app).get('/api/products?q=zzzzqqq')).body.suggestion).toBeUndefined();
+  });
+
   it("gives a code's use back when two orders from one checkout are cancelled at once", async () => {
     const paolo = await signIn('paolo');
     await paolo.delete('/api/cart');
