@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { addressSchema } from './address.js';
 
-export const ROLES = ['customer', 'seller', 'admin'];
+export const ROLES = ['customer', 'seller', 'admin', 'rider'];
 export const SELLER_STATUSES = ['pending', 'approved', 'suspended'];
 // The parts of the admin panel the owner can give or take from each admin. The dashboard is always open.
 export const ADMIN_AREAS = ['users', 'sellers', 'products', 'orders', 'coupons'];
