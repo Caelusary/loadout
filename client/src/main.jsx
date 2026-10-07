@@ -18,6 +18,7 @@ import { AuthProvider } from './providers/AuthProvider.jsx';
 import { CartProvider } from './providers/CartProvider.jsx';
 import { CompareProvider } from './providers/CompareProvider.jsx';
 import { ThemeProvider } from './providers/ThemeProvider.jsx';
+import { PerformanceProvider } from './providers/PerformanceProvider.jsx';
 import { ToastProvider } from './providers/ToastProvider.jsx';
 
 const queryClient = new QueryClient({
@@ -35,6 +36,7 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider>
+      <PerformanceProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
         <AuthProvider>
@@ -48,6 +50,7 @@ createRoot(document.getElementById('root')).render(
         </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>
+      </PerformanceProvider>
     </ThemeProvider>
   </StrictMode>,
 );
