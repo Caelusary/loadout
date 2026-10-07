@@ -5,8 +5,9 @@ import { useCart } from '../../providers/CartProvider.jsx';
 
 // Joins the stored cart ({ productId, qty }) with live product data and groups it by seller,
 // because each seller becomes its own order at checkout. Pass `items` to price something other than
-// the cart, such as a single "Buy now" item.
-export function useCartLines(items) {
+// the cart, such as a single "Buy now" item. `isChecked` (the cart page's ticks) limits the totals,
+// and the problems that block checkout, to the ticked lines; every line is still listed.
+export function useCartLines(items, { isChecked = () => true } = {}) {
   const cart = useCart();
   const list = items ?? cart.items;
   const ids = list.map((i) => i.productId).sort();
@@ -27,6 +28,7 @@ export function useCartLines(items) {
       available,
       overStock: available && item.qty > product.stock,
       lineCents: available ? product.priceCents * item.qty : 0,
+      checked: isChecked(item.productId),
     };
   });
 
@@ -41,11 +43,12 @@ export function useCartLines(items) {
     group.lines.push(line);
   }
   for (const g of groups) {
-    g.subtotalCents = g.lines.reduce((sum, l) => sum + l.lineCents, 0);
+    g.subtotalCents = g.lines.reduce((sum, l) => sum + (l.checked ? l.lineCents : 0), 0);
     g.shippingCents = g.subtotalCents > 0 ? shippingFor(g.subtotalCents) : 0;
   }
 
   const subtotalCents = groups.reduce((sum, g) => sum + g.subtotalCents, 0);
+  const checkedLines = lines.filter((l) => l.checked);
   const shippingCents = groups.reduce((sum, g) => sum + g.shippingCents, 0);
   return {
     ...query,
@@ -55,6 +58,9 @@ export function useCartLines(items) {
     subtotalCents,
     shippingCents,
     totalCents: subtotalCents + shippingCents,
-    hasProblems: lines.some((l) => !l.available || l.overStock),
+    checkedCount: checkedLines.length,
+    // Shops with something ticked: each becomes its own order.
+    shopCount: groups.filter((g) => g.lines.some((l) => l.checked)).length,
+    hasProblems: checkedLines.some((l) => !l.available || l.overStock),
   };
 }
