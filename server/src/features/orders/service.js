@@ -1,8 +1,9 @@
-import { Order, Product } from '../../models/index.js';
+import { Order, Product, User } from '../../models/index.js';
+import { ON_THE_WAY } from '../../models/Order.js';
 import { releaseCouponIfCheckoutVoid } from '../coupons/service.js';
 import { notify, orderNotices } from '../notifications/service.js';
 
-export const OPEN_STATUSES = ['placed', 'processing', 'shipped'];
+export const OPEN_STATUSES = ['placed', 'processing', ...ON_THE_WAY];
 // Not yet handed to the courier, so the stock is still on the seller's shelf and can be counted back.
 export const UNSHIPPED = ['placed', 'processing'];
 export const AUTO_DELIVER_DAYS = 7;
@@ -51,12 +52,25 @@ export const noticesForCancelled = (orders, { skip } = {}) =>
       .filter((notice) => !skip || String(notice.user) !== String(skip)),
   );
 
-// Orders shipped more than 7 days ago that nobody confirmed count as delivered. Runs at start-up and
+// Dispatch: the active rider with the fewest orders on the way gets the next one (ties go to the
+// longest-registered rider, so the pick is stable). Null when there are no active riders.
+export async function pickRider(session) {
+  const riders = await User.find({ role: 'rider', isActive: true }, '_id').sort({ createdAt: 1, _id: 1 }).session(session);
+  if (!riders.length) return null;
+  const load = await Order.aggregate([
+    { $match: { rider: { $in: riders.map((r) => r._id) }, status: { $in: ON_THE_WAY } } },
+    { $group: { _id: '$rider', n: { $sum: 1 } } },
+  ]).session(session);
+  const count = new Map(load.map((r) => [String(r._id), r.n]));
+  return riders.reduce((best, r) => ((count.get(String(r._id)) ?? 0) < (count.get(String(best._id)) ?? 0) ? r : best))._id;
+}
+
+// Orders shipped more than 7 days ago that the rider never marked delivered count as delivered. Runs at start-up and
 // hourly (see server.js); each order is claimed with a conditional update, so overlapping runs are safe.
 export async function autoCompleteShipped(now = new Date()) {
   const cutoff = new Date(now.getTime() - AUTO_DELIVER_DAYS * DAY_MS);
   const due = await Order.find(
-    { status: 'shipped', statusHistory: { $elemMatch: { status: 'shipped', at: { $lte: cutoff } } } },
+    { status: { $in: ON_THE_WAY }, statusHistory: { $elemMatch: { status: 'shipped', at: { $lte: cutoff } } } },
     '_id statusHistory',
   );
   const done = [];
@@ -65,7 +79,7 @@ export async function autoCompleteShipped(now = new Date()) {
     const shippedAt = [...statusHistory].reverse().find((h) => h.status === 'shipped').at;
     const at = new Date(shippedAt.getTime() + AUTO_DELIVER_DAYS * DAY_MS);
     const order = await Order.findOneAndUpdate(
-      { _id, status: 'shipped' },
+      { _id, status: { $in: ON_THE_WAY } },
       { status: 'delivered', deliveredBy: 'auto', $push: { statusHistory: { status: 'delivered', at } } },
       { new: true },
     );
@@ -78,7 +92,7 @@ export async function autoCompleteShipped(now = new Date()) {
         user: order.seller,
         type: 'order',
         title: `Order ${orderNumber(order._id)} completed`,
-        body: `Nobody confirmed receipt within ${AUTO_DELIVER_DAYS} days of shipping, so it counts as delivered.`,
+        body: `The rider didn't mark it delivered within ${AUTO_DELIVER_DAYS} days of shipping, so it counts as delivered.`,
         link: `/orders/${order._id}`,
       },
     ]),
