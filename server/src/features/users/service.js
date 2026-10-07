@@ -5,19 +5,20 @@ import { cancelOrders, OPEN_STATUSES, UNSHIPPED } from '../orders/service.js';
 // A declined seller applicant may apply again this long after the decision.
 export const REAPPLY_WAIT_MS = 7 * 24 * 60 * 60 * 1000;
 
-export const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+export const plural = (n, word, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 
 // An account's open orders as a customer and as a shop. Unshipped ones can be cancelled when the
 // account closes; shipped ones are already with the courier, so closing waits until they arrive.
 export async function openOrders(userId) {
   const either = { $or: [{ user: userId }, { seller: userId }] };
+  const asRider = { rider: userId, status: { $in: OPEN_STATUSES } };
   const [open, returns] = await Promise.all([
-    Order.find({ ...either, status: { $in: OPEN_STATUSES } }, 'status'),
+    Order.find({ $or: [{ ...either, status: { $in: OPEN_STATUSES } }, asRider] }, 'status'),
     ReturnRequest.countDocuments({ ...either, status: { $in: RETURNS_IN_PROGRESS } }),
   ]);
   return {
     unshipped: open.filter((o) => UNSHIPPED.includes(o.status)).length,
-    shipped: open.filter((o) => o.status === 'shipped').length,
+    shipped: open.filter((o) => !UNSHIPPED.includes(o.status)).length,
     returns,
   };
 }
@@ -28,7 +29,10 @@ const RETURNS_IN_PROGRESS = ['requested', 'approved', 'escalated'];
 // Checked again inside the closing transaction, so an order placed after the first check can't
 // be left open against an account that no longer exists.
 export async function assertNothingOpen(userId, session) {
-  const still = await Order.exists({ $or: [{ user: userId }, { seller: userId }], status: { $in: OPEN_STATUSES } }).session(session);
+  const still = await Order.exists({
+    $or: [{ user: userId }, { seller: userId }, { rider: userId }],
+    status: { $in: OPEN_STATUSES },
+  }).session(session);
   if (still) throw new AppError(409, 'OPEN_ORDERS', 'A new order came in. Review it and try again.');
 }
 
