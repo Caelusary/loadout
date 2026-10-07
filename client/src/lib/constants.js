@@ -4,7 +4,7 @@ export const CONNECTIVITY = ['wired', 'wireless', 'bluetooth', 'tri-mode'];
 export const SWITCH_TYPES = ['linear', 'tactile', 'clicky', 'magnetic'];
 export const LAYOUTS = ['full', 'tkl', '75', '65', '60'];
 export const RESOLUTIONS = ['720p', '1080p', '1440p', '4k'];
-export const ORDER_STATUSES = ['placed', 'processing', 'shipped', 'delivered', 'cancelled'];
+export const ORDER_STATUSES = ['placed', 'processing', 'shipped', 'out-for-delivery', 'delivered', 'cancelled'];
 export const PAYMENT_METHODS = ['cod', 'mock-card'];
 
 export const CATEGORY_LABELS = {
@@ -32,6 +32,7 @@ export const STATUS_LABELS = {
   placed: 'Placed',
   processing: 'Processing',
   shipped: 'Shipped',
+  'out-for-delivery': 'Out for delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
