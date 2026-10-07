@@ -191,6 +191,11 @@ html.neon-cursor:has(dialog:modal) :is(input:not([type='checkbox'], [type='radio
 html:has(dialog:modal) .neon-layer {
   display: none;
 }
+/* Performance mode keeps the reticle but drops its glow. */
+html[data-performance] .neon-layer * {
+  filter: none !important;
+  box-shadow: none !important;
+}
 .neon-pulse {
   position: absolute;
   width: 8px;
