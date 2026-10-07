@@ -40,6 +40,7 @@ All use the password `password123`.
 | `lumen@loadout.test` | Seller (Lumen Desk) |
 | `coilworks@loadout.test` | Customer with a pending seller application |
 | `mika@loadout.test`, `paolo@loadout.test`, `lea@loadout.test` | Customers with order history |
+| `ramon@loadout.test`, `joy@loadout.test` | Delivery riders: shipped orders are handed to them, and they mark them delivered |
 
 Discount codes to try at checkout: `WELCOME200` (₱200 off from ₱1,500), `LOADOUT10` (10% off from ₱3,000), and `LAUNCH25` (expired, to see the error). Each customer can use a code once.
 
@@ -53,14 +54,15 @@ Discount codes to try at checkout: `WELCOME200` (₱200 off from ₱1,500), `LOA
 | `/shop` | Everyone | Catalog; search, category, spec, brand, price and stock filters all live in the URL |
 | `/p/:slug` | Everyone | Product detail with photo and 3D views, specs, and reviews |
 | `/s/:slug` | Everyone | A seller's storefront |
-| `/cart` | Customers and sellers (guests are sent to sign in) | Cart grouped by shop, with per-shop shipping. Saved on the account, so it's the same on every device |
+| `/cart` | Customers and sellers (guests are sent to sign in) | Cart grouped by shop, with per-shop shipping; tick which items to check out (remembered on the device). Saved on the account, so it's the same on every device |
 | `/checkout`, `/order-confirmed/:checkoutId` | Signed in | Address, simulated payment, discount code, and the orders the checkout created |
-| `/orders/:id` | The order's customer, its seller, or an admin | Order detail with a timestamped status timeline; cancel, advance, or confirm receipt depending on who is looking; returns within 7 days of delivery |
+| `/orders/:id` | The order's customer, its seller, its rider, or an admin | Order detail with a timestamped status timeline (placed, processing, shipped, out for delivery, delivered); cancel or advance depending on who is looking; returns within 7 days of delivery |
 | `/account`, `/account/orders`, `/account/wishlist`, `/account/sell` | Signed in | Profile, password and deleting your account (plus `/forgot-password` and `/reset-password` for a forgotten one), order history, saved products, seller application (again a week after a decline) |
+| `/deliveries` | Riders | Orders to deliver, oldest first, with the address and phone; one tap for out for delivery, one for delivered |
 | `/seller/*` | Approved sellers | Dashboard, product management with image uploads (backgrounds removed in the browser) and `.glb` models, order queue, returns |
-| `/admin/*` | Admin (each area needs the owner's permission) | Platform dashboard, seller approvals, product moderation, all orders, disputed returns, discount codes, users (including sending password reset emails), and the activity log |
+| `/admin/*` | Admin (each area needs the owner's permission) | Platform dashboard, seller approvals, product moderation, all orders, disputed returns, discount codes, users (including sending password reset emails and making riders), and the activity log |
 
-Every signed-in page has a notification bell for order and shop updates. On phones the site switches to a bottom tab bar (Home, Shop, Build, Saved, Cart, Account) instead of shrinking the desktop layout.
+Every signed-in page has a notification bell for order and shop updates. On phones the site switches to a bottom tab bar (Home, Shop, Build, Cart and a Menu for the account, saved items and theme; Deliveries for riders) and search opens full screen, instead of shrinking the desktop layout.
 
 The API has 66 routes under `/api`, one router per feature in [server/src/features/](server/src/features/); each route lists its access guards inline.
 
@@ -76,14 +78,14 @@ The API has 66 routes under `/api`, one router per feature in [server/src/featur
 
 **CRUD.**
 
-| | Customer | Seller | Admin |
-|---|---|---|---|
-| Create | Order, review, seller application, wishlist item | Product | Discount code |
-| Read | Catalog, own orders | Own orders, sales stats | All orders, users, sellers, platform stats |
-| Update | Profile, password, own review, notification read state | Own product, order status | Approve or suspend seller, unlist or feature product, turn a discount code on or off, deactivate user |
-| Delete | Cancel own order, delete own review, remove wishlist item | Delete or archive own product | Delete user, remove any review |
+| | Customer | Seller | Rider | Admin |
+|---|---|---|---|---|
+| Create | Order, review, seller application, wishlist item | Product | | Discount code |
+| Read | Catalog, own orders | Own orders, sales stats | Assigned deliveries | All orders, users, sellers, platform stats |
+| Update | Profile, password, own review, notification read state | Own product, order status up to shipped | Out for delivery, delivered | Approve or suspend seller, unlist or feature product, turn a discount code on or off, deactivate user |
+| Delete | Cancel own order, delete own review, remove wishlist item | Delete or archive own product | | Delete user, remove any review |
 
-**Roles and ownership.** Three roles: customer, seller, admin, plus one owner: an admin who makes and removes admins and picks which areas (users, sellers, products, orders, discount codes) each one manages. [requireRole](server/src/middleware/auth.js#L78), [requireArea](server/src/middleware/auth.js#L89) and [requireApprovedSeller](server/src/middleware/auth.js#L99) guard routes, and every controller that loads a record by id filters by owner, returning 404 rather than 403 so ids can't be probed. Write controllers copy fields through [pick](server/src/lib/request.js#L4), so a request can't set `role`, `seller` or `ratingAvg`.
+**Roles and ownership.** Four roles: customer, seller, rider, admin, plus one owner: an admin who makes and removes admins and picks which areas (users, sellers, products, orders, discount codes) each one manages. [requireRole](server/src/middleware/auth.js#L78), [requireArea](server/src/middleware/auth.js#L89) and [requireApprovedSeller](server/src/middleware/auth.js#L99) guard routes, and every controller that loads a record by id filters by owner, returning 404 rather than 403 so ids can't be probed. Write controllers copy fields through [pick](server/src/lib/request.js#L4), so a request can't set `role`, `seller` or `ratingAvg`.
 
 **Validation on both sides.** Every form uses React Hook Form with a Zod schema that mirrors the Mongoose rules, for example [the product form](client/src/features/seller/ProductFormPage.jsx#L50). The Mongoose validators are the final check, and server field errors are mapped back onto the form inputs by [applyServerErrors](client/src/lib/api.js#L67).
 
@@ -93,7 +95,9 @@ The API has 66 routes under `/api`, one router per feature in [server/src/featur
 
 **One checkout, one order per shop.** Each shop ships its own items, so [createOrders](server/src/features/orders/controller.js#L30) splits the cart by seller inside a MongoDB transaction. The client sends only product ids and quantities; prices come from the database. Stock is reserved with a conditional `$inc` (`stock >= qty`), so two buyers can't both get the last unit, and one failed item rolls back the whole checkout. Transactions need a replica set, which is why local development runs an in-memory replica set rather than a standalone `mongod`.
 
-**Status changes can't race.** [cancelOrder](server/src/features/orders/controller.js#L178) and [advanceOrder](server/src/features/orders/controller.js#L233) update with a status condition in the filter, so a cancel and a "mark shipped" arriving together can't both succeed, and a cancel can't restock twice.
+**Only the rider marks an order delivered.** The shop's part ends at shipped, which hands the order to the active rider with the fewest deliveries on the way ([pickRider](server/src/features/orders/service.js#L57)); the rider then marks it out for delivery and delivered ([deliveries](server/src/features/deliveries/controller.js)). Neither the shop nor the customer can set delivered, since that starts the return window. If a rider never updates an order, it completes itself 7 days after shipping.
+
+**Status changes can't race.** [cancelOrder](server/src/features/orders/controller.js#L184) and [advanceOrder](server/src/features/orders/controller.js#L242) update with a status condition in the filter, so a cancel and a "mark shipped" arriving together can't both succeed, and a cancel can't restock twice.
 
 **Every admin action is logged and undoable.** Each one writes an [ActivityLog](server/src/models/ActivityLog.js) entry in the same transaction. The owner can [undo](server/src/features/activity/service.js#L198) it, but only if nothing has changed since; an admin's order cancel is logged but final, because the stock may already have sold again.
 
@@ -127,7 +131,7 @@ The server suite (101 tests, [server/test/](server/test/)) runs against a seeded
 - the activity log: every admin action recorded, undo for the owner only (including restoring a deleted account), and a refused undo once the thing has changed again
 - sessions ending on sign-out, password change or reset, and deactivation; one-time, expiring reset links that two simultaneous requests can't both use; the 72-byte password limit bcrypt actually reads; the password check on email changes; closing an account with open orders or returns
 - returns: the 7-day window, allowed reasons, quantities across partial returns, a double-submitted request, refunds never above what was paid, escalation, and restocking once
-- suspending a shop cancelling its unshipped orders, the undo notices, confirming receipt and the 7-day auto-complete
+- suspending a shop cancelling its unshipped orders, the undo notices, rider hand-over and delivery, and the 7-day auto-complete
 - discount codes: validation, one use per customer, a race for the last use, the preview refusing carts checkout would refuse, and the use coming back when a checkout is cancelled
 - seller applications and account deletion rules
 - the cart: stored on the account, every checkout rule applied when adding, and checkout removing only what was bought
