@@ -42,8 +42,9 @@ export default function CheckoutPage() {
   const buyQty = Math.max(1, Number.parseInt(params.get('qty'), 10) || 1);
   const buyNow = Boolean(buyId);
   const buyItems = useMemo(() => (buyId ? [{ productId: buyId, qty: buyQty }] : null), [buyId, buyQty]);
-  const items = buyItems ?? cart.items;
-  const summary = useCartLines(buyItems ?? undefined);
+  // From the cart, only the items ticked there are bought; unticked ones stay in the cart.
+  const items = buyItems ?? cart.selected;
+  const summary = useCartLines(items);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [formError, setFormError] = useState('');
@@ -71,7 +72,7 @@ export default function CheckoutPage() {
   });
 
   if (!buyNow && !cart.ready) return <PageSpinner />;
-  if (!buyNow && !placed && cart.items.length === 0) return <Navigate to="/cart" replace />;
+  if (!buyNow && !placed && cart.selected.length === 0) return <Navigate to="/cart" replace />;
   if (summary.isPending) return <PageSpinner />;
   // Without live prices every line would read as unavailable, so show the failure instead of a dead form.
   if (summary.isError && !summary.data) {
@@ -102,7 +103,7 @@ export default function CheckoutPage() {
         },
       });
       setPlaced(true);
-      if (!buyNow) cart.checkedOut();
+      if (!buyNow) cart.checkedOut(items);
       // The order went through either way; only claim the address was saved if the server says so.
       if (values.saveAddress && res.addressSaved) setUser({ ...user, shippingAddress: values.shippingAddress });
       else if (values.saveAddress) toast.error("Order placed, but your address couldn't be saved to your account.");
