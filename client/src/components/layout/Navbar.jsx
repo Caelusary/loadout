@@ -8,6 +8,7 @@ import { useTheme } from '../../providers/ThemeProvider.jsx';
 import { ButtonLink } from '../ui/Button.jsx';
 import { SearchBox } from './SearchBox.jsx';
 import { Logo } from './Logo.jsx';
+import { MenuButton } from './MobileMenu.jsx';
 import { SearchOverlay } from './SearchOverlay.jsx';
 import { NotificationBell } from './NotificationBell.jsx';
 import { accountLinks } from './accountLinks.js';
@@ -146,8 +147,9 @@ export function Navbar() {
           </NavLink>
         </nav>
         <div className="ml-auto flex flex-1 items-center justify-end gap-2">
+          {/* The home page has its own search bar, so the navbar only adds one elsewhere. */}
           {!onHome && <SearchBox />}
-          <SearchOverlay />
+          {!onHome && <SearchOverlay />}
           <ThemeToggle />
           {canShop && (
             <Link
@@ -184,6 +186,7 @@ export function Navbar() {
               </span>
             </>
           )}
+          <MenuButton />
         </div>
       </div>
     </header>
