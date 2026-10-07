@@ -1,4 +1,4 @@
-import { ArrowLeft, CaretDown, MagnifyingGlass, Moon, ShoppingBagOpen, Sun } from '@phosphor-icons/react';
+import { ArrowLeft, CaretDown, Moon, ShoppingBagOpen, Sun } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import { initials } from '../../lib/format.js';
@@ -8,11 +8,13 @@ import { useTheme } from '../../providers/ThemeProvider.jsx';
 import { ButtonLink } from '../ui/Button.jsx';
 import { SearchBox } from './SearchBox.jsx';
 import { Logo } from './Logo.jsx';
+import { SearchOverlay } from './SearchOverlay.jsx';
 import { NotificationBell } from './NotificationBell.jsx';
 import { accountLinks } from './accountLinks.js';
 
 function AccountMenu() {
-  const { user, isAdmin, isSeller, logout } = useAuth();
+  const auth = useAuth();
+  const { user, logout } = auth;
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -29,7 +31,7 @@ function AccountMenu() {
     };
   }, [open]);
 
-  const links = accountLinks({ user, isAdmin, isSeller });
+  const links = accountLinks(auth);
 
   return (
     <div ref={ref} className="relative">
@@ -90,7 +92,7 @@ function ThemeToggle() {
       onClick={toggle}
       aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
       title={dark ? 'Light theme' : 'Dark theme'}
-      className="grid size-10 place-items-center rounded-control text-ink-2 transition-colors hover:bg-raised hover:text-ink"
+      className="grid size-10 place-items-center rounded-control text-ink-2 transition-colors hover:bg-raised hover:text-ink max-sm:hidden"
     >
       {dark ? <Sun size={20} /> : <Moon size={20} />}
     </button>
@@ -115,7 +117,7 @@ function BackButton() {
 }
 
 export function Navbar() {
-  const { user, status, isAdmin } = useAuth();
+  const { user, status, canShop } = useAuth();
   const { count } = useCart();
   // The homepage has its own spec search in the hero.
   const onHome = useLocation().pathname === '/';
@@ -145,15 +147,9 @@ export function Navbar() {
         </nav>
         <div className="ml-auto flex flex-1 items-center justify-end gap-2">
           {!onHome && <SearchBox />}
-          <Link
-            to="/shop"
-            aria-label="Search products"
-            className="grid size-10 place-items-center rounded-control text-ink-2 hover:bg-raised hover:text-ink md:hidden"
-          >
-            <MagnifyingGlass size={20} />
-          </Link>
+          <SearchOverlay />
           <ThemeToggle />
-          {!isAdmin && (
+          {canShop && (
             <Link
               to="/cart"
               aria-label={`Cart, ${count} item${count === 1 ? '' : 's'}`}
@@ -171,7 +167,7 @@ export function Navbar() {
           {status === 'loading' ? (
             <span className="size-10" aria-hidden="true" />
           ) : user ? (
-            // On phones the account (and cart) live in the bottom tab bar.
+            // On phones the account, theme and sign-out live in the tab bar's menu.
             <div className="max-sm:hidden">
               <AccountMenu />
             </div>
