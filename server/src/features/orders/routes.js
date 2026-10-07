@@ -16,7 +16,6 @@ router.get('/orders/mine', requireAuth, orders.myOrders);
 router.get('/orders/sold', requireAuth, requireApprovedSeller, orders.soldOrders);
 router.get('/orders/:id', requireAuth, orders.getOrder);
 router.patch('/orders/:id/cancel', requireAuth, orders.cancelOrder);
-router.patch('/orders/:id/received', requireAuth, orders.markReceived);
 router.patch('/orders/:id/status', requireAuth, requireApprovedSeller, orders.advanceOrder);
 
 export default router;
