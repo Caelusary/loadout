@@ -15,11 +15,11 @@ import { formatDate } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 
-const ROLE_LABELS = { customer: 'Customer', seller: 'Seller', admin: 'Admin' };
+const ROLE_LABELS = { customer: 'Customer', seller: 'Seller', rider: 'Rider', admin: 'Admin' };
 const AREAS = ADMIN_AREA_LABELS;
 
-// What each confirm dialog says and does. Deleting is for anyone this viewer may manage;
-// making and removing admins is the owner's alone (the API enforces both).
+// What each confirm dialog says and does. Deleting and making riders are for anyone this viewer may
+// manage; making and removing admins is the owner's alone (the API enforces both).
 // `ordersChoice` dialogs ask whether to also cancel the account's unshipped orders (shipped ones always
 // finish; the server refuses a delete while any are on the way).
 const CONFIRMS = {
@@ -54,6 +54,21 @@ const CONFIRMS = {
     body: "They'll be able to manage users, sellers, products, orders and discount codes. Their cart is emptied, since admins don't shop.",
     request: (u) => api(`/admin/users/${u._id}`, { method: 'PATCH', body: { role: 'admin' } }),
     done: (u) => `${u.name} is now an admin`,
+  },
+  makeRider: {
+    title: (u) => `Make ${u.name} a rider?`,
+    label: 'Make rider',
+    tone: 'primary',
+    body: "They'll get a Deliveries page, and orders are handed to them when shops mark them shipped. Their cart is emptied, since riders don't shop.",
+    request: (u) => api(`/admin/users/${u._id}`, { method: 'PATCH', body: { role: 'rider' } }),
+    done: (u) => `${u.name} is now a rider`,
+  },
+  removeRider: {
+    title: (u) => `Remove ${u.name} as a rider?`,
+    label: 'Remove rider',
+    body: 'They become a customer again. This only works once they have no deliveries on the way.',
+    request: (u) => api(`/admin/users/${u._id}`, { method: 'PATCH', body: { role: 'customer' } }),
+    done: (u) => `${u.name} is a customer again`,
   },
   demote: {
     title: (u) => `Remove ${u.name} as admin?`,
@@ -213,6 +228,16 @@ export default function AdminUsers() {
                       {me.isOwner && u.role === 'customer' && !u.sellerProfile && (
                         <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'promote' })}>
                           Make admin
+                        </Button>
+                      )}
+                      {u.role === 'customer' && !u.sellerProfile && (
+                        <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'makeRider' })}>
+                          Make rider
+                        </Button>
+                      )}
+                      {u.role === 'rider' && (
+                        <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'removeRider' })}>
+                          Remove rider
                         </Button>
                       )}
                       {me.isOwner && u.role === 'admin' && (
