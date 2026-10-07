@@ -9,6 +9,8 @@ export const ACTIVITY_ACTIONS = [
   'user.promote',
   'user.demote',
   'user.permissions',
+  'user.rider',
+  'user.unrider',
   'user.reset-email',
   'seller.approve',
   'seller.suspend',
