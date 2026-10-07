@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import { Order, Product, User } from '../../models/index.js';
-import { ORDER_STATUSES, TRANSITIONS } from '../../models/Order.js';
+import { ON_THE_WAY, ORDER_STATUSES, SELLER_STEPS, TRANSITIONS } from '../../models/Order.js';
 import { AppError, notFound } from '../../lib/AppError.js';
 import { isId, pageParams, paginate, sameId } from '../../lib/request.js';
 import { canManage } from '../../middleware/auth.js';
@@ -10,11 +10,12 @@ import { shippingFor } from './shipping.js';
 import { allocate, priceCoupon, redeemCoupon, releaseCouponIfCheckoutVoid } from '../coupons/service.js';
 import { notify, orderNotices } from '../notifications/service.js';
 import { orderLabel, record } from '../activity/service.js';
-import { releaseCouponsAfterCommit } from './service.js';
+import { pickRider, releaseCouponsAfterCommit } from './service.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SELLER_FIELDS = 'name sellerProfile.shopName sellerProfile.slug';
+const RIDER_FIELDS = 'name';
 
 async function reserve({ productId, qty }, session) {
   const product = await Product.findOneAndUpdate(
@@ -39,12 +40,13 @@ export async function createOrders(req, res) {
   if (earlier.length) return res.json({ checkoutId, orders: earlier, addressSaved: false, repeated: true });
 
   const orders = await mongoose.connection.transaction(async (session) => {
-    // Checkout from the cart page buys what's in the saved cart. A second tab still showing items the
-    // first tab already bought (they leave the saved cart on checkout) would otherwise buy them again.
+    // Checkout from the cart page buys the items ticked there, each as it is in the saved cart. A second
+    // tab still showing items the first tab already bought (they leave the saved cart on checkout) would
+    // otherwise buy them again.
     if (body.fromCart === true) {
       const { cart } = await User.findById(req.user._id).select('cart').session(session);
       const saved = new Map(cart.map((line) => [String(line.product), line.qty]));
-      if (items.length !== saved.size || items.some((item) => saved.get(item.productId) !== item.qty)) {
+      if (items.some((item) => saved.get(item.productId) !== item.qty)) {
         throw new AppError(409, 'CART_CHANGED', 'Your cart changed, maybe in another tab. Check it and place the order again.');
       }
     }
@@ -171,9 +173,11 @@ export async function allOrders(req, res) {
 export async function getOrder(req, res) {
   const order = await Order.findById(req.params.id)
     .populate('user', 'name email')
-    .populate('seller', SELLER_FIELDS);
+    .populate('seller', SELLER_FIELDS)
+    .populate('rider', RIDER_FIELDS);
   const allowed =
-    order && (canManage(req.user, 'orders') || sameId(order.user, req.user) || sameId(order.seller, req.user));
+    order &&
+    (canManage(req.user, 'orders') || sameId(order.user, req.user) || sameId(order.seller, req.user) || sameId(order.rider, req.user));
   if (!allowed) throw notFound('That order');
   res.json({ order });
 }
@@ -185,7 +189,7 @@ export async function cancelOrder(req, res) {
   if (!order || (!isAdmin && !isCustomer)) throw notFound('That order');
 
   // Admins may cancel anything not yet delivered, which the forward-only TRANSITIONS map doesn't allow.
-  const allowedFrom = isCustomer ? ['placed'] : ['placed', 'processing', 'shipped'];
+  const allowedFrom = isCustomer ? ['placed'] : ['placed', 'processing', ...ON_THE_WAY];
   const updated = await mongoose.connection.transaction(async (session) => {
     const cancelled = await Order.findOneAndUpdate(
       { _id: order._id, status: { $in: allowedFrom } },
@@ -229,26 +233,33 @@ export async function cancelOrder(req, res) {
   await notify([
     orderNotices.cancelledForSeller(updated, updated.cancelledBy),
     ...(updated.cancelledBy === 'admin' ? [orderNotices.toCustomer(updated)] : []),
+    ...(updated.rider ? [{ ...orderNotices.toCustomer(updated), user: updated.rider, link: '/deliveries' }] : []),
   ]);
   res.json({ order: updated });
 }
 
+// The seller prepares the order and hands it over: marking it shipped assigns a rider, who takes it
+// from there (see deliveries). Only the rider marks an order delivered.
 export async function advanceOrder(req, res) {
   const next = req.body?.status;
-  if (!ORDER_STATUSES.includes(next) || next === 'cancelled') {
+  if (!SELLER_STEPS.includes(next)) {
     throw new AppError(
       422,
       'INVALID_TRANSITION',
-      'Orders can be moved to processing, shipped, or delivered.',
+      'Shops move orders to processing or shipped. The rider marks them out for delivery and delivered.',
     );
   }
   const allowedFrom = Object.keys(TRANSITIONS).filter((from) => TRANSITIONS[from].includes(next));
+  const rider = next === 'shipped' ? await pickRider() : undefined;
+  if (rider === null) {
+    throw new AppError(409, 'NO_RIDER', 'No delivery riders are available right now. Try again later or contact the store admin.');
+  }
   // The status condition makes this safe against a concurrent cancel.
   const order = await Order.findOneAndUpdate(
     { _id: req.params.id, seller: req.user._id, status: { $in: allowedFrom } },
     {
       status: next,
-      ...(next === 'delivered' && { deliveredBy: 'seller' }),
+      ...(rider && { rider }),
       $push: { statusHistory: { status: next, at: new Date() } },
     },
     { new: true },
@@ -261,28 +272,6 @@ export async function advanceOrder(req, res) {
       `This order can't move to ${next} from its current status.`,
     );
   }
-  await notify(orderNotices.toCustomer(order));
-  res.json({ order });
-}
-
-// The customer confirms a shipped order arrived. Unconfirmed orders complete themselves 7 days after
-// shipping (autoCompleteShipped), which also starts the return window.
-export async function markReceived(req, res) {
-  const order = await Order.findOneAndUpdate(
-    { _id: req.params.id, user: req.user._id, status: 'shipped' },
-    { status: 'delivered', deliveredBy: 'customer', $push: { statusHistory: { status: 'delivered', at: new Date() } } },
-    { new: true },
-  );
-  if (!order) {
-    if (!(await Order.exists({ _id: req.params.id, user: req.user._id }))) throw notFound('That order');
-    throw new AppError(422, 'INVALID_TRANSITION', 'Only a shipped order can be marked as received.');
-  }
-  await notify({
-    user: order.seller,
-    type: 'order',
-    title: `Order ${orderLabel(order).slice(6)} was received`,
-    body: 'The customer confirmed it arrived.',
-    link: `/orders/${order._id}`,
-  });
+  await notify([orderNotices.toCustomer(order), ...(rider ? [orderNotices.assigned(order)] : [])]);
   res.json({ order });
 }
