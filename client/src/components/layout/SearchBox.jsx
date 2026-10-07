@@ -17,7 +17,9 @@ function useDebounced(value, ms) {
 
 // Search with suggestions (ARIA combobox). Typing is debounced, and TanStack Query cancels superseded
 // requests through the abort signal, so slow answers can't overwrite newer ones.
-export function SearchBox() {
+// `overlay` is the phone version inside SearchOverlay: always shown, and `onDone` closes the overlay
+// once a result or the results page is picked.
+export function SearchBox({ overlay = false, inputRef, onDone }) {
   const navigate = useNavigate();
   const listId = useId();
   const box = useRef(null);
@@ -46,6 +48,7 @@ export function SearchBox() {
   const go = (option) => {
     setOpen(false);
     setActive(-1);
+    onDone?.();
     if (option?.type === 'product') {
       setText('');
       navigate(`/p/${option.product.slug}`);
@@ -68,9 +71,10 @@ export function SearchBox() {
   };
 
   return (
-    <div ref={box} className="relative hidden w-full max-w-xs md:block">
+    <div ref={box} className={overlay ? 'relative w-full' : 'relative hidden w-full max-w-xs md:block'}>
       <form
         role="search"
+        className="relative"
         onSubmit={(e) => {
           e.preventDefault();
           go(active >= 0 ? options[active] : { type: 'all' });
@@ -78,7 +82,9 @@ export function SearchBox() {
       >
         <MagnifyingGlass size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" />
         <input
+          ref={inputRef}
           type="search"
+          enterKeyHint="search"
           role="combobox"
           aria-label="Search products"
           aria-expanded={showList}
@@ -101,7 +107,7 @@ export function SearchBox() {
         <ul
           id={listId}
           role="listbox"
-          className="absolute top-12 right-0 left-0 z-40 overflow-hidden rounded-panel border border-seam bg-plate p-1.5 shadow-[0_12px_32px_-16px_rgb(0_0_0/0.45)]"
+          className={`${overlay ? 'mt-3' : 'absolute top-12 right-0 left-0 z-40 shadow-[0_12px_32px_-16px_rgb(0_0_0/0.45)]'} overflow-hidden rounded-panel border border-seam bg-plate p-1.5`}
         >
           {results.length === 0 && (
             <li className="px-3 py-3 text-sm text-ink-3">
