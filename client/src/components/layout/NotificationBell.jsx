@@ -68,7 +68,8 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="absolute top-12 right-0 z-40 flex max-h-[min(28rem,70dvh)] w-[min(22rem,calc(100vw-2rem))] origin-top-right flex-col overflow-hidden rounded-panel border border-seam bg-plate shadow-[0_12px_32px_-16px_rgb(0_0_0/0.7)] transition-[opacity,scale] duration-150 ease-out starting:scale-95 starting:opacity-0">
+        // On phones the bell isn't the last icon, so the panel spans the screen under the top bar instead of hanging off the bell.
+        <div className="absolute top-12 right-0 z-40 flex max-h-[min(28rem,70dvh)] w-[min(22rem,calc(100vw-2rem))] max-sm:fixed max-sm:inset-x-3 max-sm:top-[calc(4rem+0.5rem+env(safe-area-inset-top))] max-sm:w-auto origin-top-right max-sm:origin-top flex-col overflow-hidden rounded-panel border border-seam bg-plate shadow-[0_12px_32px_-16px_rgb(0_0_0/0.7)] transition-[opacity,scale] duration-150 ease-out starting:scale-95 starting:opacity-0">
           <div className="flex items-center justify-between border-b border-seam px-4 py-3">
             <h2 className="text-sm font-medium">Notifications</h2>
             {unread > 0 && (
