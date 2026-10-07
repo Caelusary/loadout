@@ -5,11 +5,11 @@ import { useWishlist } from './useWishlist.js';
 
 // Heart toggle. Guests are sent to sign in and brought back; admins don't see it.
 export function WishlistButton({ product, className = '', withLabel = false }) {
-  const { user, isAdmin } = useAuth();
+  const { user, canShop } = useAuth();
   const wishlist = useWishlist();
   const navigate = useNavigate();
   const location = useLocation();
-  if (isAdmin) return null;
+  if (!canShop) return null;
 
   const saved = wishlist.has(product._id);
   const label = saved ? `Remove ${product.name} from your wishlist` : `Save ${product.name} to your wishlist`;
