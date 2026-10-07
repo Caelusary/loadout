@@ -1,108 +1,156 @@
-import { List, Moon, Sun } from '@phosphor-icons/react';
+import { CaretRight, Heart, List, Moon, Package, ShieldCheck, SignOut, Storefront, Sun, Tag, Truck, UserCircle, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { createPortal } from 'react-dom';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { initials } from '../../lib/format.js';
+import { ButtonLink } from '../ui/Button.jsx';
 import { accountLinks } from './accountLinks.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useTheme } from '../../providers/ThemeProvider.jsx';
 
-const row = 'flex h-12 w-full items-center rounded-control px-3 text-left text-[15px] text-ink-2 active:bg-raised';
+const ICONS = {
+  '/admin': ShieldCheck,
+  '/seller': Storefront,
+  '/deliveries': Truck,
+  '/account': UserCircle,
+  '/account/orders': Package,
+  '/account/wishlist': Heart,
+  '/account/sell': Tag,
+};
 
-// Everything that doesn't fit in the phone tab bar: the account and its pages, the theme, and signing
-// in or out. A bottom sheet, so it sits within thumb reach (the desktop menu lives in the top bar).
-function MenuSheet({ onClose }) {
-  const auth = useAuth();
+const rowBase = 'flex h-12 w-full items-center gap-3 rounded-control px-3 text-left text-[15px] transition-colors active:bg-raised hover:bg-raised';
+const row = `${rowBase} text-ink-2 hover:text-ink`;
+
+function ThemeSwitch() {
   const { theme, toggle } = useTheme();
-  const navigate = useNavigate();
-  const ref = useRef(null);
-  useEffect(() => {
-    ref.current.showModal();
-  }, []);
-  const close = () => ref.current.close();
   const dark = theme === 'dark';
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      onClick={(e) => e.target === ref.current && close()}
-      aria-label="Menu"
-      className="mt-auto mb-0 w-full max-w-none rounded-t-[20px] border-t border-seam bg-plate p-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] text-ink backdrop:bg-black/60 transition-[translate] duration-200 ease-out starting:open:translate-y-full"
-    >
-      <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-seam" aria-hidden="true" />
-      {auth.user && (
-        <div className="flex items-center gap-3 px-5 pt-4 pb-3">
-          <span className="grid size-10 place-items-center rounded-full bg-raised font-mono text-[13px]">{initials(auth.user.name)}</span>
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate font-medium">{auth.user.name}</span>
-            <span className="truncate text-[13px] text-ink-3">{auth.user.email}</span>
-          </span>
-        </div>
-      )}
-      <ul className="flex flex-col px-2 pt-2">
-        {auth.user ? (
-          accountLinks(auth).map(([to, label]) => (
-            <li key={to}>
-              <Link to={to} onClick={close} className={row}>
-                {label}
-              </Link>
-            </li>
-          ))
-        ) : (
-          <>
-            <li>
-              <Link to="/login" onClick={close} className={`${row} text-ink`}>
-                Sign in
-              </Link>
-            </li>
-            <li>
-              <Link to="/register" onClick={close} className={row}>
-                Create account
-              </Link>
-            </li>
-          </>
-        )}
-        <li>
-          <button type="button" onClick={toggle} className={`${row} justify-between`}>
-            {dark ? 'Light theme' : 'Dark theme'}
-            {dark ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-        </li>
-        {auth.user && (
-          <li>
-            <button
-              type="button"
-              onClick={async () => {
-                close();
-                await auth.logout();
-                navigate('/');
-              }}
-              className={`${row} text-bad`}
-            >
-              Sign out
-            </button>
-          </li>
-        )}
-      </ul>
-    </dialog>
+    <button type="button" role="switch" aria-checked={dark} onClick={toggle} className={`${row} justify-between`}>
+      <span className="flex items-center gap-3">
+        {dark ? <Moon size={20} /> : <Sun size={20} />}
+        Dark theme
+      </span>
+      <span className={`relative h-6 w-11 rounded-full border transition-colors ${dark ? 'border-accent-ink bg-accent/25' : 'border-seam bg-raised'}`} aria-hidden="true">
+        <span className={`absolute top-0.5 size-[18px] rounded-full transition-[left,background-color] duration-150 ${dark ? 'left-[22px] bg-accent' : 'left-0.5 bg-ink-3'}`} />
+      </span>
+    </button>
   );
 }
 
-// The tab bar's last tab: opens the menu sheet.
-export function MenuTab({ active }) {
+// Phones: the account, its pages, the theme and signing in or out, in a panel that drops down from the
+// top bar and is only as tall as what's in it. The header stays visible above it; the page dims below.
+function MenuPanel({ onClose }) {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const panel = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    panel.current?.querySelector('a, button')?.focus();
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-x-0 top-[calc(4rem+1px+env(safe-area-inset-top))] bottom-0 z-50 sm:hidden">
+      <button type="button" aria-label="Close menu" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-black/55" />
+      <div
+        ref={panel}
+        role="dialog"
+        aria-label="Menu"
+        className="relative max-h-full overflow-y-auto border-b border-seam bg-plate px-3 pt-3 pb-4 text-ink shadow-[0_16px_32px_-16px_rgb(0_0_0/0.6)] transition-[opacity,translate] duration-150 ease-out starting:-translate-y-2 starting:opacity-0"
+      >
+        {auth.user ? (
+          <>
+            <Link
+              to="/account"
+              onClick={onClose}
+              className="mb-2 flex items-center gap-3 rounded-panel border border-seam bg-raised/60 p-3 active:bg-raised"
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-accent/15 font-mono text-[13px] font-medium text-accent-ink">
+                {initials(auth.user.name)}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-medium">{auth.user.name}</span>
+                <span className="truncate text-[13px] text-ink-3">{auth.user.email}</span>
+              </span>
+              <CaretRight size={16} className="shrink-0 text-ink-3" />
+            </Link>
+            <ul className="flex flex-col">
+              {accountLinks(auth)
+                .filter(([to]) => to !== '/account')
+                .map(([to, label]) => {
+                  const Icon = ICONS[to] ?? UserCircle;
+                  return (
+                    <li key={to}>
+                      <Link to={to} onClick={onClose} className={row}>
+                        <Icon size={20} />
+                        {label}
+                      </Link>
+                    </li>
+                  );
+                })}
+            </ul>
+          </>
+        ) : (
+          <div className="mb-2 flex flex-col gap-2 p-1">
+            <p className="px-1 pb-1 text-sm text-ink-2">Sign in to check out, save products and track your orders.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <ButtonLink to="/login" onClick={onClose}>
+                Sign in
+              </ButtonLink>
+              <ButtonLink to="/register" variant="secondary" onClick={onClose}>
+                Create account
+              </ButtonLink>
+            </div>
+          </div>
+        )}
+        <div className="mt-2 border-t border-seam pt-2">
+          <ThemeSwitch />
+          {auth.user && (
+            <button
+              type="button"
+              onClick={async () => {
+                onClose();
+                await auth.logout();
+                navigate('/');
+              }}
+              className={`${rowBase} text-bad`}
+            >
+              <SignOut size={20} />
+              Sign out
+            </button>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// The phone top bar's menu button; it turns into a close button while the menu is open.
+export function MenuButton() {
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  // Following a link closes it; so does any other navigation (back button, a tab).
+  const [openedOn, setOpenedOn] = useState(pathname);
+  if (open && openedOn !== pathname) setOpen(false);
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpenedOn(pathname);
+          setOpen((o) => !o);
+        }}
         aria-haspopup="dialog"
-        className={`relative flex h-full w-full flex-col items-center justify-center gap-1 text-[11px] transition-colors ${active ? 'text-accent-ink' : 'text-ink-3 active:text-ink'}`}
+        aria-expanded={open}
+        aria-label={open ? 'Close menu' : 'Menu'}
+        className="grid size-10 place-items-center rounded-control text-ink-2 hover:bg-raised hover:text-ink sm:hidden"
       >
-        {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-accent-ink" aria-hidden="true" />}
-        <List size={22} weight={active ? 'bold' : 'regular'} />
-        Menu
+        {open ? <X size={22} /> : <List size={22} />}
       </button>
-      {open && <MenuSheet onClose={() => setOpen(false)} />}
+      {open && <MenuPanel onClose={() => setOpen(false)} />}
     </>
   );
 }
