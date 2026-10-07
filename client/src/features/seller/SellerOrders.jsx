@@ -11,8 +11,9 @@ import { orderNumber } from '../../lib/format.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { OrdersTable, StatusTabs } from '../orders/OrdersTable.jsx';
 
-const NEXT = { placed: 'processing', processing: 'shipped', shipped: 'delivered' };
-const NEXT_LABEL = { processing: 'Start processing', shipped: 'Mark shipped', delivered: 'Mark delivered' };
+// The shop's part ends at shipped: that hands the order to a rider, who marks it delivered.
+const NEXT = { placed: 'processing', processing: 'shipped' };
+const NEXT_LABEL = { processing: 'Start processing', shipped: 'Hand to rider' };
 
 export default function SellerOrders() {
   useTitle('Shop orders');
@@ -39,7 +40,7 @@ export default function SellerOrders() {
 
   return (
     <>
-      <PanelHeader title="Orders" description="Move each order forward as you pack and ship it." />
+      <PanelHeader title="Orders" description="Prepare each order, then hand it to a rider. The rider marks it delivered." />
       <StatusTabs
         value={status}
         onChange={(s) => {
