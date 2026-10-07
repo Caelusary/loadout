@@ -45,6 +45,11 @@ async function deleteUnreferenced(files) {
   );
 }
 
+// Lets Vercel's CDN keep a response for a minute (and serve it stale for five more while it refetches),
+// so most visitors skip the round trip to Render. Only for responses that are the same for everyone:
+// browsers don't cache it, and nothing here depends on who's asking.
+const shareForAMinute = (res) => res.set('CDN-Cache-Control', 'max-age=60, stale-while-revalidate=300');
+
 export async function listProducts(req, res) {
   const q = req.query;
 
@@ -61,6 +66,8 @@ export async function listProducts(req, res) {
 
   const filter = {};
   if (!(canManage(req.user, 'products') && q.includeInactive === '1')) filter.isActive = true;
+  // The admin's list with unlisted products differs per viewer, so it's never shared.
+  if (q.includeInactive === undefined) shareForAMinute(res);
   if (CATEGORIES.includes(q.category)) filter.category = q.category;
   if (q.brand) filter.brand = new RegExp(`^${escapeRegex(q.brand)}$`, 'i');
   for (const [key, allowed] of Object.entries(SPEC_FILTERS)) {
@@ -119,6 +126,7 @@ export async function featuredProducts(req, res) {
     .sort({ updatedAt: -1 })
     .limit(MAX_FEATURED)
     .populate('seller', SELLER_FIELDS);
+  shareForAMinute(res);
   res.json({ items });
 }
 
