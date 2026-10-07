@@ -184,7 +184,7 @@ function Slot({ category, product, loading, onChoose, onClear }) {
 
 // Build a whole desk setup one category at a time, then add it all to the cart in one go.
 export default function LoadoutPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, canShop } = useAuth();
   const cart = useCart();
   const toast = useToast();
   const navigate = useNavigate();
@@ -277,8 +277,8 @@ export default function LoadoutPage() {
             {CATEGORIES.length - chosen.length} of {CATEGORIES.length} slots open.
             {shops > 1 ? ` From ${shops} shops, so shipping is worked out per shop at checkout.` : ''}
           </p>
-          {isAdmin ? (
-            <p className="text-[13px] text-ink-3">Admin accounts can&apos;t shop.</p>
+          {!canShop ? (
+            <p className="text-[13px] text-ink-3">{isAdmin ? 'Admin' : 'Rider'} accounts can&apos;t shop.</p>
           ) : (
             <Button size="lg" className="w-full" disabled={user && buyable.length === 0} onClick={addAll}>
               {!user
@@ -307,8 +307,8 @@ export default function LoadoutPage() {
       </div>
 
       {/* Phones and tablets: the total and the button stay within reach while scrolling the slots. */}
-      {chosen.length > 0 && !isAdmin && <div className="h-20 lg:hidden" aria-hidden="true" />}
-      {chosen.length > 0 && !isAdmin && (
+      {chosen.length > 0 && canShop && <div className="h-20 lg:hidden" aria-hidden="true" />}
+      {chosen.length > 0 && canShop && (
         <div className="fixed inset-x-0 bottom-[var(--dock)] z-30 flex items-center justify-between gap-4 border-t border-seam bg-plate/95 px-4 py-3 backdrop-blur-md lg:hidden">
           <a href="#loadout-summary" className="flex min-w-0 flex-col">
             <span className="text-[12px] text-ink-3">
