@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Outlet, Route, Routes, useLocation } from 'react-router';
 import { Footer } from './components/layout/Footer.jsx';
-import { adminArea, adminOnly, canShop, GuestOnly, RequireAuth, sellerOnly } from './components/layout/guards.jsx';
+import { adminArea, adminOnly, canShop, GuestOnly, RequireAuth, riderOnly, sellerOnly } from './components/layout/guards.jsx';
 import { PageErrorBoundary } from './components/layout/PageErrorBoundary.jsx';
 import { PageSkeleton } from './components/layout/PageSkeleton.jsx';
 import { Navbar } from './components/layout/Navbar.jsx';
@@ -37,6 +37,7 @@ const LoadoutPage = lazy(() => import('./features/loadout/LoadoutPage.jsx'));
 const WishlistPage = lazy(() => import('./features/wishlist/WishlistPage.jsx'));
 const AdminCoupons = lazy(() => import('./features/admin/AdminCoupons.jsx'));
 const SellerOrders = lazy(() => import('./features/seller/SellerOrders.jsx'));
+const DeliveriesPage = lazy(() => import('./features/rider/DeliveriesPage.jsx'));
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard.jsx'));
 const AdminSellers = lazy(() => import('./features/admin/AdminSellers.jsx'));
 const AdminProducts = lazy(() => import('./features/admin/AdminProducts.jsx'));
@@ -83,10 +84,10 @@ function Layout() {
 }
 
 function AccountLayout() {
-  const { user, isAdmin } = useAuth();
+  const { user, canShop } = useAuth();
   const links = [
     { to: '/account', label: 'Profile', end: true },
-    ...(!isAdmin ? [{ to: '/account/orders', label: 'My orders' }, { to: '/account/wishlist', label: 'Wishlist' }] : []),
+    ...(canShop ? [{ to: '/account/orders', label: 'My orders' }, { to: '/account/wishlist', label: 'Wishlist' }] : []),
     ...(user?.role === 'customer' || user?.sellerProfile ? [{ to: '/account/sell', label: 'Selling' }] : []),
   ];
   return <PanelLayout title="Account" links={links} />;
@@ -158,6 +159,10 @@ export default function App() {
             <Route path="orders" element={<SellerOrders />} />
             <Route path="returns" element={<SellerReturns />} />
           </Route>
+        </Route>
+
+        <Route element={<RequireAuth allow={riderOnly} />}>
+          <Route path="deliveries" element={<DeliveriesPage />} />
         </Route>
 
         <Route element={<RequireAuth allow={adminOnly} />}>
