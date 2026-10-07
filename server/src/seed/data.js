@@ -101,7 +101,10 @@ export const users = {
     email: 'lea@loadout.test',
     role: 'customer',
     shippingAddress: address('Lea Villanueva', '9 Gen. Luna St', 'Cebu City', 'Cebu', '6000', '09391827364'),
-  },
+  },  // Delivery riders: marking an order shipped hands it to whichever has fewer on the way.
+  ramon: { _id: id('a1', 12), name: 'Ramon Aquino', email: 'ramon@loadout.test', role: 'rider' },
+  joy: { _id: id('a1', 13), name: 'Joy Ramos', email: 'joy@loadout.test', role: 'rider' },
+
 };
 
 // Bump when the product photos are re-rendered, so browsers fetch the new files instead of their
