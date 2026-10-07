@@ -16,9 +16,18 @@ function CartLine({ line }) {
   const { product } = line;
   const image = product?.images?.[0];
   return (
-    <li className="grid grid-cols-[64px_minmax(0,1fr)] gap-4 py-4 sm:grid-cols-[80px_minmax(0,1fr)_auto]">
-      <ProductImage src={image?.url} className="size-16 rounded-control sm:size-20" size={160} />
-      <div className="flex min-w-0 flex-col gap-1">
+    <li className="grid grid-cols-[auto_64px_minmax(0,1fr)] items-start gap-x-3 gap-y-3 py-4 sm:grid-cols-[auto_80px_minmax(0,1fr)_auto] sm:gap-x-4">
+      <label className="grid size-11 cursor-pointer place-items-center self-center sm:size-10">
+        <input
+          type="checkbox"
+          checked={line.checked}
+          onChange={(e) => cart.setChecked(line.productId, e.target.checked)}
+          aria-label={`Check out ${product?.name ?? 'this item'}`}
+          className="size-[18px] accent-accent-ink"
+        />
+      </label>
+      <ProductImage src={image?.url} className={`size-16 rounded-control sm:size-20 ${line.checked ? '' : 'opacity-50'}`} size={160} />
+      <div className={`flex min-w-0 flex-col gap-1 ${line.checked ? '' : 'opacity-70'}`}>
         {line.available ? (
           <Link to={`/p/${product.slug}`} className="truncate font-medium text-ink hover:text-accent-ink">
             {product.name}
@@ -29,7 +38,7 @@ function CartLine({ line }) {
         {line.available ? (
           <Price cents={product.priceCents} was={product.compareAtCents} className="text-[13px] text-ink-3" />
         ) : (
-          <p className="text-[13px] text-bad">No longer available. Remove it to check out.</p>
+          <p className="text-[13px] text-bad">No longer available. Remove or untick it to check out.</p>
         )}
         {line.overStock && (
           <p className="text-[13px] text-warn">Only {product.stock} left. Lower the quantity.</p>
@@ -48,7 +57,7 @@ function CartLine({ line }) {
           </p>
         )}
       </div>
-      <div className="col-span-2 flex items-center justify-between gap-4 sm:col-span-1 sm:justify-end">
+      <div className="col-span-2 col-start-2 flex items-center justify-between gap-4 sm:col-span-1 sm:col-start-auto sm:justify-end">
         {line.available && (
           <QtyStepper
             value={line.qty}
@@ -56,7 +65,7 @@ function CartLine({ line }) {
             max={Math.min(product.stock, MAX_QTY)}
           />
         )}
-        <Price cents={line.lineCents} className="w-24 text-right font-medium text-ink" />
+        <Price cents={line.lineCents} className={`w-24 text-right font-medium ${line.checked ? 'text-ink' : 'text-ink-3'}`} />
         <button
           type="button"
           onClick={() => cart.remove(line.productId)}
@@ -70,7 +79,7 @@ function CartLine({ line }) {
   );
 }
 
-export function OrderSummary({ groups, subtotalCents, shippingCents, totalCents, discount, children }) {
+export function OrderSummary({ groups, shopCount = groups.length, subtotalCents, shippingCents, totalCents, discount, children }) {
   const discountCents = discount?.discountCents ?? 0;
   return (
     <aside className="flex flex-col gap-4 rounded-panel border border-seam bg-plate p-5 lg:sticky lg:top-24">
@@ -81,7 +90,7 @@ export function OrderSummary({ groups, subtotalCents, shippingCents, totalCents,
           <dd className="font-mono tabular-nums">{formatMoney(subtotalCents)}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-ink-2">Shipping{groups.length > 1 ? ` (${groups.length} shops)` : ''}</dt>
+          <dt className="text-ink-2">Shipping{shopCount > 1 ? ` (${shopCount} shops)` : ''}</dt>
           <dd className="font-mono tabular-nums">
             {shippingCents === 0 ? 'Free' : formatMoney(shippingCents)}
           </dd>
@@ -106,7 +115,9 @@ export function OrderSummary({ groups, subtotalCents, shippingCents, totalCents,
 
 export default function CartPage() {
   const cart = useCart();
-  const summary = useCartLines();
+  // Every line is listed; only the ticked ones are totalled and go to checkout.
+  const summary = useCartLines(undefined, { isChecked: cart.isChecked });
+  const allChecked = cart.selected.length === cart.items.length;
 
   return (
     <Page title="Cart">
@@ -128,7 +139,21 @@ export default function CartPage() {
         </div>
       ) : (
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-6">
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 border-b border-seam pb-3 text-sm text-ink-2">
+              <span className="grid size-11 place-items-center sm:size-10">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allChecked && cart.selected.length > 0;
+                  }}
+                  onChange={(e) => cart.setAllChecked(e.target.checked)}
+                  className="size-[18px] accent-accent-ink"
+                />
+              </span>
+              Select all ({cart.items.length})
+            </label>
             {summary.groups.map((g) => {
               const toFree = FREE_SHIPPING_MIN_CENTS - g.subtotalCents;
               return (
@@ -153,16 +178,18 @@ export default function CartPage() {
             })}
           </div>
           <OrderSummary {...summary}>
-            {summary.groups.length > 1 && (
+            {summary.shopCount > 1 && (
               <p className="text-[13px] text-ink-3">
-                Each shop ships its own items, so this becomes {summary.groups.length} orders.
+                Each shop ships its own items, so this becomes {summary.shopCount} orders.
               </p>
             )}
-            {summary.hasProblems ? (
-              <p className="text-[13px] text-warn">Fix the highlighted items to check out.</p>
+            {summary.checkedCount === 0 ? (
+              <p className="text-[13px] text-ink-3">Tick the items you want to check out.</p>
+            ) : summary.hasProblems ? (
+              <p className="text-[13px] text-warn">Fix or untick the highlighted items to check out.</p>
             ) : (
               <ButtonLink to="/checkout" size="lg" className="w-full">
-                Check out
+                Check out ({summary.checkedCount})
               </ButtonLink>
             )}
           </OrderSummary>
