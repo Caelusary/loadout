@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
-import { Review, User } from '../../models/index.js';
+import { Order, Review, User } from '../../models/index.js';
+import { ON_THE_WAY } from '../../models/Order.js';
 import { ADMIN_AREAS, ROLES } from '../../models/User.js';
 import { AppError, invalid, notFound } from '../../lib/AppError.js';
 import { escapeRegex, pageParams, paginate, pick, slugify } from '../../lib/request.js';
 import { endOtherSessions, endSession } from '../../middleware/auth.js';
 import { unlistSellerProducts } from '../products/service.js';
 import { sendResetLink } from '../auth/reset.js';
-import { noticesForCancelled, releaseCouponsAfterCommit } from '../orders/service.js';
+import { noticesForCancelled, OPEN_STATUSES, releaseCouponsAfterCommit } from '../orders/service.js';
 import { assertCanClose, assertNothingOpen, cancelClosedAccountOrders, openOrders, plural, REAPPLY_WAIT_MS } from './service.js';
 import { record, userLabel } from '../activity/service.js';
 
@@ -102,11 +103,28 @@ function readChange(body) {
   const [kind] = sent;
   const value = body[kind];
   if (kind === 'isActive' && typeof value !== 'boolean') throw invalid({ isActive: 'isActive must be true or false.' });
-  if (kind === 'role' && !['admin', 'customer'].includes(value)) throw invalid({ role: 'Role must be admin or customer.' });
+  if (kind === 'role' && !['admin', 'customer', 'rider'].includes(value)) throw invalid({ role: 'Role must be admin, rider or customer.' });
   if (kind === 'permissions' && !(Array.isArray(value) && value.every((a) => ADMIN_AREAS.includes(a)))) {
     throw invalid({ permissions: `Permissions must be a list of: ${ADMIN_AREAS.join(', ')}.` });
   }
   return { kind, value };
+}
+
+// Riders deliver orders, so they don't shop or sell; any admin who manages users can make one.
+async function changeRiderRole(target, role, session) {
+  if (role === 'rider') {
+    if (target.role !== 'customer') throw invalid({ role: 'Only customer accounts can be made riders.' });
+    if (target.sellerProfile) throw invalid({ role: 'This customer has applied to sell, so they cannot be made a rider.' });
+    const open = await Order.exists({ user: target._id, status: { $in: OPEN_STATUSES } }).session(session);
+    if (open) throw invalid({ role: 'This customer has orders on the way. Make them a rider once those are done.' });
+    const cart = target.cart.map((line) => line.toObject());
+    Object.assign(target, { role, cart: [] });
+    return { action: 'user.rider', summary: `made ${target.name} a rider`, undo: { cart } };
+  }
+  const onTheWay = await Order.countDocuments({ rider: target._id, status: { $in: ON_THE_WAY } }).session(session);
+  if (onTheWay) throw invalid({ role: `${target.name} has ${plural(onTheWay, 'delivery', 'deliveries')} on the way. Finish those first.` });
+  target.role = 'customer';
+  return { action: 'user.unrider', summary: `removed ${target.name} as a rider` };
 }
 
 // The owner makes a customer an admin (with every area to start), or an admin a customer again.
@@ -136,14 +154,21 @@ function changePermissions(target, areas) {
 
 export async function updateUser(req, res) {
   const { kind, value } = readChange(req.body);
-  if (kind !== 'isActive' && !req.user.isOwner) throw new AppError(403, 'FORBIDDEN', 'Only the owner can make or remove admins.');
+  const ownerOnly = () => {
+    if (!req.user.isOwner) throw new AppError(403, 'FORBIDDEN', 'Only the owner can make or remove admins.');
+  };
+  // Admins and their permissions are the owner's alone; riders any admin who manages users can change.
+  if (kind === 'permissions' || (kind === 'role' && value === 'admin')) ownerOnly();
   const target = await loadOtherUser(req);
+  const riderChange = kind === 'role' && (value === 'rider' || (value === 'customer' && target.role === 'rider'));
+  if (kind === 'role' && !riderChange) ownerOnly();
   if (kind === 'isActive' && target.isActive === value) return res.json({ user: target }); // nothing to change or log
   // Deactivating asks the admin whether to cancel the account's unshipped orders (see openOrders).
   const cancelling = kind === 'isActive' && !value && req.body.cancelOrders === true;
   const cancelled = await mongoose.connection.transaction(async (session) => {
     let entry;
-    if (kind === 'role') entry = changeRole(target, value);
+    if (riderChange) entry = await changeRiderRole(target, value, session);
+    else if (kind === 'role') entry = changeRole(target, value);
     else if (kind === 'permissions') entry = changePermissions(target, value);
     else {
       target.isActive = value;
