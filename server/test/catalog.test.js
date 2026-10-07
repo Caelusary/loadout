@@ -42,6 +42,14 @@ describe('products', () => {
     expect(await names('(unclosed [regex')).toEqual([]);
   });
 
+  it('lets the CDN share public product lists, but not cart refreshes or the admin view', async () => {
+    const cdn = async (path, agent = request(app)) => (await agent.get(path)).headers['cdn-cache-control'];
+    expect(await cdn('/api/products?category=mouse')).toMatch(/max-age=60/);
+    expect(await cdn('/api/products/featured')).toMatch(/max-age=60/);
+    expect(await cdn(`/api/products?ids=${productId(2)}`)).toBeUndefined();
+    expect(await cdn('/api/products?includeInactive=1', await signIn('admin'))).toBeUndefined();
+  });
+
   it('falls back to newest for sort names it does not know', async () => {
     // "constructor" is a property of every object; it must not be mistaken for a sort option.
     for (const sort of ['constructor', '__proto__', 'nope']) {
