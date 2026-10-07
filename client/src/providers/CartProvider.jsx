@@ -1,5 +1,5 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createContext, use, useEffect, useMemo } from 'react';
+import { createContext, use, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { cartReducer } from '../lib/cart.js';
 import { useAuth } from './AuthProvider.jsx';
@@ -11,11 +11,22 @@ import { useToast } from './ToastProvider.jsx';
 const CartContext = createContext(null);
 const MUTATION_KEY = ['cart-change'];
 
+// Which items are unticked for checkout, per account, on this device. Only unticked ones are kept, so
+// anything newly added starts ticked.
+const uncheckedKey = (userId) => `loadout_cart_unchecked:${userId}`;
+function readUnchecked(userId) {
+  try {
+    return new Set(userId ? JSON.parse(localStorage.getItem(uncheckedKey(userId)) ?? '[]') : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export function CartProvider({ children }) {
   const { user } = useAuth();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const enabled = Boolean(user) && user.role !== 'admin';
+  const enabled = Boolean(user) && !['admin', 'rider'].includes(user.role);
   const queryKey = useMemo(() => ['cart', user?._id], [user?._id]);
 
   const query = useQuery({
@@ -33,6 +44,22 @@ export function CartProvider({ children }) {
       // storage unavailable; nothing to clean
     }
   }, []);
+
+  // Reloaded from storage when the account changes (set during render, React's pattern for state tied to a prop).
+  const [ticks, setTicks] = useState(() => ({ userId: user?._id, unchecked: readUnchecked(user?._id) }));
+  if (ticks.userId !== user?._id) setTicks({ userId: user?._id, unchecked: readUnchecked(user?._id) });
+  const { unchecked } = ticks;
+  const setUnchecked = (update) => setTicks((t) => ({ ...t, unchecked: update(t.unchecked) }));
+  // Saved without items that have since left the cart, once the server's copy is in.
+  useEffect(() => {
+    if (!ticks.userId) return;
+    const present = query.isSuccess ? new Set(query.data.map((i) => i.productId)) : null;
+    try {
+      localStorage.setItem(uncheckedKey(ticks.userId), JSON.stringify([...ticks.unchecked].filter((id) => !present || present.has(id))));
+    } catch {
+      // storage unavailable: the ticks just won't survive a reload
+    }
+  }, [ticks, query.isSuccess, query.data]);
 
   const pending = useIsMutating({ mutationKey: MUTATION_KEY });
   const { mutateAsync } = useMutation({
@@ -80,8 +107,20 @@ export function CartProvider({ children }) {
 
   const value = useMemo(() => {
     const items = enabled ? (query.data ?? []) : [];
+    const selected = items.filter((i) => !unchecked.has(i.productId));
     return {
       items,
+      // The ticked items: what the cart page totals and checkout buys.
+      selected,
+      isChecked: (productId) => !unchecked.has(productId),
+      setChecked: (productId, checked) =>
+        setUnchecked((prev) => {
+          const next = new Set(prev);
+          if (checked) next.delete(productId);
+          else next.add(productId);
+          return next;
+        }),
+      setAllChecked: (checked) => setUnchecked(() => (checked ? new Set() : new Set(items.map((i) => i.productId)))),
       enabled,
       // False until this account's cart has loaded.
       ready: !enabled || query.isSuccess || query.isError,
@@ -99,8 +138,10 @@ export function CartProvider({ children }) {
       remove: (productId) => change({ method: 'DELETE', productId, action: { type: 'remove', productId } }),
       clear: () => change({ method: 'DELETE', action: { type: 'clear' } }),
       // After checkout the server has already taken the bought items out; show that without a round trip.
-      checkedOut: () => {
-        queryClient.setQueryData(queryKey, []);
+      // Unticked items stay in the cart.
+      checkedOut: (bought) => {
+        const gone = new Set(bought.map((i) => i.productId));
+        queryClient.setQueryData(queryKey, (current = []) => current.filter((i) => !gone.has(i.productId)));
         queryClient.invalidateQueries({ queryKey });
       },
     };
@@ -115,6 +156,7 @@ export function CartProvider({ children }) {
     change,
     queryClient,
     queryKey,
+    unchecked,
   ]);
 
   return <CartContext value={value}>{children}</CartContext>;
