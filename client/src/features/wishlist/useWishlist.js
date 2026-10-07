@@ -8,8 +8,8 @@ const KEY = ['wishlist'];
 
 // Saved products for the signed-in shopper. Admins and guests have no wishlist.
 export function useWishlist() {
-  const { user, isAdmin } = useAuth();
-  const enabled = Boolean(user) && !isAdmin;
+  const { user, canShop } = useAuth();
+  const enabled = Boolean(user) && canShop;
   const queryClient = useQueryClient();
   const toast = useToast();
 
