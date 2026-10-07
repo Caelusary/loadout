@@ -9,11 +9,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
 // Backdated steps for a seeded order that reached `status`: prepared the next day, shipped a day later,
-// delivered two days after that; cancellations happen a few hours after placing.
+// out for delivery the morning it arrives, delivered that afternoon; cancellations happen a few hours after placing.
 function historyFor(status, placedAt) {
   const at = (hours) => new Date(placedAt.getTime() + hours * HOUR_MS);
   if (status === 'cancelled') return [{ status: 'placed', at: at(0) }, { status: 'cancelled', at: at(5) }];
-  const steps = [['placed', 0], ['processing', 20], ['shipped', 44], ['delivered', 92]];
+  const steps = [['placed', 0], ['processing', 20], ['shipped', 44], ['out-for-delivery', 86], ['delivered', 92]];
   const upTo = steps.findIndex(([s]) => s === status);
   return steps.slice(0, upTo + 1).map(([s, h]) => ({ status: s, at: at(h) }));
 }
@@ -41,6 +41,8 @@ export async function seed() {
 
   // Built with new Order() + validate() so totals are computed, then inserted raw to keep backdated timestamps.
   const orderDocs = [];
+  const riders = Object.values(users).filter((u) => u.role === 'rider');
+  let handedOver = 0;
   for (const [customer, daysAgo, status, lines] of checkouts) {
     const createdAt = new Date(Date.now() - daysAgo * DAY_MS - 3 * 60 * 60 * 1000);
     const checkoutId = randomUUID();
@@ -62,6 +64,9 @@ export async function seed() {
         paymentMethod: daysAgo % 2 ? 'cod' : 'mock-card',
         status,
         ...(status === 'cancelled' && { cancelledBy: 'customer' }),
+        // Anything that left the shop went with a rider, taking turns.
+        ...(['shipped', 'out-for-delivery', 'delivered'].includes(status) && { rider: riders[handedOver++ % riders.length]._id }),
+        ...(status === 'delivered' && { deliveredBy: 'rider' }),
         statusHistory: historyFor(status, createdAt),
       });
       await order.validate();
