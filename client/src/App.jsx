@@ -9,6 +9,8 @@ import { PanelLayout } from './components/layout/PanelLayout.jsx';
 import { BackToTop, ScrollProgress } from './components/layout/ScrollExtras.jsx';
 import { NeonBackdrop } from './components/layout/NeonBackdrop.jsx';
 import { NeonCursor } from './components/layout/NeonCursor.jsx';
+import { PerformanceSuggestion } from './components/layout/PerformanceSuggestion.jsx';
+import { usePerformance } from './providers/PerformanceProvider.jsx';
 import { CompareTray } from './features/compare/CompareTray.jsx';
 import { MobileTabBar } from './components/layout/MobileTabBar.jsx';
 import { NotFound } from './components/layout/NotFound.jsx';
@@ -52,15 +54,18 @@ const ShotPage = import.meta.env.DEV ? lazy(() => import('./features/home/ShotPa
 
 function Layout() {
   const { pathname } = useLocation();
+  const perf = usePerformance();
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
   return (
     <div className="flex min-h-dvh flex-col pb-[var(--dock)]">
       <span id="top-sentinel" className="absolute top-[120vh] h-px w-px" aria-hidden="true" />
-      <NeonBackdrop />
+      {/* Performance mode drops the animated backdrop; the page keeps its plain background. */}
+      {!perf.on && <NeonBackdrop />}
       <ScrollProgress />
       <NeonCursor />
+      <PerformanceSuggestion />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-control focus:bg-accent focus:px-3 focus:py-2 focus:text-on-accent"
