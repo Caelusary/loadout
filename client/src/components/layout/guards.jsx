@@ -51,7 +51,8 @@ export function GuestOnly() {
 // Only same-site paths, so ?next= can't send someone to another website.
 export const safeNext = (next) => (next?.startsWith('/') && !next.startsWith('//') ? next : '/');
 
-export const canShop = ({ isAdmin }) => !isAdmin;
+export const canShop = (auth) => auth.canShop;
+export const riderOnly = ({ isRider }) => isRider;
 export const sellerOnly = ({ isSeller }) => isSeller;
 export const adminOnly = ({ isAdmin }) => isAdmin;
 export const adminArea = (area) => (auth) => auth.can(area);
