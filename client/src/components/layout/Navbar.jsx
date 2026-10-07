@@ -1,9 +1,10 @@
-import { ArrowLeft, CaretDown, Moon, ShoppingBagOpen, Sun } from '@phosphor-icons/react';
+import { ArrowLeft, CaretDown, Gauge, Moon, ShoppingBagOpen, Sun } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import { initials } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useCart } from '../../providers/CartProvider.jsx';
+import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { useTheme } from '../../providers/ThemeProvider.jsx';
 import { ButtonLink } from '../ui/Button.jsx';
 import { SearchBox } from './SearchBox.jsx';
@@ -16,6 +17,7 @@ import { accountLinks } from './accountLinks.js';
 function AccountMenu() {
   const auth = useAuth();
   const { user, logout } = auth;
+  const perf = usePerformance();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -68,6 +70,16 @@ function AccountMenu() {
           ))}
           <button
             type="button"
+            role="menuitemcheckbox"
+            aria-checked={perf.on}
+            onClick={perf.toggle}
+            className="flex h-10 w-full items-center justify-between rounded-control px-3 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
+          >
+            Performance mode
+            <span className={`text-[12px] font-medium ${perf.on ? 'text-accent-ink' : 'text-ink-3'}`}>{perf.on ? 'On' : 'Off'}</span>
+          </button>
+          <button
+            type="button"
             role="menuitem"
             onClick={async () => {
               setOpen(false);
@@ -81,6 +93,23 @@ function AccountMenu() {
         </div>
       )}
     </div>
+  );
+}
+
+// Desktop and tablets: Performance mode beside the theme toggle (phones have it in the menu).
+function PerformanceToggle() {
+  const perf = usePerformance();
+  return (
+    <button
+      type="button"
+      aria-pressed={perf.on}
+      onClick={perf.toggle}
+      aria-label="Performance mode"
+      title={perf.on ? 'Performance mode is on: photos instead of 3D, no animated background' : 'Performance mode: photos instead of 3D, no animated background'}
+      className={`grid size-10 place-items-center rounded-control transition-colors hover:bg-raised max-sm:hidden ${perf.on ? 'text-accent-ink' : 'text-ink-2 hover:text-ink'}`}
+    >
+      <Gauge size={20} weight={perf.on ? 'fill' : 'regular'} />
+    </button>
   );
 }
 
@@ -150,6 +179,7 @@ export function Navbar() {
           {/* The home page has its own search bar, so the navbar only adds one elsewhere. */}
           {!onHome && <SearchBox />}
           {!onHome && <SearchOverlay />}
+          <PerformanceToggle />
           <ThemeToggle />
           {canShop && (
             <Link
