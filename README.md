@@ -62,7 +62,9 @@ Discount codes to try at checkout: `WELCOME200` (₱200 off from ₱1,500), `LOA
 | `/seller/*` | Approved sellers | Dashboard, product management with image uploads (backgrounds removed in the browser) and `.glb` models, order queue, returns |
 | `/admin/*` | Admin (each area needs the owner's permission) | Platform dashboard, seller approvals, product moderation, all orders, disputed returns, discount codes, users (including sending password reset emails and making riders), and the activity log |
 
-Every signed-in page has a notification bell for order and shop updates. On phones the site switches to a bottom tab bar (Home, Shop, Build, Cart and a Menu for the account, saved items and theme; Deliveries for riders) and search opens full screen, instead of shrinking the desktop layout.
+Every signed-in page has a notification bell for order and shop updates. On phones the site switches to a bottom tab bar (Home, Shop, Build, Cart; Deliveries for riders), with a menu in the top bar for the account, saved items, theme and Performance mode, and search opens full screen, instead of shrinking the desktop layout.
+
+**Performance mode.** A switch in the menu (and beside the theme toggle on desktop) swaps the 3D models for photos, so the 3D engine never downloads, turns off the animated backdrop and tones down the cursor. It's off by default; a device that looks or runs slow (little memory or few cores, data saver, or under 40 fps once the page settles) is offered it once ([PerformanceSuggestion](client/src/components/layout/PerformanceSuggestion.jsx)), and the choice is remembered on the device. Public product lists are also cached at Vercel's edge for a minute.
 
 The API has 66 routes under `/api`, one router per feature in [server/src/features/](server/src/features/); each route lists its access guards inline.
 
