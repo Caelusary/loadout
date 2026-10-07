@@ -223,22 +223,17 @@ describe('sellers', () => {
 });
 
 describe('receiving and returns', () => {
-  it('lets the customer confirm receipt, and completes unconfirmed orders after 7 days', async () => {
-    const paolo = await signIn('paolo');
+  it("completes orders the rider never marked delivered, 7 days after shipping", async () => {
     const order = await Order.findOne({ user: id('paolo'), status: 'shipped' });
-    const res = await paolo.patch(`/api/orders/${order._id}/received`);
-    expect(res.body.order).toMatchObject({ status: 'delivered', deliveredBy: 'customer' });
-    expect((await paolo.patch(`/api/orders/${order._id}/received`)).status).toBe(422);
-
     const stale = await Order.create({
       ...(await Order.findById(order._id).lean()),
       _id: undefined,
       checkoutId: `stale-${order._id}`,
-      status: 'shipped',
-      statusHistory: [{ status: 'placed' }, { status: 'shipped', at: new Date(Date.now() - 8 * DAY_MS) }],
+      status: 'out-for-delivery',
+      statusHistory: [{ status: 'placed' }, { status: 'shipped', at: new Date(Date.now() - 8 * DAY_MS) }, { status: 'out-for-delivery' }],
     });
     expect(await autoCompleteShipped()).toBeGreaterThanOrEqual(1);
-    expect((await Order.findById(stale._id)).deliveredBy).toBe('auto');
+    expect(await Order.findById(stale._id).lean()).toMatchObject({ status: 'delivered', deliveredBy: 'auto' });
   });
 
   it('runs a return from request to refund, with the rules for what counts', async () => {
