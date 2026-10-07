@@ -2,6 +2,7 @@ import { ArrowsIn, Cube, ImageSquare, Minus, Plus } from '@phosphor-icons/react'
 import { lazy, Suspense, useRef, useState } from 'react';
 import { Skeleton } from '../../components/ui/feedback.jsx';
 import { ProductImage } from '../../components/ui/ProductImage.jsx';
+import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { canRender3D } from '../home/capabilities.js';
 
 const ModelViewer = lazy(() => import('../home/ModelViewer.jsx'));
@@ -148,12 +149,15 @@ export function Gallery({ product }) {
   const [mode, setMode] = useState('photo');
   const images = product.images ?? [];
   const current = images[index] ?? images[0];
-  const threeD = canRender3D();
+  // Performance mode keeps the product to photos: no 3D view button, and an open 3D view closes.
+  const performanceMode = usePerformance().on;
+  const threeD = canRender3D() && !performanceMode;
+  const showing3D = threeD && mode === '3d';
 
   return (
     <div className="flex flex-col gap-3">
       <div className="relative aspect-square overflow-hidden rounded-panel bg-plate">
-        {mode === '3d' ? (
+        {showing3D ? (
           <Suspense fallback={<Skeleton className="size-full rounded-none" />}>
             <ModelViewer product={product} />
           </Suspense>
@@ -172,7 +176,7 @@ export function Gallery({ product }) {
                 setMode('photo');
               }}
               aria-label={`Show ${img.alt || `image ${i + 1}`}`}
-              aria-current={mode === 'photo' && i === index}
+              aria-current={!showing3D && i === index}
               className="overflow-hidden rounded-control ring-offset-2 ring-offset-bg aria-[current=true]:ring-2 aria-[current=true]:ring-accent-ink"
             >
               <ProductImage src={img.url} className="size-16" size={160} />
@@ -202,7 +206,7 @@ export function Gallery({ product }) {
         )}
       </div>
       <p className="text-[13px] text-ink-3">
-        {mode === '3d'
+        {showing3D
           ? 'Drag to turn it around.'
           : `${matchMedia('(hover: hover)').matches ? 'Click' : 'Tap'} a spot to zoom in, drag to look around. Photos are rendered from the product model.`}
       </p>
