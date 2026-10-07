@@ -13,7 +13,7 @@ import { useToast } from '../../providers/ToastProvider.jsx';
 
 // Price, stock, quantity and the add-to-cart / buy-now actions beside the gallery.
 export function BuyBox({ product }) {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isRider } = useAuth();
   const cart = useCart();
   const toast = useToast();
   const navigate = useNavigate();
@@ -59,6 +59,7 @@ export function BuyBox({ product }) {
   if (!product.isActive) blocked = 'This product is no longer listed.';
   else if (product.stock === 0) blocked = 'Sold out. Check back later.';
   else if (isAdmin) blocked = "Admin accounts can't buy products.";
+  else if (isRider) blocked = "Rider accounts can't buy products.";
   else if (ownProduct) blocked = 'This is your product.';
 
   const buyRow = useRef(null);
