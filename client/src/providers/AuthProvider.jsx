@@ -46,6 +46,9 @@ export function AuthProvider({ children }) {
       // Which parts of the admin panel this admin may manage; the owner has them all.
       can: (area) => user?.role === 'admin' && (user.isOwner || (user.adminPermissions ?? []).includes(area)),
       isSeller: user?.role === 'seller' && user?.sellerProfile?.status === 'approved',
+      isRider: user?.role === 'rider',
+      // Admins and riders don't buy: no cart, wishlist or checkout. Signed-out visitors can browse and add.
+      canShop: !['admin', 'rider'].includes(user?.role),
       login: async (credentials) =>
         startSession((await api('/auth/login', { method: 'POST', body: credentials })).user),
       register: async (details) =>
