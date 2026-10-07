@@ -22,7 +22,7 @@ export default [
         'warn',
         {
           allowConstantExport: true,
-          allowExportNames: ['useAuth', 'useCart', 'useToast', 'useMyProducts', 'itemSummary', 'tileSpecs', 'useCompare', 'useTitle', 'safeNext', 'canShop', 'sellerOnly', 'adminOnly', 'adminArea', 'useTheme', 'useThemeColors'],
+          allowExportNames: ['useAuth', 'useCart', 'useToast', 'useMyProducts', 'itemSummary', 'tileSpecs', 'useCompare', 'useTitle', 'safeNext', 'canShop', 'riderOnly', 'sellerOnly', 'adminOnly', 'adminArea', 'useTheme', 'useThemeColors'],
         },
       ],
     },
