@@ -1,17 +1,14 @@
 import { House, ShoppingBagOpen, SquaresFour, Storefront, Truck } from '@phosphor-icons/react';
-import { NavLink, useLocation } from 'react-router';
-import { MenuTab } from './MobileMenu.jsx';
+import { NavLink } from 'react-router';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useCart } from '../../providers/CartProvider.jsx';
 
-// Phones get app-style navigation within thumb reach: the main pages, the cart, and a menu for the rest.
+// Phones get app-style navigation within thumb reach: the main pages and the cart. Everything else is in
+// the top bar's menu (MobileMenu).
 // Its height is the --dock token (index.css), which every bottom-fixed element sits above.
 export function MobileTabBar() {
   const { canShop, isRider } = useAuth();
   const { count } = useCart();
-  const { pathname } = useLocation();
-  // The menu tab lights up on the pages it leads to (account, seller, admin, saved).
-  const inMenuArea = /^\/(account|seller|admin)(\/|$)/.test(pathname);
 
   const tabs = [
     { to: '/', label: 'Home', icon: House, end: true },
@@ -53,9 +50,6 @@ export function MobileTabBar() {
             </NavLink>
           </li>
         ))}
-        <li className="flex-1">
-          <MenuTab active={inMenuArea} />
-        </li>
       </ul>
     </nav>
   );
