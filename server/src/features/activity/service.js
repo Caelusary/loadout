@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { ActivityLog, Coupon, Product, Review, User } from '../../models/index.js';
+import { ActivityLog, Coupon, Order, Product, Review, User } from '../../models/index.js';
+import { ON_THE_WAY } from '../../models/Order.js';
 import { AppError, notFound } from '../../lib/AppError.js';
 import { relistProducts, unlistSellerProducts } from '../products/service.js';
 import { notify } from '../notifications/service.js';
@@ -83,6 +84,23 @@ const UNDO = {
     const user = await loadUser(target.id, session);
     if (user.role !== 'customer' || user.sellerProfile) throw stale();
     Object.assign(user, { role: 'admin', adminPermissions: undo.permissions, cart: [] });
+    await user.save({ session });
+  },
+
+  async 'user.rider'({ target, undo }, session) {
+    const user = await loadUser(target.id, session);
+    if (user.role !== 'rider') throw stale();
+    if (await Order.exists({ rider: user._id, status: { $in: ON_THE_WAY } }).session(session)) {
+      throw new AppError(409, 'CONFLICT', 'This rider has deliveries on the way. Undo once those are done.');
+    }
+    Object.assign(user, { role: 'customer', cart: undo.cart ?? [] });
+    await user.save({ session });
+  },
+
+  async 'user.unrider'({ target }, session) {
+    const user = await loadUser(target.id, session);
+    if (user.role !== 'customer' || user.sellerProfile) throw stale();
+    Object.assign(user, { role: 'rider', cart: [] });
     await user.save({ session });
   },
 
