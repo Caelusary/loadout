@@ -91,6 +91,27 @@ describe('cart', () => {
     expect((await User.findById(user._id)).cart).toHaveLength(1);
   });
 
+  it('checks out only the ticked items from the cart, and keeps the rest', async () => {
+    const mika = await signIn('mika');
+    await mika.delete('/api/cart');
+    await mika.post(`/api/cart/${productId(14)}`).send({ qty: 1 });
+    await mika.post(`/api/cart/${productId(15)}`).send({ qty: 2 });
+
+    const res = await mika
+      .post('/api/orders')
+      .send({ fromCart: true, items: [{ productId: productId(15), qty: 2 }], shippingAddress: address, paymentMethod: 'cod' });
+    expect(res.status).toBe(201);
+    expect(items(await mika.get('/api/cart'))).toEqual([{ productId: productId(14), qty: 1 }]);
+
+    // A ticked item whose quantity changed in another tab is refused rather than bought at the old quantity.
+    await mika.put(`/api/cart/${productId(14)}`).send({ qty: 3 });
+    const stale = await mika
+      .post('/api/orders')
+      .send({ fromCart: true, items: [{ productId: productId(14), qty: 1 }], shippingAddress: address, paymentMethod: 'cod' });
+    expect(stale.body.error.code).toBe('CART_CHANGED');
+    await mika.delete('/api/cart');
+  });
+
   it('leaves the cart alone for a buy-now checkout, even when the item is also in the cart', async () => {
     const mika = await signIn('mika');
     await mika.post(`/api/cart/${productId(2)}`).send({ qty: 2 });
