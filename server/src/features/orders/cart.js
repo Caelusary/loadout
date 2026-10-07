@@ -40,6 +40,7 @@ export function ownProductError(productId) {
 
 export function assertCanShop(user) {
   if (user.role === 'admin') throw new AppError(403, 'FORBIDDEN', "Admin accounts can't place orders.");
+  if (user.role === 'rider') throw new AppError(403, 'FORBIDDEN', "Rider accounts can't place orders.");
 }
 
 // Read-only version of checkout's checks, for the discount preview: the same errors checkout would
