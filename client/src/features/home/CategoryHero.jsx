@@ -1,9 +1,10 @@
-import { ArrowRight, Cube, HandGrabbing } from '@phosphor-icons/react';
+import { ArrowRight, HandGrabbing } from '@phosphor-icons/react';
 import { ArcArrowLink } from '../../components/ui/ArcArrowLink.jsx';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from '../../components/layout/Page.jsx';
 import { ButtonLink } from '../../components/ui/Button.jsx';
 import { CATEGORIES, CATEGORY_LABELS, PHOTO_VERSION } from '../../lib/constants.js';
+import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { canRender3D, useActiveOnScreen, useMediaQuery, useReducedMotion } from './capabilities.js';
 import { CATEGORY_MODELS } from './categoryModels.js';
 import { HeroSearch } from './HeroSearch.jsx';
@@ -78,12 +79,10 @@ export function CategoryHero() {
     const id = setTimeout(() => setIdle(true), 400);
     return () => clearTimeout(id);
   }, []);
-  const threeD = useMemo(() => canRender3D(), []);
-  // Phones and tablets show the category photo and only load the 3D engine (about 280 KB) and models
-  // when asked, since parsing and drawing them is what makes the page feel slow there. Once asked, it
-  // stays on for the rest of the visit. Desktop starts it on its own.
-  const lite = useMemo(() => window.matchMedia('(max-width: 1023px)').matches, []);
-  const [want3D, setWant3D] = useState(() => !lite || readEngaged());
+  const canThreeD = useMemo(() => canRender3D(), []);
+  // Performance mode shows the category photo instead, so the 3D engine and models never load.
+  const performanceMode = usePerformance().on;
+  const threeD = canThreeD && !performanceMode;
   const reducedMotion = useReducedMotion();
   const compact = useMediaQuery('(max-width: 1023px)');
   const stage = useRef(null);
@@ -188,10 +187,10 @@ export function CategoryHero() {
           onLostPointerCapture={endDrag}
           className="relative isolate order-1 h-[clamp(200px,29vh,260px)] sm:h-[clamp(260px,40vh,440px)] lg:h-[clamp(300px,48vh,500px)] touch-pan-y overflow-hidden select-none lg:order-2"
         >
-          {/* Without WebGL the stage shows the category's photo. With it, the stage stays empty until the
-              model has drawn and then fades in at full size; a photo first would flash a smaller keyboard.
-              Phones show the photo until the shopper asks for 3D and the model has drawn. */}
-          {(!threeD || (lite && !sceneReady)) && (
+          {/* Without 3D (no WebGL, or Performance mode) the stage shows the category's photo. With it, the
+              stage stays empty until the model has drawn and then fades in at full size; a photo first
+              would flash a smaller keyboard. */}
+          {!threeD && (
             <img
               fetchPriority="high"
               src={`/products/${CATEGORY_MODELS[active].shot}.webp?v=${PHOTO_VERSION}`}
@@ -200,7 +199,7 @@ export function CategoryHero() {
               className="absolute inset-[8%] m-auto size-[84%] object-contain"
             />
           )}
-          {threeD && idle && want3D && (
+          {threeD && idle && (
             <div
               className={`absolute inset-0 transition-opacity duration-500 ease-out ${sceneReady ? dim : 'opacity-0'}`}
             >
@@ -218,19 +217,6 @@ export function CategoryHero() {
           )}
 
           {/* Mounted with the first model, so the hand's nudge plays while it's visible. */}
-          {threeD && lite && !want3D && (
-            <button
-              type="button"
-              onClick={() => {
-                setWant3D(true);
-                engage();
-              }}
-              className="absolute top-3 right-3 flex h-9 items-center gap-2 rounded-full border border-edge bg-plate/85 px-3 text-[13px] font-medium text-ink backdrop-blur-sm active:bg-raised"
-            >
-              <Cube size={16} />
-              View in 3D
-            </button>
-          )}
           {threeD && shown.size > 0 && (
             <div
               aria-hidden="true"
