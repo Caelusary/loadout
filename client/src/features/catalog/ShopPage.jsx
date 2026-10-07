@@ -9,6 +9,7 @@ import { CATEGORIES, CATEGORY_LABELS } from '../../lib/constants.js';
 import { CategoryStrip } from './CategoryStrip.jsx';
 import { Filters } from './Filters.jsx';
 import { ProductGrid } from './ProductTile.jsx';
+import { SortMenu } from './SortMenu.jsx';
 import { useProducts } from './queries.js';
 
 const FILTER_KEYS = ['q', 'category', 'brand', 'switchType', 'connectivity', 'layout', 'resolution', 'minPrice', 'maxPrice', 'inStock', 'onSale'];
@@ -65,21 +66,11 @@ export default function ShopPage() {
           <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => sheet.current?.showModal()}>
             <FadersHorizontal size={16} /> Filters{activeFilters ? ` (${activeFilters})` : ''}
           </Button>
-          <label className="sr-only" htmlFor="sort">
-            Sort by
-          </label>
-          <select
-            id="sort"
+          <SortMenu
+            sorts={sorts}
             value={params.get('sort') ?? defaultSort}
-            onChange={(e) => update({ sort: e.target.value === defaultSort ? '' : e.target.value })}
-            className="h-9 rounded-control border border-seam bg-raised px-3 text-[13px] text-ink hover:border-edge focus:border-accent-ink focus:outline-none"
-          >
-            {sorts.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => update({ sort: value === defaultSort ? '' : value })}
+          />
         </div>
       </div>
 
