@@ -22,6 +22,7 @@ import wishlistRoutes from './features/wishlist/routes.js';
 import cartRoutes from './features/cart/routes.js';
 import activityRoutes from './features/activity/routes.js';
 import returnsRoutes from './features/returns/routes.js';
+import deliveriesRoutes from './features/deliveries/routes.js';
 
 export function createApp() {
   const app = express();
@@ -66,6 +67,7 @@ export function createApp() {
     cartRoutes,
     activityRoutes,
     returnsRoutes,
+    deliveriesRoutes,
   ]) {
     app.use('/api', routes);
   }
