@@ -23,6 +23,7 @@ const STATUS_STYLES = {
   placed: 'border-edge text-ink-2',
   processing: 'border-warn/50 text-warn',
   shipped: 'border-info/50 text-info',
+  'out-for-delivery': 'border-accent-ink/50 text-accent-ink',
   delivered: 'border-ok/50 text-ok',
   cancelled: 'border-bad/50 text-bad',
 };
