@@ -1,4 +1,4 @@
-import { CaretRight, Heart, List, Moon, Package, ShieldCheck, SignOut, Storefront, Sun, Tag, Truck, UserCircle, X } from '@phosphor-icons/react';
+import { CaretRight, Gauge, Heart, List, Moon, Package, ShieldCheck, SignOut, Storefront, Sun, Tag, Truck, UserCircle, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -6,6 +6,7 @@ import { initials } from '../../lib/format.js';
 import { ButtonLink } from '../ui/Button.jsx';
 import { accountLinks } from './accountLinks.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
+import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { useTheme } from '../../providers/ThemeProvider.jsx';
 
 const ICONS = {
@@ -21,23 +22,33 @@ const ICONS = {
 const rowBase = 'flex h-12 w-full items-center gap-3 rounded-control px-3 text-left text-[15px] transition-colors active:bg-raised hover:bg-raised';
 const row = `${rowBase} text-ink-2 hover:text-ink`;
 
-function ThemeSwitch() {
-  const { theme, toggle } = useTheme();
-  const dark = theme === 'dark';
+// One on/off row with a switch on the right.
+function SwitchRow({ icon: Icon, label, on, onToggle }) {
   return (
-    <button type="button" role="switch" aria-checked={dark} onClick={toggle} className={`${row} justify-between`}>
+    <button type="button" role="switch" aria-checked={on} onClick={onToggle} className={`${row} justify-between`}>
       <span className="flex items-center gap-3">
-        {dark ? <Moon size={20} /> : <Sun size={20} />}
-        Dark theme
+        <Icon size={20} />
+        {label}
       </span>
-      <span className={`relative h-6 w-11 rounded-full border transition-colors ${dark ? 'border-accent-ink bg-accent/25' : 'border-seam bg-raised'}`} aria-hidden="true">
-        <span className={`absolute top-0.5 size-[18px] rounded-full transition-[left,background-color] duration-150 ${dark ? 'left-[22px] bg-accent' : 'left-0.5 bg-ink-3'}`} />
+      <span className={`relative h-6 w-11 rounded-full border transition-colors ${on ? 'border-accent-ink bg-accent/25' : 'border-seam bg-raised'}`} aria-hidden="true">
+        <span className={`absolute top-0.5 size-[18px] rounded-full transition-[left,background-color] duration-150 ${on ? 'left-[22px] bg-accent' : 'left-0.5 bg-ink-3'}`} />
       </span>
     </button>
   );
 }
 
-// Phones: the account, its pages, the theme and signing in or out, in a panel that drops down from the
+function ThemeSwitch() {
+  const { theme, toggle } = useTheme();
+  const dark = theme === 'dark';
+  return <SwitchRow icon={dark ? Moon : Sun} label="Dark theme" on={dark} onToggle={toggle} />;
+}
+
+function PerformanceSwitch() {
+  const perf = usePerformance();
+  return <SwitchRow icon={Gauge} label="Performance mode" on={perf.on} onToggle={perf.toggle} />;
+}
+
+// Phones: the account, its pages, the theme, Performance mode and signing in or out, in a panel that drops down from the
 // top bar and is only as tall as what's in it. The header stays visible above it; the page dims below.
 function MenuPanel({ onClose }) {
   const auth = useAuth();
@@ -107,6 +118,7 @@ function MenuPanel({ onClose }) {
         )}
         <div className="mt-2 border-t border-seam pt-2">
           <ThemeSwitch />
+          <PerformanceSwitch />
           {auth.user && (
             <button
               type="button"
