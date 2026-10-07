@@ -15,9 +15,12 @@ import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { ReturnsPanel } from './ReturnsPanel.jsx';
 
-const STEPS = ['placed', 'processing', 'shipped', 'delivered'];
-const NEXT = { placed: 'processing', processing: 'shipped', shipped: 'delivered' };
-const NEXT_LABEL = { processing: 'Start processing', shipped: 'Mark as shipped', delivered: 'Mark as delivered' };
+const STEPS = ['placed', 'processing', 'shipped', 'out-for-delivery', 'delivered'];
+// The shop prepares and hands over; the rider takes it from there.
+const NEXT = { placed: 'processing', processing: 'shipped' };
+const NEXT_LABEL = { processing: 'Start processing', shipped: 'Hand to rider' };
+const RIDER_NEXT = { shipped: 'out-for-delivery', 'out-for-delivery': 'delivered' };
+const RIDER_LABEL = { 'out-for-delivery': 'Out for delivery', delivered: 'Mark delivered' };
 
 // A step tracker built from the order's status history. Each reached step shows when it happened;
 // a cancelled order shows the steps it got through and where it stopped.
@@ -52,7 +55,8 @@ function Timeline({ order }) {
             </div>
             <div className="flex flex-col pb-1">
               <span className={`text-[14px] font-medium ${stop ? 'text-bad' : done ? 'text-ink' : 'text-ink-3'}`}>{STATUS_LABELS[step]}</span>
-              <span className="font-mono text-[12px] text-ink-3 tabular-nums">{when[step] ? formatDateTime(when[step]) : 'Not yet'}</span>
+              {/* Orders from before riders went straight from shipped to delivered. */}
+              <span className="font-mono text-[12px] text-ink-3 tabular-nums">{when[step] ? formatDateTime(when[step]) : done ? '—' : 'Not yet'}</span>
             </div>
           </li>
         );
@@ -90,9 +94,12 @@ export default function OrderDetailPage() {
     },
     onError: (err) => toast.error(err.message),
   });
-  const receive = useMutation({
-    mutationFn: () => api(`/orders/${id}/received`, { method: 'PATCH' }),
-    onSuccess: (res) => onDone('Thanks! The order is marked as received.')(res),
+  const deliver = useMutation({
+    mutationFn: (status) => api(`/deliveries/${id}`, { method: 'PATCH', body: { status } }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['deliveries'] });
+      onDone(`Order marked as ${STATUS_LABELS[res.order.status].toLowerCase()}`)(res);
+    },
     onError: (err) => toast.error(err.message),
   });
   const advance = useMutation({
@@ -113,10 +120,12 @@ export default function OrderDetailPage() {
 
   const isCustomer = order.user?._id === user._id;
   const isSellerOfOrder = order.seller?._id === user._id;
+  const isRiderOfOrder = order.rider?._id === user._id;
+  const riderNext = isRiderOfOrder ? RIDER_NEXT[order.status] : undefined;
   const next = NEXT[order.status];
   const isOrdersAdmin = can('orders');
   const canCancel = (isCustomer && order.status === 'placed') || (isOrdersAdmin && !['delivered', 'cancelled'].includes(order.status));
-  const backTo = isOrdersAdmin ? '/admin/orders' : isSellerOfOrder ? '/seller/orders' : '/account/orders';
+  const backTo = isOrdersAdmin ? '/admin/orders' : isSellerOfOrder ? '/seller/orders' : isRiderOfOrder ? '/deliveries' : '/account/orders';
   const cancelledBy = { customer: 'the customer', seller: 'the shop', admin: 'the store admin' }[order.cancelledBy] ?? 'the customer';
 
   return (
@@ -149,9 +158,9 @@ export default function OrderDetailPage() {
               {NEXT_LABEL[next]}
             </Button>
           )}
-          {isCustomer && order.status === 'shipped' && (
-            <Button onClick={() => receive.mutate()} loading={receive.isPending}>
-              I received it
+          {riderNext && (
+            <Button onClick={() => deliver.mutate(riderNext)} loading={deliver.isPending}>
+              {RIDER_LABEL[riderNext]}
             </Button>
           )}
           {canCancel && (
@@ -221,6 +230,13 @@ export default function OrderDetailPage() {
             <h2 className="text-[13px] font-medium text-ink-3">Payment</h2>
             <p>{PAYMENT_LABELS[order.paymentMethod]}</p>
           </div>
+          {order.rider && (
+            <div className="flex flex-col gap-1">
+              <h2 className="text-[13px] font-medium text-ink-3">Rider</h2>
+              <p>{isRiderOfOrder ? 'You' : order.rider.name}</p>
+              {order.deliveredBy === 'rider' && <p className="text-ink-2">Delivered by the rider</p>}
+            </div>
+          )}
           {!isCustomer && order.user && (
             <div className="flex flex-col gap-1">
               <h2 className="text-[13px] font-medium text-ink-3">Customer</h2>
@@ -231,7 +247,7 @@ export default function OrderDetailPage() {
         </aside>
       </div>
 
-      <ReturnsPanel order={order} isCustomer={isCustomer} isSellerOfOrder={isSellerOfOrder} />
+      {!isRiderOfOrder && <ReturnsPanel order={order} isCustomer={isCustomer} isSellerOfOrder={isSellerOfOrder} />}
 
       <ConfirmDialog
         open={confirmCancel}
