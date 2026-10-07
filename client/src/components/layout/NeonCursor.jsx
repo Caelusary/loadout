@@ -49,7 +49,8 @@ export function NeonCursor() {
         const b = target.getBoundingClientRect();
         goal = { x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width + PAD * 2, h: b.height + PAD * 2 };
       }
-      const k = 0.5; // how quickly the brackets catch up: a slight trail, not a lag
+      // How quickly the brackets catch up: a slight trail, not a lag. Performance mode snaps them on.
+      const k = document.documentElement.dataset.performance ? 1 : 0.5;
       r.x += (goal.x - r.x) * k;
       r.y += (goal.y - r.y) * k;
       r.w += (goal.w - r.w) * k;
@@ -69,6 +70,7 @@ export function NeonCursor() {
     };
 
     const onDown = (e) => {
+      if (document.documentElement.dataset.performance) return; // no click pulse in Performance mode
       const ring = document.createElement('span');
       ring.className = 'neon-pulse';
       ring.style.left = `${e.clientX}px`;
