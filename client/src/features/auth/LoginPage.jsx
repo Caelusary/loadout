@@ -44,7 +44,7 @@ export default function LoginPage() {
       footer={
         <>
           New here?{' '}
-          <Link to={`/register${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-accent-ink hover:underline">
+          <Link to={`/register${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-accent-ink underline underline-offset-2">
             Create an account
           </Link>
         </>
