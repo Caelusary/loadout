@@ -116,7 +116,7 @@ export function ReviewSection({ product }) {
       <div className="mb-10">
         {!user ? (
           <p className="text-sm text-ink-2">
-            <Link to={`/login?next=${encodeURIComponent(location.pathname)}`} className="text-accent-ink hover:underline">
+            <Link to={`/login?next=${encodeURIComponent(location.pathname)}`} className="text-accent-ink underline underline-offset-2">
               Sign in
             </Link>{' '}
             to review this product.
