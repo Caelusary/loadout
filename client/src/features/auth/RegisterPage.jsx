@@ -49,7 +49,7 @@ export default function RegisterPage() {
       footer={
         <>
           Already have one?{' '}
-          <Link to={`/login${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-accent-ink hover:underline">
+          <Link to={`/login${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-accent-ink underline underline-offset-2">
             Sign in
           </Link>
         </>
