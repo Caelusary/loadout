@@ -156,7 +156,7 @@ export default function ComparePage() {
       {!isPending && products.length < 4 && (
         <p className="mt-4 text-[13px] text-ink-3">
           Add up to {4 - products.length} more from{' '}
-          <Link to={`/shop?category=${category}`} className="text-accent-ink hover:underline">
+          <Link to={`/shop?category=${category}`} className="text-accent-ink underline underline-offset-2">
             {CATEGORY_LABELS[category]?.toLowerCase() ?? 'the shop'}
           </Link>
           .
