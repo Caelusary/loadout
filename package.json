@@ -13,11 +13,14 @@
     "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w client",
     "test": "npm test -w server && npm test -w client",
+    "test:e2e": "playwright test",
     "lint": "npm run lint -w client && npm run lint -w server",
     "format": "prettier --write .",
     "seed": "npm run seed -w server --"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
     "concurrently": "^9.2.4",
     "prettier": "^3.9.9"
   }
