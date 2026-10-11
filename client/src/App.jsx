@@ -1,7 +1,15 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Outlet, Route, Routes, useLocation } from 'react-router';
 import { Footer } from './components/layout/Footer.jsx';
-import { adminArea, adminOnly, canShop, GuestOnly, RequireAuth, riderOnly, sellerOnly } from './components/layout/guards.jsx';
+import {
+  adminArea,
+  adminOnly,
+  canShop,
+  GuestOnly,
+  RequireAuth,
+  riderOnly,
+  sellerOnly,
+} from './components/layout/guards.jsx';
 import { PageErrorBoundary } from './components/layout/PageErrorBoundary.jsx';
 import { PageSkeleton } from './components/layout/PageSkeleton.jsx';
 import { Navbar } from './components/layout/Navbar.jsx';
@@ -91,9 +99,16 @@ function Layout() {
 function AccountLayout() {
   const { user, canShop } = useAuth();
   const links = [
-    { to: '/account', label: 'Profile', end: true },
-    ...(canShop ? [{ to: '/account/orders', label: 'My orders' }, { to: '/account/wishlist', label: 'Wishlist' }] : []),
-    ...(user?.role === 'customer' || user?.sellerProfile ? [{ to: '/account/sell', label: 'Selling' }] : []),
+    { to: '/account', label: 'Settings', end: true },
+    ...(canShop
+      ? [
+          { to: '/account/orders', label: 'My orders' },
+          { to: '/account/wishlist', label: 'Wishlist' },
+        ]
+      : []),
+    ...(user?.role === 'customer' || user?.sellerProfile
+      ? [{ to: '/account/sell', label: 'Sell on Loadout' }]
+      : []),
   ];
   return <PanelLayout title="Account" links={links} />;
 }
