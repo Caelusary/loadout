@@ -61,7 +61,7 @@ export async function seed() {
         items,
         shippingAddress: users[customer].shippingAddress,
         shippingCents: shippingFor(items.reduce((sum, i) => sum + i.priceCents * i.qty, 0)),
-        paymentMethod: daysAgo % 2 ? 'cod' : 'mock-card',
+        paymentMethod: ['cod', 'mock-gcash', 'mock-card'][daysAgo % 3],
         status,
         ...(status === 'cancelled' && { cancelledBy: 'customer' }),
         // Anything that left the shop went with a rider, taking turns.
