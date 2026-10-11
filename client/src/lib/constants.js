@@ -5,7 +5,7 @@ export const SWITCH_TYPES = ['linear', 'tactile', 'clicky', 'magnetic'];
 export const LAYOUTS = ['full', 'tkl', '75', '65', '60'];
 export const RESOLUTIONS = ['720p', '1080p', '1440p', '4k'];
 export const ORDER_STATUSES = ['placed', 'processing', 'shipped', 'out-for-delivery', 'delivered', 'cancelled'];
-export const PAYMENT_METHODS = ['cod', 'mock-card'];
+export const PAYMENT_METHODS = ['cod', 'mock-gcash', 'mock-card'];
 
 export const CATEGORY_LABELS = {
   keyboard: 'Keyboards',
@@ -27,7 +27,7 @@ export const CONNECTIVITY_LABELS = { wired: 'Wired', wireless: 'Wireless', bluet
 export const SWITCH_LABELS = { linear: 'Linear', tactile: 'Tactile', clicky: 'Clicky', magnetic: 'Magnetic' };
 export const LAYOUT_LABELS = { full: 'Full size', tkl: 'TKL', 75: '75%', 65: '65%', 60: '60%' };
 export const RESOLUTION_LABELS = { '720p': '720p', '1080p': '1080p', '1440p': '1440p', '4k': '4K' };
-export const PAYMENT_LABELS = { cod: 'Cash on delivery', 'mock-card': 'Card (simulated)' };
+export const PAYMENT_LABELS = { cod: 'Cash on delivery', 'mock-gcash': 'GCash (simulated)', 'mock-card': 'Card (simulated)' };
 export const STATUS_LABELS = {
   placed: 'Placed',
   processing: 'Processing',
