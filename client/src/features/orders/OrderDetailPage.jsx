@@ -126,13 +126,22 @@ export default function OrderDetailPage() {
   const isOrdersAdmin = can('orders');
   const canCancel = (isCustomer && order.status === 'placed') || (isOrdersAdmin && !['delivered', 'cancelled'].includes(order.status));
   const backTo = isOrdersAdmin ? '/admin/orders' : isSellerOfOrder ? '/seller/orders' : isRiderOfOrder ? '/deliveries' : '/account/orders';
+  const backLabel = { '/account/orders': 'My orders', '/deliveries': 'Deliveries' }[backTo] ?? 'Orders';
   const cancelledBy = { customer: 'the customer', seller: 'the shop', admin: 'the store admin' }[order.cancelledBy] ?? 'the customer';
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 pt-8 sm:px-6">
-      <Link to={backTo} className="text-[13px] text-ink-3 hover:text-ink">
-        Back to orders
-      </Link>
+      {/* A breadcrumb rather than a second back button: it names the list this order belongs to, which still
+          works when the page was opened directly (from a notification) and the header's back would go home. */}
+      <nav aria-label="Breadcrumb" className="flex gap-2 text-[13px] text-ink-3">
+        <Link to={backTo} className="-my-2.5 py-2.5 hover:text-ink">
+          {backLabel}
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span className="text-ink-2" aria-current="page">
+          {orderNumber(order._id)}
+        </span>
+      </nav>
       <div className="mt-3 mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
