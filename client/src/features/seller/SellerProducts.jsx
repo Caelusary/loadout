@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
-import { Button, ButtonLink } from '../../components/ui/Button.jsx';
+import { ButtonLink } from '../../components/ui/Button.jsx';
 import { ConfirmDialog } from '../../components/ui/Dialog.jsx';
 import { Price, Tag } from '../../components/ui/chips.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
@@ -11,6 +11,7 @@ import { Cell, Table } from '../../components/ui/Table.jsx';
 import { api, sizedImageUrl } from '../../lib/api.js';
 import { CATEGORY_SINGULAR } from '../../lib/constants.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
+import { RowMenu } from '../../components/ui/RowMenu.jsx';
 
 export const useMyProducts = () =>
   useQuery({ queryKey: ['products', 'mine'], queryFn: ({ signal }) => api('/products/mine', { signal }).then((r) => r.items) });
@@ -78,8 +79,9 @@ export default function SellerProducts() {
             <tr key={p._id}>
               <Cell>
                 <div className="flex items-center gap-3">
-                  <div className="size-11 shrink-0 overflow-hidden rounded-control bg-plate">
-                    {p.images[0] && <img src={sizedImageUrl(p.images[0].url, 120)} alt="" className="size-full object-cover" />}
+                  {/* A lighter tile than the page so the (transparent) product photo is actually visible at this size. */}
+                  <div className="size-12 shrink-0 overflow-hidden rounded-control border border-seam bg-raised">
+                    {p.images[0] && <img src={sizedImageUrl(p.images[0].url, 120)} alt="" className="size-full object-contain p-0.5" />}
                   </div>
                   <div className="flex min-w-0 flex-col">
                     <Link to={`/p/${p.slug}`} className="truncate font-medium hover:text-accent-ink">
@@ -99,23 +101,29 @@ export default function SellerProducts() {
                 <ListingTag product={p} />
               </Cell>
               <Cell align="right">
-                <div className="flex justify-end gap-1">
-                  <ButtonLink to={`/seller/products/${p._id}/edit`} variant="ghost" size="sm">
+                {/* Edit is the everyday action, so it stays visible; listing and deleting sit in the menu. */}
+                <div className="flex items-center justify-end gap-2">
+                  <ButtonLink to={`/seller/products/${p._id}/edit`} variant="secondary" size="sm">
                     Edit
                   </ButtonLink>
-                  {p.unlistedBy !== 'admin' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      loading={toggle.isPending && toggle.variables?._id === p._id}
-                      onClick={() => toggle.mutate(p)}
-                    >
-                      {p.isActive ? 'Unlist' : 'List'}
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" className="hover:text-bad" onClick={() => setRemoving(p)}>
-                    Delete
-                  </Button>
+                  <RowMenu
+                    label="More"
+                    ariaLabel={`More for ${p.name}`}
+                    groups={[
+                      {
+                        label: 'Listing',
+                        items:
+                          p.unlistedBy === 'admin'
+                            ? []
+                            : [{ label: p.isActive ? 'Unlist' : 'List', onSelect: () => toggle.mutate(p) }],
+                      },
+                      {
+                        label: 'Danger',
+                        danger: true,
+                        items: [{ label: 'Delete product', onSelect: () => setRemoving(p) }],
+                      },
+                    ]}
+                  />
                 </div>
               </Cell>
             </tr>
