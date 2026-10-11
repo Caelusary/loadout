@@ -2,18 +2,19 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useState } from 'react';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
-import { Button } from '../../components/ui/Button.jsx';
 import { ConfirmDialog } from '../../components/ui/Dialog.jsx';
 import { Checkbox } from '../../components/ui/fields.jsx';
 import { Tag } from '../../components/ui/chips.jsx';
 import { Pagination } from '../../components/ui/controls.jsx';
+import { RowMenu } from '../../components/ui/RowMenu.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { Cell, Table } from '../../components/ui/Table.jsx';
 import { api, toQuery } from '../../lib/api.js';
 import { ADMIN_AREA_LABELS } from '../../lib/constants.js';
-import { formatDate } from '../../lib/format.js';
+import { formatDate, plural } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
+import { SortMenu } from '../catalog/SortMenu.jsx';
 
 const ROLE_LABELS = { customer: 'Customer', seller: 'Seller', rider: 'Rider', admin: 'Admin' };
 const AREAS = ADMIN_AREA_LABELS;
@@ -28,16 +29,23 @@ const CONFIRMS = {
     label: 'Deactivate',
     body: "They're signed out and can't sign in. A seller's products are unlisted. The owner can undo this from Activity.",
     ordersChoice: true,
-    request: (u, { cancelOrders }) => api(`/admin/users/${u._id}`, { method: 'PATCH', body: { isActive: false, ...(cancelOrders && { cancelOrders }) } }),
-    done: (u, res) => `${u.name} is deactivated${res.cancelled ? ` and ${res.cancelled} order(s) cancelled` : ''}`,
+    request: (u, { cancelOrders }) =>
+      api(`/admin/users/${u._id}`, {
+        method: 'PATCH',
+        body: { isActive: false, ...(cancelOrders && { cancelOrders }) },
+      }),
+    done: (u, res) =>
+      `${u.name} is deactivated${res.cancelled ? ` and ${plural(res.cancelled, 'order')} cancelled` : ''}`,
   },
   delete: {
     title: (u) => `Delete ${u.name}?`,
     label: 'Delete account',
     body: 'Their reviews are removed and any products they sell are unlisted. The owner can restore the account from Activity for 30 days.',
     ordersChoice: true,
-    request: (u, { cancelOrders }) => api(`/admin/users/${u._id}${cancelOrders ? '?cancelOrders=1' : ''}`, { method: 'DELETE' }),
-    done: (u, res) => `${u.name}'s account is deleted${res.cancelled ? ` and ${res.cancelled} order(s) cancelled` : ''}`,
+    request: (u, { cancelOrders }) =>
+      api(`/admin/users/${u._id}${cancelOrders ? '?cancelOrders=1' : ''}`, { method: 'DELETE' }),
+    done: (u, res) =>
+      `${u.name}'s account is deleted${res.cancelled ? ` and ${plural(res.cancelled, 'order')} cancelled` : ''}`,
   },
   resetEmail: {
     title: (u) => `Email ${u.name} a reset link?`,
@@ -78,6 +86,12 @@ const CONFIRMS = {
     done: (u) => `${u.name} is a customer again`,
   },
 };
+
+// Two areas by name, then a count, so an admin's row stays two lines; the full list is in the tooltip and Edit access.
+const areaSummary = (areas) =>
+  [...areas.slice(0, 2).map((a) => AREAS[a]), ...(areas.length > 2 ? [`+${areas.length - 2}`] : [])].join(
+    ' · ',
+  );
 
 export default function AdminUsers() {
   useTitle('Users');
@@ -131,7 +145,8 @@ export default function AdminUsers() {
   const dialog = confirming && CONFIRMS[confirming.kind];
 
   const saveAccess = useMutation({
-    mutationFn: ({ user, areas }) => api(`/admin/users/${user._id}`, { method: 'PATCH', body: { permissions: areas } }),
+    mutationFn: ({ user, areas }) =>
+      api(`/admin/users/${user._id}`, { method: 'PATCH', body: { permissions: areas } }),
     onSuccess: (res) => {
       toast.show(`${res.user.name}'s access is saved`);
       setAccess(null);
@@ -168,22 +183,16 @@ export default function AdminUsers() {
             className="h-10 w-full rounded-control border border-edge bg-bg px-3 text-sm placeholder:text-ink-3 focus:border-accent-ink focus:outline-none"
           />
         </form>
-        <select
-          aria-label="Filter by role"
+        <SortMenu
+          label="Role"
+          title="Filter by role"
+          sorts={[['', 'All roles'], ...Object.entries(ROLE_LABELS)]}
           value={role}
-          onChange={(e) => {
-            setRole(e.target.value);
+          onChange={(v) => {
+            setRole(v);
             setPage(1);
           }}
-          className="h-10 rounded-control border border-edge bg-bg px-3 text-sm focus:border-accent-ink focus:outline-none"
-        >
-          <option value="">All roles</option>
-          {Object.entries(ROLE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        />
       </div>
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
@@ -192,8 +201,18 @@ export default function AdminUsers() {
       ) : (
         <>
           <Table
-            columns={[{ label: 'Name' }, { label: 'Role' }, { label: 'Joined' }, { label: 'Status' }, { label: 'Actions', align: 'right' }]}
-            empty={data.items.length === 0 && <EmptyState title="No users match">Try another search or role.</EmptyState>}
+            columns={[
+              { label: 'Name' },
+              { label: 'Role' },
+              { label: 'Joined' },
+              { label: 'Status' },
+              { label: 'Actions', align: 'right' },
+            ]}
+            empty={
+              data.items.length === 0 && (
+                <EmptyState title="No users match">Try another search or role.</EmptyState>
+              )
+            }
           >
             {data.items.map((u) => (
               <tr key={u._id}>
@@ -208,10 +227,11 @@ export default function AdminUsers() {
                     {u.isOwner ? 'Owner' : ROLE_LABELS[u.role]}
                     {u.sellerProfile && u.role !== 'seller' && <span className="text-ink-3"> (applied)</span>}
                     {u.role === 'admin' && !u.isOwner && (
-                      <span className="block text-[12px] text-ink-3">
-                        {u.adminPermissions?.length
-                          ? u.adminPermissions.map((a) => AREAS[a]).join(', ')
-                          : 'Dashboard only'}
+                      <span
+                        className="block text-[12px] text-ink-3"
+                        title={u.adminPermissions?.map((a) => AREAS[a]).join(', ')}
+                      >
+                        {u.adminPermissions?.length ? areaSummary(u.adminPermissions) : 'Dashboard only'}
                       </span>
                     )}
                   </span>
@@ -222,49 +242,68 @@ export default function AdminUsers() {
                   {u._id === me._id ? (
                     <span className="text-[13px] text-ink-3">You</span>
                   ) : u.isOwner || (u.role === 'admin' && !me.isOwner) ? (
-                    <span className="text-[13px] text-ink-3">{u.isOwner ? 'Owner' : 'Owner only'}</span>
+                    <span className="text-[13px] text-ink-3">{u.isOwner ? 'Owner' : 'View only'}</span>
                   ) : (
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {me.isOwner && u.role === 'customer' && !u.sellerProfile && (
-                        <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'promote' })}>
-                          Make admin
-                        </Button>
-                      )}
-                      {u.role === 'customer' && !u.sellerProfile && (
-                        <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'makeRider' })}>
-                          Make rider
-                        </Button>
-                      )}
-                      {u.role === 'rider' && (
-                        <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'removeRider' })}>
-                          Remove rider
-                        </Button>
-                      )}
-                      {me.isOwner && u.role === 'admin' && (
-                        <>
-                          <Button variant="ghost" size="sm" onClick={() => setAccess({ user: u, areas: u.adminPermissions ?? [] })}>
-                            Access
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'demote' })}>
-                            Remove admin
-                          </Button>
-                        </>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => setConfirming({ user: u, kind: 'resetEmail' })}>
-                        Send reset email
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        loading={toggle.isPending && toggle.variables?._id === u._id}
-                        onClick={() => (u.isActive ? setConfirming({ user: u, kind: 'deactivate' }) : toggle.mutate(u))}
-                      >
-                        {u.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button variant="ghost" size="sm" className="hover:text-bad" onClick={() => setConfirming({ user: u, kind: 'delete' })}>
-                        Delete
-                      </Button>
-                    </div>
+                    <RowMenu
+                      ariaLabel={`Manage ${u.name}`}
+                      groups={[
+                        {
+                          label: 'Role',
+                          items: [
+                            me.isOwner &&
+                              u.role === 'customer' &&
+                              !u.sellerProfile && {
+                                label: 'Make admin',
+                                onSelect: () => setConfirming({ user: u, kind: 'promote' }),
+                              },
+                            u.role === 'customer' &&
+                              !u.sellerProfile && {
+                                label: 'Make rider',
+                                onSelect: () => setConfirming({ user: u, kind: 'makeRider' }),
+                              },
+                            u.role === 'rider' && {
+                              label: 'Remove rider',
+                              onSelect: () => setConfirming({ user: u, kind: 'removeRider' }),
+                            },
+                            me.isOwner &&
+                              u.role === 'admin' && {
+                                label: 'Edit access…',
+                                onSelect: () => setAccess({ user: u, areas: u.adminPermissions ?? [] }),
+                              },
+                            me.isOwner &&
+                              u.role === 'admin' && {
+                                label: 'Remove admin',
+                                onSelect: () => setConfirming({ user: u, kind: 'demote' }),
+                              },
+                          ].filter(Boolean),
+                        },
+                        {
+                          label: 'Account',
+                          items: [
+                            {
+                              label: 'Send reset email',
+                              onSelect: () => setConfirming({ user: u, kind: 'resetEmail' }),
+                            },
+                            u.isActive
+                              ? {
+                                  label: 'Deactivate',
+                                  onSelect: () => setConfirming({ user: u, kind: 'deactivate' }),
+                                }
+                              : { label: 'Reactivate', onSelect: () => toggle.mutate(u) },
+                          ],
+                        },
+                        {
+                          label: 'Danger',
+                          danger: true,
+                          items: [
+                            {
+                              label: 'Delete account',
+                              onSelect: () => setConfirming({ user: u, kind: 'delete' }),
+                            },
+                          ],
+                        },
+                      ]}
+                    />
                   )}
                 </Cell>
               </tr>
@@ -303,7 +342,9 @@ export default function AdminUsers() {
         onConfirm={() => saveAccess.mutate(access)}
         onClose={() => setAccess(null)}
       >
-        <p>The dashboard and activity log are always open. Every change here is logged, and you can undo it.</p>
+        <p>
+          The dashboard and activity log are always open. Every change here is logged, and you can undo it.
+        </p>
         <div className="mt-4 flex flex-col gap-3">
           {Object.entries(AREAS).map(([area, label]) => (
             <Checkbox
