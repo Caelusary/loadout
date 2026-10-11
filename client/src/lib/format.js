@@ -79,3 +79,6 @@ export function refundLevel(order) {
   const paidForItems = (order.subtotalCents ?? 0) - (order.discountCents ?? 0);
   return order.refundedCents >= paidForItems ? 'full' : 'partial';
 }
+
+// "1 item", "3 items": a count with its noun, in place of "item(s)".
+export const plural = (n, word) => `${n} ${n === 1 ? word : `${word}s`}`;
