@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toQuery } from '../../lib/api.js';
 import { CATEGORY_LABELS } from '../../lib/constants.js';
+import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
 // Matches the server, which only reads the first 80 characters of a search.
 const MAX_SEARCH = 80;
@@ -101,8 +102,8 @@ export function HeroSearch({ category, picker }) {
             type="submit"
             className="glow inline-flex h-14 shrink-0 items-center gap-2 rounded-control bg-accent px-5 text-[15px] font-semibold text-on-accent transition-[filter,transform] duration-150 ease-out hover:brightness-105 active:scale-[0.98] max-sm:px-4"
           >
+            <MagnifyingGlass size={20} weight="bold" />
             <span className="max-sm:sr-only">Search</span>
-            <ArrowRight size={18} weight="bold" />
           </button>
         </div>
         {message && (
@@ -114,10 +115,11 @@ export function HeroSearch({ category, picker }) {
       {/* Phones scroll the starters sideways; wider screens wrap them. */}
       {picker}
       {/* Keyed by category so a new set fades in when a tile is picked. */}
-      <ul
+      <ScrollRow
+        as="ul"
         key={category}
         aria-label={`Popular ${label} searches`}
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 flex gap-2 px-4 sm:mx-0 sm:flex-wrap sm:px-0"
       >
         {STARTERS[category].map(([text, filters]) => (
           <li key={text} className="shrink-0 transition-opacity duration-300 ease-out starting:opacity-0">
@@ -138,7 +140,7 @@ export function HeroSearch({ category, picker }) {
             <ArrowRight size={14} />
           </Link>
         </li>
-      </ul>
+      </ScrollRow>
     </div>
   );
 }
