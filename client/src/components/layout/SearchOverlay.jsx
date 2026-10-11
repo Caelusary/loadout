@@ -18,7 +18,7 @@ export function SearchOverlay() {
           // Focus inside the tap itself, or phones won't raise the keyboard.
           input.current?.focus();
         }}
-        className="grid size-10 place-items-center rounded-control text-ink-2 hover:bg-raised hover:text-ink md:hidden"
+        className="grid size-10 place-items-center rounded-control text-ink-2 hover:bg-raised hover:text-ink lg:hidden"
       >
         <MagnifyingGlass size={20} />
       </button>
