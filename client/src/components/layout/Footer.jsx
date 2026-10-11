@@ -1,11 +1,31 @@
 import { Link } from 'react-router';
 import { CATEGORIES, CATEGORY_LABELS } from '../../lib/constants.js';
+import { useAuth } from '../../providers/AuthProvider.jsx';
+import { accountSections } from './accountLinks.js';
+
+const link = 'w-fit text-ink-2 hover:text-ink';
+
+// The Account column matches the account menu: a rider or admin never sees cart or order links they can't use.
+// Guests get the shopper links, which lead through sign-in.
+function accountLinks(auth) {
+  if (!auth.user) {
+    return [
+      ['/account/orders', 'My orders'],
+      ['/account/sell', 'Sell on Loadout'],
+      ['/cart', 'Cart'],
+    ];
+  }
+  const { workspace, you } = accountSections(auth);
+  return [...workspace, ...you, ['/account', 'Account settings']];
+}
 
 export function Footer() {
+  const auth = useAuth();
   return (
     <footer className="mt-24 border-t border-seam">
-      <div className="mx-auto grid w-full max-w-[1280px] gap-10 px-4 py-12 sm:grid-cols-[1.4fr_1fr_1fr] sm:px-6">
-        <div className="flex max-w-xs flex-col gap-2">
+      {/* Phones: the brand line on top, then Shop and Account side by side, so the footer is half as tall. */}
+      <div className="mx-auto grid w-full max-w-[1280px] grid-cols-2 gap-x-6 gap-y-8 px-4 py-10 sm:grid-cols-[1.4fr_1fr_1fr] sm:gap-10 sm:px-6 sm:py-12">
+        <div className="col-span-2 flex max-w-xs flex-col gap-2 sm:col-span-1">
           <p className="widest text-base font-extrabold">Loadout</p>
           <p className="text-sm text-ink-3">
             Desk gear from independent shops. Group 3, C3A final project. Payments are simulated.
@@ -14,22 +34,18 @@ export function Footer() {
         <nav aria-label="Categories" className="flex flex-col gap-2 text-sm">
           <p className="text-[13px] font-medium text-ink-3">Shop</p>
           {CATEGORIES.map((c) => (
-            <Link key={c} to={`/shop?category=${c}`} className="w-fit text-ink-2 hover:text-ink">
+            <Link key={c} to={`/shop?category=${c}`} className={link}>
               {CATEGORY_LABELS[c]}
             </Link>
           ))}
         </nav>
         <nav aria-label="Account" className="flex flex-col gap-2 text-sm">
           <p className="text-[13px] font-medium text-ink-3">Account</p>
-          <Link to="/account/orders" className="w-fit text-ink-2 hover:text-ink">
-            My orders
-          </Link>
-          <Link to="/account/sell" className="w-fit text-ink-2 hover:text-ink">
-            Sell on Loadout
-          </Link>
-          <Link to="/cart" className="w-fit text-ink-2 hover:text-ink">
-            Cart
-          </Link>
+          {accountLinks(auth).map(([to, label]) => (
+            <Link key={to} to={to} className={link}>
+              {label}
+            </Link>
+          ))}
         </nav>
       </div>
     </footer>
