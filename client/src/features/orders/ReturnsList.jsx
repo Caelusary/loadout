@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.j
 import { Cell, Table } from '../../components/ui/Table.jsx';
 import { api, toQuery } from '../../lib/api.js';
 import { formatDate, formatMoney, orderNumber } from '../../lib/format.js';
+import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
 const LABELS = {
   stuck: 'Stuck with the shop',
@@ -35,7 +36,7 @@ export function ReturnsList({ title, description, endpoint, statuses, showShop }
   return (
     <>
       <PanelHeader title={title} description={description} />
-      <div role="tablist" aria-label="Filter by status" className="mb-5 flex flex-wrap gap-1">
+      <ScrollRow role="tablist" aria-label="Filter by status" className="mb-5 flex gap-1">
         {statuses.map((s) => (
           <button
             key={s}
@@ -45,12 +46,12 @@ export function ReturnsList({ title, description, endpoint, statuses, showShop }
               setStatus(s);
               setPage(1);
             }}
-            className={`h-9 rounded-control px-3 text-sm transition-colors ${status === s ? 'bg-raised text-ink' : 'text-ink-2 hover:text-ink'}`}
+            className={`h-9 shrink-0 rounded-control px-3 text-sm whitespace-nowrap transition-colors ${status === s ? 'bg-raised text-ink' : 'text-ink-2 hover:text-ink'}`}
           >
             {LABELS[s]}
           </button>
         ))}
-      </div>
+      </ScrollRow>
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isPending ? (
