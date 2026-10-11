@@ -41,7 +41,7 @@ export default function AdminDashboard() {
                   <li key={s.sellerId} className="flex items-baseline justify-between gap-4">
                     <span className="truncate text-ink-2">{s.shopName}</span>
                     <span className="font-mono text-ink tabular-nums">
-                      {formatMoney(s.salesCents)}, {s.orders} orders
+                      {formatMoney(s.salesCents)}, {s.orders} {s.orders === 1 ? 'order' : 'orders'}
                     </span>
                   </li>
                 ))}
