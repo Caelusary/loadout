@@ -29,6 +29,7 @@ const schema = z.object({
 
 const PAYMENT_OPTIONS = [
   { value: 'cod', label: PAYMENT_LABELS.cod, description: 'Pay the courier when it arrives.' },
+  { value: 'mock-gcash', label: PAYMENT_LABELS['mock-gcash'], description: 'No GCash number or login is asked for. For the demo.' },
   { value: 'mock-card', label: PAYMENT_LABELS['mock-card'], description: 'No card details are collected. For the demo.' },
 ];
 
