@@ -17,6 +17,12 @@ import { CATEGORY_MODELS } from '../home/categoryModels.js';
 
 const KEY = 'loadout_builder_v1';
 
+// "Choose an accessory", "Choose a keyboard".
+const chooseLabel = (category) => {
+  const word = CATEGORY_SINGULAR[category].toLowerCase();
+  return `Choose ${/^[aeiou]/.test(word) ? 'an' : 'a'} ${word}`;
+};
+
 function readPicks() {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}');
@@ -47,11 +53,11 @@ function Picker({ category, currentId, onPick, onClose }) {
     <dialog
       ref={ref}
       onClose={onClose}
-      aria-label={`Choose a ${CATEGORY_SINGULAR[category].toLowerCase()}`}
+      aria-label={chooseLabel(category)}
       className="m-auto flex max-h-[min(44rem,calc(100dvh-2rem))] w-[min(46rem,calc(100vw-2rem))] flex-col rounded-panel border border-seam bg-plate p-0 text-ink backdrop:bg-black/60"
     >
       <div className="flex items-center justify-between gap-3 border-b border-seam p-4">
-        <h2 className="wide text-lg font-bold">Choose a {CATEGORY_SINGULAR[category].toLowerCase()}</h2>
+        <h2 className="wide text-lg font-bold">{chooseLabel(category)}</h2>
         <button
           type="button"
           onClick={() => ref.current.close()}
@@ -175,7 +181,7 @@ function Slot({ category, product, loading, onChoose, onClear }) {
           className="m-3 flex min-h-14 flex-1 items-center justify-center gap-2 rounded-control border border-dashed sm:m-4 sm:min-h-28 sm:flex-col border-seam text-sm text-ink-2 transition-colors hover:border-accent-ink hover:text-accent-ink"
         >
           <Plus size={20} />
-          Choose a {CATEGORY_SINGULAR[category].toLowerCase()}
+          {chooseLabel(category)}
         </button>
       )}
     </li>
