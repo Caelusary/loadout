@@ -8,11 +8,14 @@ import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { canRender3D, useActiveOnScreen, useMediaQuery, useReducedMotion } from './capabilities.js';
 import { CATEGORY_MODELS } from './categoryModels.js';
 import { HeroSearch } from './HeroSearch.jsx';
+import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
 const CategoryScene = lazy(() => import('./CategoryScene.jsx'));
 
 const DRAG_TO_RADIANS = 0.01;
 const DRAG_SLOP = 6; // px of sideways movement before a press counts as a drag
+const KEYBOARD_CM = CATEGORY_MODELS.keyboard.shotCm; // the photo every other photo is sized against
+const KEYBOARD_STAGE_SHARE = 0.85; // share of the stage's width the keyboard spans
 const ENGAGED_KEY = 'loadout:stage-engaged';
 
 // Whether the shopper has already met the stage this session, so coming back from another page
@@ -25,6 +28,33 @@ const readEngaged = () => {
     return false;
   }
 };
+// The stage's photo, in the space above the Build / Shop buttons so no product runs into them. Each photo is scaled
+// to the keyboard the way the models are, then shifted so the product's own centre (not the photo's) is centred.
+// The img is square, so the shift's percentages are of the drawn photo.
+function StagePhoto({ category }) {
+  const { shot, shotSize, shotCm, shotCenter } = CATEGORY_MODELS[category];
+  const [w, h] = shotSize;
+  // Side of the square photo: real-world size first, then capped so the product fits the frame both ways.
+  const side = `min(${((KEYBOARD_STAGE_SHARE * shotCm) / KEYBOARD_CM / w) * 100}cqw, ${(0.95 / w) * 100}cqw, ${(0.92 / h) * 100}cqh)`;
+  const shift = (c) => `${((0.5 - c) * 100).toFixed(1)}%`;
+  // The photos share a soft floor shadow well below the product. Drawn this large it lands on the buttons, where light
+  // mode shows it as a grey smudge, so the photo fades out just under the product.
+  const productBottom = (shotCenter[1] + h / 2) * 100;
+  const mask = `linear-gradient(to bottom, #000 ${productBottom + 2}%, transparent ${productBottom + 8}%)`;
+  return (
+    <div className="pointer-events-none absolute inset-x-[6%] top-[5%] bottom-14 grid place-content-center place-items-center [container-type:size] sm:bottom-16">
+      <img
+        fetchPriority="high"
+        src={`/products/${shot}.webp?v=${PHOTO_VERSION}`}
+        alt=""
+        draggable="false"
+        style={{ width: side, height: side, maskImage: mask, translate: `${shift(shotCenter[0])} ${shift(shotCenter[1])}` }}
+        className="max-w-none object-contain"
+      />
+    </div>
+  );
+}
+
 const LEFT = CATEGORIES.slice(0, 3);
 const RIGHT = CATEGORIES.slice(3);
 
@@ -115,9 +145,10 @@ export function CategoryHero() {
   const tile = (c) => <CategoryTile key={c} category={c} active={c === active} onSelect={pick} />;
   // Phones and tablets pick a category from a chip strip under the search, right above the starters it drives.
   const picker = (
-    <ul
+    <ScrollRow
+      as="ul"
       aria-label="Categories"
-      className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:hidden [&::-webkit-scrollbar]:hidden"
+      className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-2 px-4 pb-1 sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:hidden"
     >
       {CATEGORIES.map((c) => {
         const { icon: Icon } = CATEGORY_MODELS[c];
@@ -138,7 +169,7 @@ export function CategoryHero() {
           </li>
         );
       })}
-    </ul>
+    </ScrollRow>
   );
 
   return (
@@ -190,15 +221,7 @@ export function CategoryHero() {
           {/* Without 3D (no WebGL, or Performance mode) the stage shows the category's photo. With it, the
               stage stays empty until the model has drawn and then fades in at full size; a photo first
               would flash a smaller keyboard. */}
-          {!threeD && (
-            <img
-              fetchPriority="high"
-              src={`/products/${CATEGORY_MODELS[active].shot}.webp?v=${PHOTO_VERSION}`}
-              alt=""
-              draggable="false"
-              className="absolute inset-[8%] m-auto size-[84%] object-contain"
-            />
-          )}
+          {!threeD && <StagePhoto category={active} />}
           {threeD && idle && (
             <div
               className={`absolute inset-0 transition-opacity duration-500 ease-out ${sceneReady ? dim : 'opacity-0'}`}
