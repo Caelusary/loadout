@@ -77,7 +77,7 @@
 
 /* Accent-filled controls glow like a lit tube. Scoped to controls (plus an explicit .glow) so thin fills,
    such as timeline connectors, stay crisp lines instead of blooming into bars. */
-:is(button, a, label, [role='button'], [role='option']).bg-accent,
+:is(button, a, label, [role='button'], [role='option']).bg-accent:not(:disabled:not([aria-busy])),
 .glow {
   box-shadow: var(--glow);
 }
