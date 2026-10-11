@@ -88,7 +88,7 @@ export function Price({ cents, was, className = '', tag = true }) {
         {formatMoney(was)}
       </s>
       {tag && (
-        <span className="self-center rounded-full bg-bad px-2 py-0.5 text-[11px] leading-none font-semibold text-bg">
+        <span className="self-center rounded-full bg-bad px-2 py-0.5 text-[11px] leading-none font-semibold whitespace-nowrap text-bg">
           Sale −{off}%
         </span>
       )}
