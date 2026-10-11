@@ -1,4 +1,4 @@
-import { Gauge, X } from '@phosphor-icons/react';
+import { Lightning, X } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Button } from '../ui/Button.jsx';
 import { usePerformance } from '../../providers/PerformanceProvider.jsx';
@@ -36,7 +36,7 @@ const dismissed = () => {
   }
 };
 
-// Offers Performance mode once, on a device that looks or runs slow, to anyone who hasn't chosen yet.
+// Offers Lite mode once, on a device that looks or runs slow, to anyone who hasn't chosen yet.
 export function PerformanceSuggestion() {
   const perf = usePerformance();
   const [show, setShow] = useState(false);
@@ -57,7 +57,7 @@ export function PerformanceSuggestion() {
     };
   }, [perf.decided]);
 
-  if (!show || perf.decided) return null;
+  if (!show || perf.decided || perf.on) return null;
   const close = () => {
     try {
       localStorage.setItem(DISMISSED, '1');
@@ -72,10 +72,10 @@ export function PerformanceSuggestion() {
       role="status"
       className="fixed inset-x-3 bottom-[calc(var(--dock)+0.75rem)] z-40 mx-auto flex max-w-md items-start gap-3 rounded-panel border border-seam bg-plate p-4 shadow-[0_12px_32px_-16px_rgb(0_0_0/0.6)] transition-[opacity,translate] duration-200 ease-out starting:translate-y-2 starting:opacity-0 sm:right-6 sm:left-auto sm:mx-0"
     >
-      <Gauge size={22} className="mt-0.5 shrink-0 text-accent-ink" />
+      <Lightning size={22} className="mt-0.5 shrink-0 text-accent-ink" />
       <div className="flex flex-1 flex-col gap-3">
         <p className="text-sm text-ink-2">
-          <span className="font-medium text-ink">Running slowly?</span> Performance mode swaps the 3D models for photos and
+          <span className="font-medium text-ink">Running slowly?</span> Lite mode swaps the 3D models for photos and
           turns off the animated background.
         </p>
         <div className="flex gap-2">
