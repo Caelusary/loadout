@@ -20,12 +20,12 @@ describe('sessions', () => {
     const laptop = cookieOf(await login(users.paolo.email));
     const phone = cookieOf(await login(users.paolo.email));
     const me = (cookie) => request(app).get('/api/auth/me').set('Cookie', cookie);
-    expect((await me(laptop)).status).toBe(200);
+    expect((await me(laptop)).body.user).toBeTruthy();
 
     // A copy of the phone's cookie made before signing out no longer works afterwards.
     await request(app).post('/api/auth/logout').set('Cookie', phone);
-    expect((await me(phone)).status).toBe(401);
-    expect((await me(laptop)).status).toBe(200);
+    expect((await me(phone)).body.user).toBeNull();
+    expect((await me(laptop)).body.user).toBeTruthy();
 
     const tablet = cookieOf(await login(users.paolo.email));
     const changed = await request(app)
@@ -33,8 +33,8 @@ describe('sessions', () => {
       .set('Cookie', tablet)
       .send({ currentPassword: 'password123', newPassword: 'newpassword456' });
     expect(changed.status).toBe(200);
-    expect((await me(tablet)).status).toBe(200);
-    expect((await me(laptop)).status).toBe(401);
+    expect((await me(tablet)).body.user).toBeTruthy();
+    expect((await me(laptop)).body.user).toBeNull();
     await User.updateOne({ _id: id('paolo') }, { $set: { sessions: [] } });
     const restore = await signInWith(users.paolo.email, 'newpassword456');
     await restore.patch('/api/users/me/password').send({ currentPassword: 'newpassword456', newPassword: 'password123' });
@@ -89,7 +89,7 @@ describe('password reset by email', () => {
     const done = await reset('brandnewpass1');
     expect(done.status).toBe(200);
     expect(done.headers['set-cookie'].some((c) => c.startsWith('loadout_token='))).toBe(true);
-    expect((await lea.get('/api/auth/me')).status).toBe(401); // the old session is gone
+    expect((await lea.get('/api/auth/me')).body.user).toBeNull(); // the old session is gone
     expect((await reset('anotherpass2')).body.error.code).toBe('RESET_EXPIRED'); // one use only
     expect((await login(users.lea.email, 'brandnewpass1')).status).toBe(200);
     expect(await Notification.exists({ user: id('lea'), title: 'Your password was changed' })).toBeTruthy();
@@ -163,7 +163,7 @@ describe('closing accounts', () => {
     expect(await stock(8)).toBe(before + 1);
     expect(await User.exists({ _id: id('mika') })).toBeNull();
     expect(await Review.countDocuments({ user: id('mika') })).toBe(0);
-    expect((await mika.get('/api/auth/me')).status).toBe(401);
+    expect((await mika.get('/api/auth/me')).body.user).toBeNull();
 
     const admin = await signIn('admin');
     expect((await admin.delete('/api/users/me').send({ password: 'password123' })).status).toBe(403);
@@ -412,7 +412,7 @@ describe('audit follow-ups', () => {
     const admin = await signIn('admin');
     await admin.patch(`/api/admin/users/${id('lea')}`).send({ isActive: false });
     await admin.patch(`/api/admin/users/${id('lea')}`).send({ isActive: true });
-    expect((await request(app).get('/api/auth/me').set('Cookie', cookie)).status).toBe(401);
+    expect((await request(app).get('/api/auth/me').set('Cookie', cookie)).body.user).toBeNull();
   });
 
   it('refuses to close an account with a return in progress, and keeps a closed return closed', async () => {
