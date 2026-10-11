@@ -6,7 +6,9 @@ import { ButtonLink } from '../../components/ui/Button.jsx';
 import { Price, StatusPill } from '../../components/ui/chips.jsx';
 import { ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { api } from '../../lib/api.js';
-import { orderNumber, formatMoney } from '../../lib/format.js';
+import { orderNumber, formatMoney, plural } from '../../lib/format.js';
+
+const itemCount = (order) => plural(order.items.reduce((sum, i) => sum + i.qty, 0), 'item');
 
 export default function OrderConfirmedPage() {
   useTitle('Order placed');
@@ -35,18 +37,18 @@ export default function OrderConfirmedPage() {
             <Link
               key={order._id}
               to={`/orders/${order._id}`}
-              className="flex items-center justify-between gap-4 rounded-panel border border-seam p-4 transition-colors hover:border-edge"
+              className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 rounded-panel border border-seam p-4 transition-colors hover:border-edge"
             >
               <div className="flex flex-col gap-0.5">
                 <p className="font-medium">{order.seller?.sellerProfile?.shopName ?? 'Shop'}</p>
-                <p className="font-mono text-[13px] text-ink-3">
-                  {orderNumber(order._id)}, {order.items.reduce((n, i) => n + i.qty, 0)} item(s)
+                <p className="flex flex-wrap gap-x-1.5 font-mono text-[13px] text-ink-3">
+                  <span className="whitespace-nowrap">{orderNumber(order._id)}</span>
+                  <span className="whitespace-nowrap">{itemCount(order)}</span>
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <StatusPill status={order.status} />
-                <Price cents={order.totalCents} className="font-medium" />
-              </div>
+              {/* Shop, status and total in three columns, so the status sits in the middle of the card. */}
+              <StatusPill status={order.status} />
+              <Price cents={order.totalCents} className="justify-self-end font-medium" />
             </Link>
           ))
         )}
