@@ -4,7 +4,9 @@ const BASE =
   'relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-control font-medium transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45';
 
 const VARIANTS = {
-  primary: 'bg-accent text-on-accent hover:bg-accent-soft',
+  // Disabled (but not loading) goes neutral instead of a faded cyan, which read as a murky teal block.
+  primary:
+    'bg-accent text-on-accent hover:bg-accent-soft [&:disabled:not([aria-busy])]:bg-raised [&:disabled:not([aria-busy])]:text-ink-3 [&:disabled:not([aria-busy])]:opacity-100 [&:disabled:not([aria-busy])]:shadow-none [&:disabled:not([aria-busy])]:border [&:disabled:not([aria-busy])]:border-seam',
   secondary: 'border border-seam bg-raised text-ink hover:border-edge',
   ghost: 'text-ink-2 hover:bg-raised hover:text-ink',
   danger: 'border border-bad/50 text-bad hover:bg-bad/10',
