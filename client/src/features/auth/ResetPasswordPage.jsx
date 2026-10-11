@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router';
 import { z } from 'zod';
 import { useTitle } from '../../components/layout/Page.jsx';
-import { Button } from '../../components/ui/Button.jsx';
+import { Button, ButtonLink } from '../../components/ui/Button.jsx';
 import { FormError } from '../../components/ui/feedback.jsx';
 import { PasswordField } from '../../components/ui/fields.jsx';
 import { api, applyServerErrors } from '../../lib/api.js';
@@ -55,9 +55,10 @@ export default function ResetPasswordPage() {
       {expired ? (
         <div className="flex flex-col gap-3 text-sm text-ink-2">
           <p>This link has expired or was already used. Reset links work once, for 30 minutes.</p>
-          <Link to="/forgot-password" className="self-start text-accent-ink hover:underline">
+          {/* The only thing to do here, so it's the page's button, like on Forgot password. */}
+          <ButtonLink to="/forgot-password" size="lg" className="mt-2 w-full">
             Send a new link
-          </Link>
+          </ButtonLink>
         </div>
       ) : (
         <form
