@@ -1,6 +1,7 @@
 import { X } from '@phosphor-icons/react';
 import { CATEGORY_LABELS, CONNECTIVITY_LABELS, RESOLUTION_LABELS, SWITCH_LABELS } from '../../lib/constants.js';
 import { CATEGORY_MODELS } from '../home/categoryModels.js';
+import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
 const SWITCH_DOT = { linear: 'bg-linear', tactile: 'bg-tactile', clicky: 'bg-clicky', magnetic: 'bg-magnetic' };
 const CONNECTION = ['wired', 'wireless', 'bluetooth'].map((v) => [v, CONNECTIVITY_LABELS[v]]);
@@ -53,8 +54,8 @@ export function CategoryStrip({ category, total, params, onChange }) {
         </div>
       </div>
 
-      <div
-        className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+      <ScrollRow
+        className="-mx-4 flex items-center gap-2 px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
         role="group"
         aria-label={`Quick filter: ${label}`}
       >
@@ -75,7 +76,7 @@ export function CategoryStrip({ category, total, params, onChange }) {
             </button>
           );
         })}
-      </div>
+      </ScrollRow>
     </div>
   );
 }

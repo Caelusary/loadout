@@ -71,7 +71,7 @@ export function SearchBox({ overlay = false, inputRef, onDone }) {
   };
 
   return (
-    <div ref={box} className={overlay ? 'relative w-full' : 'relative hidden w-full max-w-xs md:block'}>
+    <div ref={box} className={overlay ? 'relative w-full' : 'relative hidden w-full max-w-xs lg:block'}>
       <form
         role="search"
         className="relative"

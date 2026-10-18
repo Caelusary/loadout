@@ -1,14 +1,24 @@
 import { NavLink, Outlet } from 'react-router';
+import { ScrollRow } from '../ui/ScrollRow.jsx';
 
 // Side navigation for the account, Seller Center and Admin areas. Becomes a scrolling tab row on phones.
 export function PanelLayout({ title, links }) {
+  // A nav with a single link (a rider's or admin's account is only Settings) is just noise, so it's left out.
+  if (links.length < 2) {
+    return (
+      <div className="mx-auto w-full max-w-[1280px] px-4 pt-8 pb-4 sm:px-6">
+        <Outlet />
+      </div>
+    );
+  }
   return (
     <div className="mx-auto grid w-full max-w-[1280px] grid-cols-[minmax(0,1fr)] gap-6 px-4 pt-8 sm:px-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <p className="mb-3 hidden text-[13px] font-medium text-ink-3 lg:block">{title}</p>
-        <nav
+        <ScrollRow
+          as="nav"
           aria-label={title}
-          className="-mx-4 flex gap-1 overflow-x-auto border-b border-seam px-4 pb-3 lg:mx-0 lg:flex-col lg:border-0 lg:p-0"
+          className="-mx-4 flex gap-1 border-b border-seam px-4 pb-3 lg:mx-0 lg:flex-col lg:border-0 lg:p-0"
         >
           {links.map(({ to, label, end }) => (
             <NavLink
@@ -24,7 +34,7 @@ export function PanelLayout({ title, links }) {
               {label}
             </NavLink>
           ))}
-        </nav>
+        </ScrollRow>
       </aside>
       <div className="min-w-0 pb-4">
         <Outlet />

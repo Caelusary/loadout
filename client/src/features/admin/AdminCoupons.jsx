@@ -150,9 +150,14 @@ export default function AdminCoupons() {
                   <Tag tone={tone}>{label}</Tag>
                 </Cell>
                 <Cell align="right">
-                  <Button variant="ghost" size="sm" onClick={() => toggle.mutate(c)} loading={toggle.isPending && toggle.variables?._id === c._id}>
-                    {c.isActive ? 'Turn off' : 'Turn on'}
-                  </Button>
+                  {/* An expired code can't be used either way, so turning it off or on would do nothing. */}
+                  {label === 'Expired' ? (
+                    <span className="text-[13px] text-ink-3">None</span>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => toggle.mutate(c)} loading={toggle.isPending && toggle.variables?._id === c._id}>
+                      {c.isActive ? 'Turn off' : 'Turn on'}
+                    </Button>
+                  )}
                 </Cell>
               </tr>
             );

@@ -5,10 +5,11 @@ import { Cell, Table } from '../../components/ui/Table.jsx';
 import { ORDER_STATUSES, STATUS_LABELS } from '../../lib/constants.js';
 import { formatDate, orderNumber } from '../../lib/format.js';
 import { itemSummary } from './OrderRow.jsx';
+import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
 export function StatusTabs({ value, onChange, counts }) {
   return (
-    <div role="tablist" aria-label="Filter by status" className="mb-5 flex gap-1 overflow-x-auto">
+    <ScrollRow role="tablist" aria-label="Filter by status" className="mb-5 flex gap-1">
       {['', ...ORDER_STATUSES].map((s) => (
         <button
           key={s || 'all'}
@@ -22,7 +23,7 @@ export function StatusTabs({ value, onChange, counts }) {
           {counts?.[s] !== undefined && <span className="ml-1.5 font-mono text-ink-3">{counts[s]}</span>}
         </button>
       ))}
-    </div>
+    </ScrollRow>
   );
 }
 

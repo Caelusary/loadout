@@ -156,7 +156,8 @@ export function Gallery({ product }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative aspect-square overflow-hidden rounded-panel bg-plate">
+      {/* Square, but never taller than about 70% of the screen, so a landscape phone still shows the price and Buy. */}
+      <div className="relative mx-auto aspect-square w-full max-w-[70svh] overflow-hidden rounded-panel bg-plate">
         {showing3D ? (
           <Suspense fallback={<Skeleton className="size-full rounded-none" />}>
             <ModelViewer product={product} />

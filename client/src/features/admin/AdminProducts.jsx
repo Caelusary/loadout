@@ -70,8 +70,8 @@ export default function AdminProducts() {
               <tr key={p._id}>
                 <Cell>
                   <div className="flex items-center gap-3">
-                    <div className="size-10 shrink-0 overflow-hidden rounded-control bg-plate">
-                      {p.images[0] && <img src={sizedImageUrl(p.images[0].url, 120)} alt="" className="size-full object-cover" />}
+                    <div className="size-12 shrink-0 overflow-hidden rounded-control border border-seam bg-raised">
+                      {p.images[0] && <img src={sizedImageUrl(p.images[0].url, 120)} alt="" className="size-full object-contain p-0.5" />}
                     </div>
                     <Link to={`/p/${p.slug}`} className="max-w-56 truncate font-medium hover:text-accent-ink">
                       {p.name}

@@ -21,6 +21,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Main"
+      data-bottom-bar
       className="fixed inset-x-0 bottom-0 z-40 border-t border-seam bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden"
     >
       <ul className="flex h-[60px] items-stretch">
@@ -35,7 +36,12 @@ export function MobileTabBar() {
             >
               {({ isActive }) => (
                 <>
-                  {isActive && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-accent-ink" aria-hidden="true" />}
+                  {isActive && (
+                    <span
+                      className="absolute top-0 h-0.5 w-8 rounded-full bg-accent-ink"
+                      aria-hidden="true"
+                    />
+                  )}
                   <span className="relative">
                     <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
                     {badge > 0 && (

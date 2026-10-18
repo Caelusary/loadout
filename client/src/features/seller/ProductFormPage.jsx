@@ -303,16 +303,18 @@ function ProductForm({ product }) {
         {images.fields.length > 0 && (
           <ul className="flex flex-col gap-3">
             {images.fields.map((field, i) => (
-              <li key={field.id} className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-4 sm:grid-cols-[72px_minmax(0,1fr)_auto]">
-                <img src={assetUrl(field.url)} alt="" className="size-[72px] rounded-control bg-plate object-cover" />
+              // Photo, alt text, then its actions: under the field on phones, a fixed column on wider screens so every
+              // row's field is the same width whether or not it has "Make main".
+              <li key={field.id} className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-4 gap-y-1 sm:grid-cols-[72px_minmax(0,1fr)_11rem]">
+                <img src={assetUrl(field.url)} alt="" className="size-[72px] rounded-control border border-seam bg-raised object-contain p-1" />
                 <TextField label={i === 0 ? 'Alt text (main image)' : 'Alt text'} error={errors.images?.[i]?.alt?.message} {...register(`images.${i}.alt`)} />
-                <div className="col-span-2 flex gap-1 sm:col-span-1 sm:pt-6">
+                <div className="col-start-2 flex gap-1 sm:col-start-auto sm:justify-end sm:pt-6">
                   {i > 0 && (
                     <Button variant="ghost" size="sm" onClick={() => images.move(i, 0)}>
                       Make main
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => images.remove(i)}>
+                  <Button variant="ghost" size="sm" className="hover:text-bad" onClick={() => images.remove(i)}>
                     Remove
                   </Button>
                 </div>

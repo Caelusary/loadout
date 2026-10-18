@@ -1,10 +1,11 @@
-import { Check } from '@phosphor-icons/react';
+import { Check, Truck } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../components/ui/Button.jsx';
 import { Price } from '../../components/ui/chips.jsx';
 import { QtyStepper } from '../../components/ui/controls.jsx';
-import { MAX_QTY } from '../../lib/constants.js';
+import { FREE_SHIPPING_MIN_CENTS, MAX_QTY, SHIPPING_FEE_CENTS } from '../../lib/constants.js';
+import { formatMoney } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useCart } from '../../providers/CartProvider.jsx';
 import { CompareButton } from '../compare/CompareButton.jsx';
@@ -104,6 +105,13 @@ export function BuyBox({ product }) {
           {stockNote}
         </span>
       </div>
+      {/* Shipping up front, so it isn't a surprise at checkout. It's charged per shop, so the threshold is too. */}
+      <p className="-mt-2 flex items-center gap-1.5 text-[13px] text-ink-2">
+        <Truck size={16} className="shrink-0 text-ink-3" />
+        {product.priceCents >= FREE_SHIPPING_MIN_CENTS
+          ? 'Free shipping'
+          : `${formatMoney(SHIPPING_FEE_CENTS)} shipping · free on ${formatMoney(FREE_SHIPPING_MIN_CENTS)}+ from this shop`}
+      </p>
       {blocked ? (
         <p className="rounded-control border border-seam px-4 py-3 text-sm text-ink-2">{blocked}</p>
       ) : (
@@ -134,7 +142,10 @@ export function BuyBox({ product }) {
         </div>
       )}
       {!blocked && !buyRowVisible && (
-        <div className="fixed inset-x-0 bottom-[var(--dock)] z-30 flex items-center justify-between gap-4 border-t border-seam bg-plate/95 px-4 pt-3 pb-3 backdrop-blur-md sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div
+          data-buybar
+          className="fixed inset-x-0 bottom-[var(--dock)] z-30 flex items-center justify-between gap-4 border-t border-seam bg-plate/95 px-4 pt-3 pb-3 backdrop-blur-md sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
+        >
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-[13px] text-ink-2">{product.name}</span>
             <Price cents={product.priceCents} was={product.compareAtCents} tag={false} className="font-medium text-ink" />

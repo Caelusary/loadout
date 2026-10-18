@@ -16,24 +16,35 @@ import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 
 // currentPassword is only asked for (and checked by the server) when the email changes.
-const profileSchema = z.object({ name: nameField, email: emailField, shippingAddress: addressSchema, currentPassword: z.string().optional() });
+const profileSchema = z.object({
+  name: nameField,
+  email: emailField,
+  shippingAddress: addressSchema,
+  currentPassword: z.string().optional(),
+});
 
 // Until someone saves an address, it's optional: left blank (the name line is prefilled, so it doesn't
 // count), it isn't sent at all; once any other field is filled, the whole address is checked.
-const isBlankAddress = (a) => !a || Object.entries(a).every(([key, value]) => key === 'fullName' || !String(value ?? '').trim());
+const isBlankAddress = (a) =>
+  !a || Object.entries(a).every(([key, value]) => key === 'fullName' || !String(value ?? '').trim());
 const firstProfileSchema = profileSchema.extend({
   shippingAddress: z.preprocess((a) => (isBlankAddress(a) ? undefined : a), addressSchema.optional()),
 });
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(1, 'New password is required').min(8, 'New password must be at least 8 characters').max(72, 'Password must be at most 72 characters'),
+  newPassword: z
+    .string()
+    .min(1, 'New password is required')
+    .min(8, 'New password must be at least 8 characters')
+    .max(72, 'Password must be at most 72 characters'),
 });
 
 function ProfileForm() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, canShop } = useAuth();
   const toast = useToast();
-  const hasAddress = Boolean(user.shippingAddress?.line1);
+  // Without an address section, the lenient schema keeps a hidden (empty or stale) address from blocking the save.
+  const hasAddress = canShop && Boolean(user.shippingAddress?.line1);
   const [formError, setFormError] = useState('');
   const {
     register,
@@ -66,7 +77,13 @@ function ProfileForm() {
           return;
         }
         try {
-          const res = await api('/users/me', { method: 'PATCH', body: emailChanged ? { ...values, currentPassword } : values });
+          // Admins and riders don't shop, so their form has no address to send.
+          const { shippingAddress, ...rest } = values;
+          const body = canShop ? { ...rest, shippingAddress } : rest;
+          const res = await api('/users/me', {
+            method: 'PATCH',
+            body: emailChanged ? { ...body, currentPassword } : body,
+          });
           setUser(res.user);
           reset({ ...values, currentPassword: '' });
           toast.show('Profile saved');
@@ -77,8 +94,21 @@ function ProfileForm() {
     >
       <FormError message={formError} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField label="Full name" autoComplete="name" placeholder="Enter your full name" error={errors.name?.message} {...register('name')} />
-        <TextField label="Email" type="email" autoComplete="email" placeholder="Enter your email address" error={errors.email?.message} {...register('email')} />
+        <TextField
+          label="Full name"
+          autoComplete="name"
+          placeholder="Enter your full name"
+          error={errors.name?.message}
+          {...register('name')}
+        />
+        <TextField
+          label="Email"
+          type="email"
+          autoComplete="email"
+          placeholder="Enter your email address"
+          error={errors.email?.message}
+          {...register('email')}
+        />
       </div>
       {emailChanged && (
         <div className="max-w-md">
@@ -92,12 +122,18 @@ function ProfileForm() {
           />
         </div>
       )}
-      <h2 className="mt-4 font-medium">Shipping address</h2>
-      {!hasAddress && <p className="-mt-3 text-[13px] text-ink-3">Optional for now. You can also add it at checkout.</p>}
-      <AddressFields register={register} errors={errors.shippingAddress} prefix="shippingAddress" />
+      {canShop && (
+        <>
+          <h2 className="mt-4 font-medium">Shipping address</h2>
+          {!hasAddress && (
+            <p className="-mt-3 text-[13px] text-ink-3">Optional for now. You can also add it at checkout.</p>
+          )}
+          <AddressFields register={register} errors={errors.shippingAddress} prefix="shippingAddress" />
+        </>
+      )}
       <div>
         <Button type="submit" loading={isSubmitting} disabled={!isDirty}>
-          Save profile
+          Save changes
         </Button>
       </div>
     </form>
@@ -123,7 +159,10 @@ function PasswordForm() {
       onSubmit={handleSubmit(async ({ currentPassword, newPassword }) => {
         setFormError('');
         try {
-          const res = await api('/users/me/password', { method: 'PATCH', body: { currentPassword, newPassword } });
+          const res = await api('/users/me/password', {
+            method: 'PATCH',
+            body: { currentPassword, newPassword },
+          });
           reset({ currentPassword: '', newPassword: '' });
           setUser(res.user);
           toast.show('Password changed. Other devices were signed out.');
@@ -160,8 +199,19 @@ function PasswordForm() {
 
 // Closing your own account: it takes your password; unshipped orders are cancelled only once you say
 // so, and anything already shipped has to arrive first. Admins ask the owner instead.
+// What deleting removes depends on what the account has: riders have no cart or reviews, only sellers list products.
+function deleteCopyFor({ canShop, isSeller }) {
+  if (!canShop) return 'This removes your account for good. Orders you delivered keep their history.';
+  const what = isSeller
+    ? 'your reviews and your saved cart for good, and unlists your products'
+    : 'your reviews and your saved cart for good';
+  return `This removes your account, ${what}. Past orders stay with the shops that filled them.`;
+}
+
 function DeleteAccount() {
-  const { logout } = useAuth();
+  const auth = useAuth();
+  const { logout } = auth;
+  const deleteCopy = deleteCopyFor(auth);
   const toast = useToast();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -181,7 +231,8 @@ function DeleteAccount() {
   const confirm = async () => {
     setError('');
     if (!password) return setError('Enter your password.');
-    if (openOrders && !cancelOrders) return setError('Tick the box to cancel them, or keep your account for now.');
+    if (openOrders && !cancelOrders)
+      return setError('Tick the box to cancel them, or keep your account for now.');
     setPending(true);
     try {
       await api('/users/me', { method: 'DELETE', body: { password, cancelOrders } });
@@ -198,10 +249,7 @@ function DeleteAccount() {
 
   return (
     <>
-      <p className="mb-4 max-w-md text-sm text-ink-2">
-        This removes your account, your reviews and your saved cart for good, and unlists any products you sell. Past
-        orders stay with the shops that filled them.
-      </p>
+      <p className="mb-4 max-w-md text-sm text-ink-2">{deleteCopy}</p>
       <Button variant="danger" onClick={() => setOpen(true)}>
         Delete my account
       </Button>
@@ -216,11 +264,20 @@ function DeleteAccount() {
       >
         <div className="flex flex-col gap-4">
           <p>This can&apos;t be undone.</p>
-          <PasswordField label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordField
+            label="Password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           {openOrders && (
             <>
               <p className="text-ink">{openOrders}</p>
-              <Checkbox label="Cancel them and return the items to stock" checked={cancelOrders} onChange={(e) => setCancelOrders(e.target.checked)} />
+              <Checkbox
+                label="Cancel them and return the items to stock"
+                checked={cancelOrders}
+                onChange={(e) => setCancelOrders(e.target.checked)}
+              />
             </>
           )}
           {error && <p className="text-[13px] text-bad">{error}</p>}
@@ -231,12 +288,19 @@ function DeleteAccount() {
 }
 
 export default function ProfilePage() {
-  useTitle('Profile');
-  const { isAdmin } = useAuth();
+  useTitle('Account settings');
+  const { isAdmin, canShop } = useAuth();
   return (
     <div className="flex max-w-2xl flex-col gap-14">
       <section>
-        <PanelHeader title="Profile" description="Your saved address fills in checkout automatically." />
+        <PanelHeader
+          title="Account settings"
+          description={
+            canShop
+              ? 'Your saved address fills in checkout automatically.'
+              : 'Your name and the email you sign in with.'
+          }
+        />
         <ProfileForm />
       </section>
       <section className="border-t border-seam pt-10">

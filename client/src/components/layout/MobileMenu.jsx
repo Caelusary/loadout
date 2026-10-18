@@ -1,37 +1,42 @@
-import { CaretRight, Gauge, Heart, List, Moon, Package, ShieldCheck, SignOut, Storefront, Sun, Tag, Truck, UserCircle, X } from '@phosphor-icons/react';
+import { CaretRight, Lightning, List, Moon, SignOut, Sun, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { initials } from '../../lib/format.js';
 import { ButtonLink } from '../ui/Button.jsx';
-import { accountLinks } from './accountLinks.js';
+import { accountSections } from './accountLinks.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { useTheme } from '../../providers/ThemeProvider.jsx';
 
-const ICONS = {
-  '/admin': ShieldCheck,
-  '/seller': Storefront,
-  '/deliveries': Truck,
-  '/account': UserCircle,
-  '/account/orders': Package,
-  '/account/wishlist': Heart,
-  '/account/sell': Tag,
-};
+const SECTION_LABELS = { workspace: 'Workspace', you: 'You' };
 
-const rowBase = 'flex h-12 w-full items-center gap-3 rounded-control px-3 text-left text-[15px] transition-colors active:bg-raised hover:bg-raised';
+const rowBase =
+  'flex h-12 w-full items-center gap-3 rounded-control px-3 text-left text-[15px] transition-colors active:bg-raised hover:bg-raised';
 const row = `${rowBase} text-ink-2 hover:text-ink`;
+const sectionLabel = 'px-3 pt-3 pb-1 text-[11px] font-medium tracking-wider text-ink-3 uppercase';
 
 // One on/off row with a switch on the right.
 function SwitchRow({ icon: Icon, label, on, onToggle }) {
   return (
-    <button type="button" role="switch" aria-checked={on} onClick={onToggle} className={`${row} justify-between`}>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onToggle}
+      className={`${row} justify-between`}
+    >
       <span className="flex items-center gap-3">
         <Icon size={20} />
         {label}
       </span>
-      <span className={`relative h-6 w-11 rounded-full border transition-colors ${on ? 'border-accent-ink bg-accent/25' : 'border-seam bg-raised'}`} aria-hidden="true">
-        <span className={`absolute top-0.5 size-[18px] rounded-full transition-[left,background-color] duration-150 ${on ? 'left-[22px] bg-accent' : 'left-0.5 bg-ink-3'}`} />
+      <span
+        className={`relative h-6 w-11 rounded-full border transition-colors ${on ? 'border-accent-ink bg-accent/25' : 'border-seam bg-raised'}`}
+        aria-hidden="true"
+      >
+        <span
+          className={`absolute top-0.5 size-[18px] rounded-full transition-[left,background-color] duration-150 ${on ? 'left-[22px] bg-accent' : 'left-0.5 bg-ink-3'}`}
+        />
       </span>
     </button>
   );
@@ -45,10 +50,10 @@ function ThemeSwitch() {
 
 function PerformanceSwitch() {
   const perf = usePerformance();
-  return <SwitchRow icon={Gauge} label="Performance mode" on={perf.on} onToggle={perf.toggle} />;
+  return <SwitchRow icon={Lightning} label="Lite mode" on={perf.on} onToggle={perf.toggle} />;
 }
 
-// Phones: the account, its pages, the theme, Performance mode and signing in or out, in a panel that drops down from the
+// Phones: the account, its pages, the theme, Lite mode and signing in or out, in a panel that drops down from the
 // top bar and is only as tall as what's in it. The header stays visible above it; the page dims below.
 function MenuPanel({ onClose }) {
   const auth = useAuth();
@@ -64,7 +69,13 @@ function MenuPanel({ onClose }) {
 
   return createPortal(
     <div className="fixed inset-x-0 top-[calc(4rem+1px+env(safe-area-inset-top))] bottom-0 z-50 sm:hidden">
-      <button type="button" aria-label="Close menu" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-black/55" />
+      <button
+        type="button"
+        aria-label="Close menu"
+        tabIndex={-1}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/55"
+      />
       <div
         ref={panel}
         role="dialog"
@@ -84,28 +95,38 @@ function MenuPanel({ onClose }) {
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-medium">{auth.user.name}</span>
                 <span className="truncate text-[13px] text-ink-3">{auth.user.email}</span>
+                <span className="mt-0.5 text-[13px] text-accent-ink">Account settings</span>
               </span>
               <CaretRight size={16} className="shrink-0 text-ink-3" />
             </Link>
-            <ul className="flex flex-col">
-              {accountLinks(auth)
-                .filter(([to]) => to !== '/account')
-                .map(([to, label]) => {
-                  const Icon = ICONS[to] ?? UserCircle;
-                  return (
-                    <li key={to}>
-                      <Link to={to} onClick={onClose} className={row}>
-                        <Icon size={20} />
-                        {label}
-                      </Link>
-                    </li>
-                  );
-                })}
-            </ul>
+            {Object.entries(accountSections(auth)).map(
+              ([key, links]) =>
+                links.length > 0 && (
+                  <section key={key} aria-label={SECTION_LABELS[key]}>
+                    <p className={sectionLabel}>{SECTION_LABELS[key]}</p>
+                    <ul className="flex flex-col">
+                      {links.map(([to, label, Icon]) => (
+                        <li key={to}>
+                          <Link
+                            to={to}
+                            onClick={onClose}
+                            className={row}
+                          >
+                            <Icon size={20} />
+                            {label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ),
+            )}
           </>
         ) : (
           <div className="mb-2 flex flex-col gap-2 p-1">
-            <p className="px-1 pb-1 text-sm text-ink-2">Sign in to check out, save products and track your orders.</p>
+            <p className="px-1 pb-1 text-sm text-ink-2">
+              Sign in to check out, save products and track your orders.
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <ButtonLink to="/login" onClick={onClose}>
                 Sign in
@@ -116,7 +137,8 @@ function MenuPanel({ onClose }) {
             </div>
           </div>
         )}
-        <div className="mt-2 border-t border-seam pt-2">
+        <div className="mt-2 border-t border-seam pt-1">
+          <p className={sectionLabel}>Display</p>
           <ThemeSwitch />
           <PerformanceSwitch />
           {auth.user && (

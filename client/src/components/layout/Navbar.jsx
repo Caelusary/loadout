@@ -1,4 +1,4 @@
-import { ArrowLeft, CaretDown, Gauge, Moon, ShoppingBagOpen, Sun } from '@phosphor-icons/react';
+import { ArrowLeft, CaretDown, Lightning, Moon, ShoppingBagOpen, SignOut, Sun } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import { initials } from '../../lib/format.js';
@@ -11,13 +11,15 @@ import { SearchBox } from './SearchBox.jsx';
 import { Logo } from './Logo.jsx';
 import { MenuButton } from './MobileMenu.jsx';
 import { SearchOverlay } from './SearchOverlay.jsx';
+import { NavTip } from './NavTip.jsx';
 import { NotificationBell } from './NotificationBell.jsx';
-import { accountLinks } from './accountLinks.js';
+import { accountSections } from './accountLinks.js';
+
+const SECTION_LABELS = { workspace: 'Workspace', you: 'You' };
 
 function AccountMenu() {
   const auth = useAuth();
   const { user, logout } = auth;
-  const perf = usePerformance();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -34,7 +36,7 @@ function AccountMenu() {
     };
   }, [open]);
 
-  const links = accountLinks(auth);
+  const sections = accountSections(auth);
 
   return (
     <div ref={ref} className="relative">
@@ -56,28 +58,45 @@ function AccountMenu() {
           role="menu"
           className="absolute top-12 right-0 z-40 w-56 origin-top-right rounded-panel border border-seam bg-plate p-1.5 shadow-[0_12px_32px_-16px_rgb(0_0_0/0.7)] transition-[opacity,scale] duration-150 ease-out starting:scale-95 starting:opacity-0"
         >
-          <p className="truncate px-3 pt-2 pb-2.5 text-[13px] text-ink-3">{user.email}</p>
-          {links.map(([to, label]) => (
-            <Link
-              key={to}
-              to={to}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex h-10 items-center rounded-control px-3 text-sm text-ink-2 hover:bg-raised hover:text-ink"
-            >
-              {label}
-            </Link>
-          ))}
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={perf.on}
-            onClick={perf.toggle}
-            className="flex h-10 w-full items-center justify-between rounded-control px-3 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
+          {/* Your name opens your settings, the way most apps do it. */}
+          <Link
+            to="/account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 rounded-control bg-raised/60 p-2.5 transition-colors hover:bg-raised"
           >
-            Performance mode
-            <span className={`text-[12px] font-medium ${perf.on ? 'text-accent-ink' : 'text-ink-3'}`}>{perf.on ? 'On' : 'Off'}</span>
-          </button>
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 font-mono text-[12px] font-medium text-accent-ink">
+              {initials(user.name)}
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium text-ink">{user.name}</span>
+              <span className="truncate text-[12px] text-ink-3">{user.email}</span>
+              <span className="mt-0.5 text-[12px] text-accent-ink">Account settings</span>
+            </span>
+          </Link>
+          {Object.entries(sections).map(
+            ([key, links]) =>
+              links.length > 0 && (
+                <div key={key} role="group" aria-label={SECTION_LABELS[key]}>
+                  <p className="px-3 pt-3 pb-1 text-[11px] font-medium tracking-wider text-ink-3 uppercase">
+                    {SECTION_LABELS[key]}
+                  </p>
+                  {links.map(([to, label, Icon]) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      role="menuitem"
+                      onClick={() => setOpen(false)}
+                      className="flex h-10 items-center gap-2.5 rounded-control px-3 text-sm text-ink-2 hover:bg-raised hover:text-ink"
+                    >
+                      <Icon size={17} />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              ),
+          )}
+          <div className="mt-1.5 border-t border-seam pt-1.5" />
           <button
             type="button"
             role="menuitem"
@@ -86,8 +105,9 @@ function AccountMenu() {
               await logout();
               navigate('/');
             }}
-            className="flex h-10 w-full items-center rounded-control px-3 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
+            className="flex h-10 w-full items-center gap-2.5 rounded-control px-3 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
           >
+            <SignOut size={17} />
             Sign out
           </button>
         </div>
@@ -96,36 +116,45 @@ function AccountMenu() {
   );
 }
 
-// Desktop and tablets: Performance mode beside the theme toggle (phones have it in the menu).
-function PerformanceToggle() {
-  const perf = usePerformance();
-  return (
-    <button
-      type="button"
-      aria-pressed={perf.on}
-      onClick={perf.toggle}
-      aria-label="Performance mode"
-      title={perf.on ? 'Performance mode is on: photos instead of 3D, no animated background' : 'Performance mode: photos instead of 3D, no animated background'}
-      className={`grid size-10 place-items-center rounded-control transition-colors hover:bg-raised max-sm:hidden ${perf.on ? 'text-accent-ink' : 'text-ink-2 hover:text-ink'}`}
-    >
-      <Gauge size={20} weight={perf.on ? 'fill' : 'regular'} />
-    </button>
-  );
-}
+const pillButton =
+  'relative grid size-9 place-items-center rounded-full transition-[color,background-color,box-shadow] duration-150';
 
-function ThemeToggle() {
+// Desktop and tablets: the two display settings share one pill, apart from the cart, alerts and account
+// (phones have both in the menu). Lite mode stays lit and labelled while it's on, so its state reads without hovering.
+function SettingsPill() {
+  const perf = usePerformance();
   const { theme, toggle } = useTheme();
   const dark = theme === 'dark';
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-      title={dark ? 'Light theme' : 'Dark theme'}
-      className="grid size-10 place-items-center rounded-control text-ink-2 transition-colors hover:bg-raised hover:text-ink max-sm:hidden"
-    >
-      {dark ? <Sun size={20} /> : <Moon size={20} />}
-    </button>
+    <div className="flex items-center rounded-full border border-seam bg-plate/60 p-0.5 max-sm:hidden">
+      <NavTip label="Lite mode">
+        <button
+          type="button"
+          aria-pressed={perf.on}
+          onClick={perf.toggle}
+          aria-label="Lite mode"
+          className={`${pillButton} ${perf.on ? 'w-auto grid-flow-col gap-1.5 bg-accent/10 pr-3 pl-2.5 text-accent-ink ring-1 ring-accent/50' : 'text-ink-2 hover:bg-raised hover:text-ink'}`}
+        >
+          <Lightning size={19} weight={perf.on ? 'fill' : 'regular'} />
+          {perf.on && (
+            <span className="font-display text-[13px] font-semibold tracking-[0.02em]" aria-hidden="true">
+              Lite
+            </span>
+          )}
+        </button>
+      </NavTip>
+      <span className="mx-0.5 h-5 w-px bg-seam" aria-hidden="true" />
+      <NavTip label={`Theme: ${dark ? 'Dark' : 'Light'}`}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+          className={`${pillButton} text-ink-2 hover:bg-raised hover:text-ink`}
+        >
+          {dark ? <Sun size={19} /> : <Moon size={19} />}
+        </button>
+      </NavTip>
+    </div>
   );
 }
 
@@ -179,21 +208,25 @@ export function Navbar() {
           {/* The home page has its own search bar, so the navbar only adds one elsewhere. */}
           {!onHome && <SearchBox />}
           {!onHome && <SearchOverlay />}
-          <PerformanceToggle />
-          <ThemeToggle />
+          <SettingsPill />
           {canShop && (
-            <Link
-              to="/cart"
-              aria-label={`Cart, ${count} item${count === 1 ? '' : 's'}`}
-              className="relative grid size-10 place-items-center rounded-control text-ink-2 transition-colors hover:bg-raised hover:text-ink max-sm:hidden"
+            <NavTip
+              label={count ? `Cart · ${count} item${count === 1 ? '' : 's'}` : 'Cart'}
+              className="max-sm:hidden"
             >
-              <ShoppingBagOpen size={21} />
-              {count > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 font-mono text-[11px] font-medium text-on-accent tabular-nums">
-                  {count}
-                </span>
-              )}
-            </Link>
+              <Link
+                to="/cart"
+                aria-label={`Cart, ${count} item${count === 1 ? '' : 's'}`}
+                className="relative grid size-10 place-items-center rounded-control text-ink-2 transition-colors hover:bg-raised hover:text-ink"
+              >
+                <ShoppingBagOpen size={21} />
+                {count > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 font-mono text-[11px] font-medium text-on-accent tabular-nums">
+                    {count}
+                  </span>
+                )}
+              </Link>
+            </NavTip>
           )}
           {user && <NotificationBell />}
           {status === 'loading' ? (
@@ -205,12 +238,12 @@ export function Navbar() {
             </div>
           ) : (
             <>
-              <ButtonLink to="/login" variant="ghost" size="sm" className="max-sm:hidden">
+              <ButtonLink to="/login" variant="ghost" size="sm" className="h-10! max-sm:hidden">
                 Sign in
               </ButtonLink>
               {/* Wrapped: the button's own inline-flex would override `hidden` on the button itself. */}
               <span className="hidden sm:contents">
-                <ButtonLink to="/register" variant="primary" size="sm">
+                <ButtonLink to="/register" variant="primary" size="sm" className="h-10!">
                   Create account
                 </ButtonLink>
               </span>

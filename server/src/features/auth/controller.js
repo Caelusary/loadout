@@ -33,7 +33,7 @@ export async function logout(req, res) {
 }
 
 export function me(req, res) {
-  res.json({ user: req.user });
+  res.json({ user: req.user ?? null });
 }
 
 // Always the same answer, whether or not the email has an account, so this can't be used to find out

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { addressSchema } from './address.js';
 
 export const ORDER_STATUSES = ['placed', 'processing', 'shipped', 'out-for-delivery', 'delivered', 'cancelled'];
-export const PAYMENT_METHODS = ['cod', 'mock-card'];
+export const PAYMENT_METHODS = ['cod', 'mock-gcash', 'mock-card'];
 
 // Forward-only. The seller takes an order up to 'shipped' (handing it to a rider); the rider takes it
 // out for delivery and marks it delivered. Customers may only cancel while 'placed'; the admin may

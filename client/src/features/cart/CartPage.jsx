@@ -70,7 +70,7 @@ function CartLine({ line }) {
           type="button"
           onClick={() => cart.remove(line.productId)}
           aria-label={`Remove ${product?.name ?? 'item'}`}
-          className="grid size-10 place-items-center rounded-control text-ink-3 transition-colors hover:bg-raised hover:text-bad"
+          className="grid size-10 shrink-0 place-items-center rounded-control text-ink-3 transition-colors hover:bg-raised hover:text-bad"
         >
           <Trash size={18} />
         </button>
@@ -158,7 +158,8 @@ export default function CartPage() {
               const toFree = FREE_SHIPPING_MIN_CENTS - g.subtotalCents;
               return (
                 <section key={g.sellerId} aria-label={g.shopName}>
-                  <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-seam pb-3">
+                  {/* Phones: the shipping note always sits under the shop name; wider screens put it on the right. */}
+                  <div className="flex flex-col gap-1 border-b border-seam pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
                     <h2 className="font-medium">{g.shopName}</h2>
                     {g.subtotalCents > 0 && (
                       <p className="text-[13px] text-ink-3">

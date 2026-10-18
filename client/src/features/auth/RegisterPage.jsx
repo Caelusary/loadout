@@ -71,7 +71,7 @@ export default function RegisterPage() {
         <Button type="submit" size="lg" loading={isSubmitting} className="mt-2 w-full">
           Create account
         </Button>
-        <p className="text-[13px] text-ink-3">Want to sell? Create an account first, then apply from your profile.</p>
+        <p className="text-[13px] text-ink-3">Want to sell? Create an account first, then apply from Sell on Loadout.</p>
       </form>
     </AuthShell>
   );

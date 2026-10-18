@@ -9,7 +9,7 @@ import { Pagination } from '../../components/ui/controls.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { api, toQuery } from '../../lib/api.js';
 import { STATUS_LABELS } from '../../lib/constants.js';
-import { formatMoney, orderNumber } from '../../lib/format.js';
+import { formatMoney, orderNumber, plural } from '../../lib/format.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
 
 const NEXT = { shipped: 'out-for-delivery', 'out-for-delivery': 'delivered' };
@@ -100,7 +100,7 @@ export default function DeliveriesPage() {
                     </span>
                   </div>
                   <p className="text-[13px] text-ink-3">
-                    From {o.seller?.sellerProfile?.shopName ?? 'a shop'} · {o.items.reduce((n, i) => n + i.qty, 0)} item(s) ·{' '}
+                    From {o.seller?.sellerProfile?.shopName ?? 'a shop'} · {plural(o.items.reduce((n, i) => n + i.qty, 0), 'item')} ·{' '}
                     {o.paymentMethod === 'cod' ? `Collect ${formatMoney(o.totalCents)} cash` : 'Paid online'}
                   </p>
                   {next && (

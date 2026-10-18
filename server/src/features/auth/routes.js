@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { AppError } from '../../lib/AppError.js';
-import { requireAuth } from '../../middleware/auth.js';
+import { optionalAuth } from '../../middleware/auth.js';
 import * as auth from './controller.js';
 
 const loginLimiter = rateLimit({
@@ -39,7 +39,8 @@ router.post('/auth/register', registerLimiter, auth.register);
 router.post('/auth/login', loginLimiter, auth.login);
 // No auth guard: logging out must also clear a stale or invalid cookie.
 router.post('/auth/logout', auth.logout);
-router.get('/auth/me', requireAuth, auth.me);
+// Guests get { user: null } with a 200, so a signed-out page load doesn't log a 401 error in the console.
+router.get('/auth/me', optionalAuth, auth.me);
 router.post('/auth/forgot-password', resetLimiter, auth.forgotPassword);
 router.post('/auth/reset-password', loginLimiter, auth.resetPassword);
 

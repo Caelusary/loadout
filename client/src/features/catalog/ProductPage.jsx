@@ -104,7 +104,7 @@ export default function ProductPage() {
       </nav>
 
       {isPending ? (
-        <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
+        <div className="grid gap-10 md:grid-cols-[1.1fr_1fr] md:gap-8">
           <Skeleton className="aspect-square rounded-panel" />
           <div className="flex flex-col gap-4">
             <Skeleton className="h-4 w-32" />
@@ -115,7 +115,7 @@ export default function ProductPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
+          <div className="grid gap-10 md:grid-cols-[1.1fr_1fr] md:gap-8 lg:gap-14">
             <Gallery product={product} />
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">

@@ -86,7 +86,7 @@ export function DiscountField({ items, applied, error, onError, onApply }) {
           }}
           autoComplete="off"
           spellCheck={false}
-          placeholder="LOADOUT10"
+          placeholder="Enter a code"
           aria-invalid={Boolean(message)}
           aria-describedby={message ? 'discount-error' : undefined}
           className="h-10 min-w-0 flex-1 rounded-control border border-edge bg-plate px-3 font-mono text-[14px] text-ink uppercase placeholder:text-ink-3/60 focus:border-accent-ink focus:outline-none focus:placeholder:text-transparent aria-invalid:border-bad"

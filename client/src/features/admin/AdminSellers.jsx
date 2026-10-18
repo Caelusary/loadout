@@ -10,6 +10,7 @@ import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.j
 import { api, toQuery } from '../../lib/api.js';
 import { formatDate } from '../../lib/format.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
+import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
 const TABS = [
   ['pending', 'Applications'],
@@ -46,7 +47,7 @@ export default function AdminSellers() {
   return (
     <>
       <PanelHeader title="Sellers" description="Approve new shops, and suspend shops that break the rules." />
-      <div role="tablist" aria-label="Seller status" className="mb-5 flex gap-1 overflow-x-auto">
+      <ScrollRow role="tablist" aria-label="Seller status" className="mb-5 flex gap-1">
         {TABS.map(([value, label]) => (
           <button
             key={value}
@@ -62,7 +63,7 @@ export default function AdminSellers() {
             {label}
           </button>
         ))}
-      </div>
+      </ScrollRow>
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isPending ? (

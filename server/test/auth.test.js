@@ -21,8 +21,8 @@ describe('auth', () => {
 
   it('treats a request without the cookie as a guest', async () => {
     const res = await request(app).get('/api/auth/me');
-    expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe('UNAUTHENTICATED');
+    expect(res.status).toBe(200);
+    expect(res.body.user).toBeNull();
   });
 
   it('returns per-field messages for invalid input', async () => {
