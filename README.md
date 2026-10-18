@@ -176,7 +176,7 @@ Every seed product's 3D model, and the product photos rendered from it, comes fr
 | Glide Orbit Ergo | [Stealth Series: Ergonomic Wireless Mouse Concept](https://sketchfab.com/3d-models/stealth-series-ergonomic-wireless-mouse-concept-be00cd1edd364f30a0a2da8c0511d5e0) | [yazz88](https://sketchfab.com/yazz88) |
 | Glide Flick Wired | [Ice Claw mouse](https://sketchfab.com/3d-models/ice-claw-mouse-43de4d030ae94667bd8b8a478dd371ac) | [dmitriy7776661111](https://sketchfab.com/dmitriy7776661111) |
 | Glide Drift Travel | [computer mouse](https://sketchfab.com/3d-models/computer-mouse-bd571d8034b040f2834da88173b5739e) | [ChoboiAssets](https://sketchfab.com/alsoliman905) |
-| Glide Glow Pad 49 | [RGB Gaming Mousepad](https://sketchfab.com/3d-models/rgb-gaming-mousepad-331317c7d6bf4555b4645dbcabdf7e40) | [poopdeckpercy](https://sketchfab.com/poopdeckpercy) |
+| Glide Glow Pad 49 | [Razer Extended Mousepad](https://sketchfab.com/3d-models/razer-extended-mousepad-e17c23c3d6a642479204ca7d6823bb50) (edge recoloured cyan, cable trimmed) | [Rasyinggan 3D](https://sketchfab.com/naraharoufi) |
 | Glide Cloth XL | [mouse pad (keyboard pad)](https://sketchfab.com/3d-models/mouse-pad-keyboard-pad-7690f727d87847aaa737c8110c8e6531) (printed artwork added) | [ｍｆｋ](https://sketchfab.com/mfkffzl) |
 | Glide Control Pad M | [Damascus Mousepad](https://sketchfab.com/3d-models/damascus-mousepad-42dc83c9a40a49bfaaccd0ea50762f85) | [supahot](https://sketchfab.com/supahot) |
 | Hush Veil Wireless | [Headphones Free Model by Oscar Creative](https://sketchfab.com/3d-models/headphones-free-model-by-oscar-creative-db92168ca39541939d0110e64a37f92e) | [OSCAR CREATIVO](https://sketchfab.com/oscar_creativo) |
