@@ -24,13 +24,15 @@ function client() {
   return cloudinary;
 }
 
+const FOLDERS = { review: 'loadout/reviews', proof: 'loadout/proofs' };
+
 export async function saveFile(buffer, { ext, kind }) {
   if (isCloudinaryEnabled()) {
     const result = await new Promise((resolve, reject) => {
       const options =
         kind === 'model'
           ? { folder: 'loadout/models', resource_type: 'raw', public_id: `${randomUUID()}.glb` }
-          : { folder: 'loadout/products', resource_type: 'image' };
+          : { folder: FOLDERS[kind] ?? 'loadout/products', resource_type: 'image' };
       client()
         .uploader.upload_stream(options, (err, res) => (err ? reject(err) : resolve(res)))
         .end(buffer);
