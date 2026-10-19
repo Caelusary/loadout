@@ -6,7 +6,16 @@ import { imageSrcSet, sizedImageUrl } from '../../lib/api.js';
 // A broken link shows a placeholder icon instead of the browser's broken-image glyph.
 // `size` is the most pixels the image needs; pass `sizes` (its CSS width, as for <img sizes>) where the
 // layout width varies, and the browser picks from every stored copy instead.
-export function ProductImage({ src, alt = '', className = '', imgClassName = '', eager = false, size = 800, sizes, style }) {
+export function ProductImage({
+  src,
+  alt = '',
+  className = '',
+  imgClassName = '',
+  eager = false,
+  size = 800,
+  sizes,
+  style,
+}) {
   const ref = useRef(null);
   const [state, setState] = useState('loading');
 
@@ -17,9 +26,15 @@ export function ProductImage({ src, alt = '', className = '', imgClassName = '',
 
   return (
     <div className={`relative overflow-hidden bg-plate ${className}`}>
-      {state === 'loading' && <div className="absolute inset-0 animate-pulse bg-raised/70" aria-hidden="true" />}
+      {state === 'loading' && (
+        <div className="absolute inset-0 animate-pulse bg-raised/70" aria-hidden="true" />
+      )}
       {state === 'failed' || !src ? (
-        <div className="grid size-full place-items-center text-ink-3" role="img" aria-label={alt || 'Image unavailable'}>
+        <div
+          className="grid size-full place-items-center text-ink-3"
+          role="img"
+          aria-label={alt || 'Image unavailable'}
+        >
           <ImageBroken size={28} />
         </div>
       ) : (
