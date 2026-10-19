@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Product } from '../src/models/index.js';
+import { Product, Review, User } from '../src/models/index.js';
 import { users } from '../src/seed/data.js';
 import request from 'supertest';
 import { app, productId, signIn, useSeededDb } from './helpers.js';
@@ -83,5 +83,88 @@ describe('products', () => {
     expect(active).toBe(0);
     const relist = await admin.patch(`/api/admin/products/${productId(17)}`).send({ isActive: true });
     expect(relist.status).toBe(409);
+  });
+});
+
+describe('shops', () => {
+  it('lists every approved shop with its listed product count, and no private fields', async () => {
+    const res = await request(app).get('/api/shops');
+    expect(res.status).toBe(200);
+    const names = res.body.shops.map((s) => s.shopName);
+    expect(names).toContain('Lumen Desk');
+    expect(names).not.toContain('Coilworks'); // still pending
+    const allowed = ['bio', 'logoUrl', 'productCount', 'shopName', 'slug'];
+    for (const shop of res.body.shops) {
+      expect(Object.keys(shop).filter((k) => !allowed.includes(k))).toEqual([]);
+      const owner = await User.findOne({ 'sellerProfile.slug': shop.slug });
+      expect(shop.productCount).toBe(await Product.countDocuments({ seller: owner._id, isActive: true }));
+    }
+  });
+});
+
+describe('review list', () => {
+  it('counts every review per star, and filters and sorts without changing those counts', async () => {
+    const aster = productId(1); // seeded with ratings 5, 5, 5, 4, 4, 3 (Mika plus the earlier buyers)
+    const all = (await request(app).get(`/api/products/${aster}/reviews`)).body;
+    const total = Object.values(all.breakdown).reduce((a, b) => a + b, 0);
+    expect(total).toBe(all.total);
+    expect(all.breakdown[5]).toBeGreaterThan(0);
+
+    const fives = (await request(app).get(`/api/products/${aster}/reviews?stars=5`)).body;
+    expect(fives.items.every((r) => r.rating === 5)).toBe(true);
+    expect(fives.total).toBe(all.breakdown[5]);
+    expect(fives.breakdown).toEqual(all.breakdown);
+
+    const lowest = (await request(app).get(`/api/products/${aster}/reviews?sort=lowest`)).body.items.map((r) => r.rating);
+    expect(lowest).toEqual([...lowest].sort((a, b) => a - b));
+    const highest = (await request(app).get(`/api/products/${aster}/reviews?sort=highest`)).body.items.map((r) => r.rating);
+    expect(highest).toEqual([...highest].sort((a, b) => b - a));
+
+    // Nonsense is ignored rather than refused.
+    expect((await request(app).get(`/api/products/${aster}/reviews?stars=9&sort=bogus`)).body.total).toBe(all.total);
+  });
+});
+
+describe('review votes', () => {
+  it('lets other shoppers vote once each, either way, and never shows who voted', async () => {
+    const aster = productId(1);
+    const review = await Review.findOne({ product: aster, user: users.mika._id });
+    const url = `/api/reviews/${review._id}/vote`;
+    // A shopper who hasn't voted on it yet (the seed hands out some votes).
+    const voted = [...review.helpful, ...review.unhelpful].map(String);
+    const key = Object.keys(users).find((k) => users[k].role === 'customer' && k !== 'mika' && !voted.includes(String(users[k]._id)));
+    const paolo = await signIn(key);
+    const before = review.helpful.length;
+
+    const up = await paolo.put(url).send({ vote: 'up' });
+    expect(up.status).toBe(200);
+    expect(up.body).toMatchObject({ likes: before + 1, myVote: 'up' });
+    // Again changes nothing; switching moves the vote.
+    expect((await paolo.put(url).send({ vote: 'up' })).body.likes).toBe(before + 1);
+    const down = await paolo.put(url).send({ vote: 'down' });
+    expect(down.body).toMatchObject({ likes: before, myVote: 'down' });
+    const stored = await Review.findById(review._id);
+    expect(stored.helpfulCount).toBe(stored.helpful.length);
+
+    // The list carries counts and the viewer's own vote, not the voters.
+    const listed = (await paolo.get(`/api/products/${aster}/reviews`)).body.items.find((r) => r._id === String(review._id));
+    expect(listed).toMatchObject({ myVote: 'down', dislikes: down.body.dislikes });
+    expect(listed.helpful).toBeUndefined();
+    expect(listed.unhelpful).toBeUndefined();
+    expect((await paolo.put(url).send({ vote: 'none' })).body.myVote).toBe(null);
+
+    // Not your own review, not the product's own shop, not admins; and only up, down or none.
+    const mika = await signIn('mika');
+    expect((await mika.put(url).send({ vote: 'up' })).status).toBe(403);
+    expect((await (await signIn('northpaw')).put(url).send({ vote: 'up' })).status).toBe(403);
+    expect((await (await signIn('admin')).put(url).send({ vote: 'up' })).status).toBe(403);
+    expect((await paolo.put(url).send({ vote: 'sideways' })).status).toBe(400);
+    expect((await request(app).put(url).send({ vote: 'up' })).status).toBe(401);
+  });
+
+  it('sorts by most helpful when asked', async () => {
+    const items = (await request(app).get(`/api/products/${productId(1)}/reviews?sort=helpful`)).body.items;
+    const likes = items.map((r) => r.likes);
+    expect(likes).toEqual([...likes].sort((a, b) => b - a));
   });
 });
