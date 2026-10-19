@@ -48,11 +48,11 @@ function SimilarProducts({ product }) {
         <h2 id="similar-title" className="wide text-2xl font-bold">
           More {CATEGORY_LABELS[product.category].toLowerCase()}
         </h2>
-        <Link to={`/shop?category=${product.category}`} className="text-sm text-ink-2 hover:text-accent-ink">
+        <Link to={`/shop?category=${product.category}`} className="-my-2 py-2 text-base font-medium text-ink-2 hover:text-accent-ink">
           See all
         </Link>
       </div>
-      <ProductGrid products={items} />
+      <ProductGrid products={items} fullRows />
     </section>
   );
 }
@@ -75,7 +75,7 @@ function RecentlyViewed({ product }) {
       <h2 id="recent-title" className="wide mb-6 text-2xl font-bold">
         Recently viewed
       </h2>
-      <ProductGrid products={items} />
+      <ProductGrid products={items} fullRows />
     </section>
   );
 }
@@ -88,20 +88,7 @@ export default function ProductPage() {
   if (isError) return error.status === 404 ? <NotFound /> : <ErrorState error={error} onRetry={refetch} />;
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-4 pt-6 sm:px-6">
-      <nav aria-label="Breadcrumb" className="mb-6 flex gap-2 text-[13px] text-ink-3">
-        <Link to="/shop" className="hover:text-ink">
-          Shop
-        </Link>
-        {product && (
-          <>
-            <span aria-hidden="true">/</span>
-            <Link to={`/shop?category=${product.category}`} className="hover:text-ink">
-              {CATEGORY_LABELS[product.category]}
-            </Link>
-          </>
-        )}
-      </nav>
+    <div className="mx-auto w-full max-w-[1280px] px-4 pt-8 sm:px-6">
 
       {isPending ? (
         <div className="grid gap-10 md:grid-cols-[1.1fr_1fr] md:gap-8">
