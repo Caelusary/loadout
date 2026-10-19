@@ -4,8 +4,8 @@ import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { ButtonLink } from '../../components/ui/Button.jsx';
 import { Pagination } from '../../components/ui/controls.jsx';
-import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
-import { Cell, Table } from '../../components/ui/Table.jsx';
+import { EmptyState, ErrorState } from '../../components/ui/feedback.jsx';
+import { Cell, Table, TableSkeleton } from '../../components/ui/Table.jsx';
 import { api, toQuery } from '../../lib/api.js';
 import { formatDate, formatMoney, orderNumber } from '../../lib/format.js';
 import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
@@ -24,15 +24,29 @@ const LABELS = {
 // history and the approve / decline / received actions are.
 export function ReturnsList({ title, description, endpoint, statuses, showShop }) {
   useTitle(title);
-  const [status, setStatus] = useState(statuses[0]);
+  const [chosen, setStatus] = useState(null);
   const [page, setPage] = useState(1);
+  const [first, setFirst] = useState(null); // the opening tab, settled once the counts arrive
+  const status = chosen ?? first ?? statuses[0];
   const params = { status, page };
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['returns', endpoint, params],
     queryFn: ({ signal }) => api(`${endpoint}${toQuery(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
+  // Open on the first tab with something in it (the counts cover every tab), so the page doesn't land on an empty
+  // list while returns wait elsewhere.
+  if (first === null && data?.counts) setFirst(statuses.find((s) => data.counts[s] > 0) ?? statuses[0]);
 
+  // Shared with the loading placeholder, so it draws the same columns.
+  const columns = [
+    { label: 'Order', skeleton: 'two' },
+    { label: 'Customer', skeleton: 'two' },
+    ...(showShop ? [{ label: 'Shop' }] : []),
+    { label: 'Asked', skeleton: 'short' },
+    { label: 'Refund', skeleton: 'short' },
+    { label: '', align: 'right', skeleton: 'button' },
+  ];
   return (
     <>
       <PanelHeader title={title} description={description} />
@@ -49,35 +63,35 @@ export function ReturnsList({ title, description, endpoint, statuses, showShop }
             className={`h-9 shrink-0 rounded-control px-3 text-sm whitespace-nowrap transition-colors ${status === s ? 'bg-raised text-ink' : 'text-ink-2 hover:text-ink'}`}
           >
             {LABELS[s]}
+            {data?.counts?.[s] !== undefined && (
+              <span className="ml-1.5 font-mono text-ink-3">{data.counts[s]}</span>
+            )}
           </button>
         ))}
       </ScrollRow>
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isPending ? (
-        <Skeleton className="h-64 rounded-panel" />
+        <TableSkeleton columns={columns} />
       ) : (
         <>
           <Table
-            columns={[
-              { label: 'Order' },
-              { label: 'Customer' },
-              ...(showShop ? [{ label: 'Shop' }] : []),
-              { label: 'Asked' },
-              { label: 'Refund', align: 'right' },
-              { label: '', align: 'right' },
-            ]}
-            empty={data.items.length === 0 && <EmptyState title="Nothing here">Returns with this status show up here.</EmptyState>}
+            columns={columns}
+            empty={
+              data.items.length === 0 && (
+                <EmptyState title="No returns here">Returns with this status show up here.</EmptyState>
+              )
+            }
           >
             {data.items.map((r) => (
               <tr key={r._id}>
                 <Cell className="font-mono">{orderNumber(r.order)}</Cell>
                 <Cell>{r.user?.name ?? 'Deleted account'}</Cell>
-                {showShop && <Cell className="text-ink-2">{r.seller?.sellerProfile?.shopName ?? 'Deleted shop'}</Cell>}
+                {showShop && (
+                  <Cell className="text-ink-2">{r.seller?.sellerProfile?.shopName ?? 'Deleted shop'}</Cell>
+                )}
                 <Cell className="text-ink-2">{formatDate(r.createdAt)}</Cell>
-                <Cell align="right" className="font-mono tabular-nums">
-                  {formatMoney(r.refundCents)}
-                </Cell>
+                <Cell className="font-mono tabular-nums">{formatMoney(r.refundCents)}</Cell>
                 <Cell align="right">
                   <ButtonLink to={`/orders/${r.order}`} variant="ghost" size="sm">
                     Review
