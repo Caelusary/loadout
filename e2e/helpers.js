@@ -7,7 +7,7 @@ export const users = {
   customer: 'mika@loadout.test',
   seller: 'lumen@loadout.test',
   admin: 'admin@loadout.test',
-  riders: ['ramon@loadout.test', 'joy@loadout.test'],
+  riders: ['ramon@loadout.test', 'joy@loadout.test', 'dante@loadout.test'], // not Rico: he's paused in the seed
 };
 
 export async function signIn(page, email) {
