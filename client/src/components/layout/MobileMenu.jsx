@@ -4,12 +4,11 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { initials } from '../../lib/format.js';
 import { ButtonLink } from '../ui/Button.jsx';
-import { accountSections } from './accountLinks.js';
+import { accountSections, sectionLabel as headingFor } from './accountLinks.js';
+import { useAdminLinks } from './adminLinks.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { useTheme } from '../../providers/ThemeProvider.jsx';
-
-const SECTION_LABELS = { workspace: 'Workspace', you: 'You' };
 
 const rowBase =
   'flex h-12 w-full items-center gap-3 rounded-control px-3 text-left text-[15px] transition-colors active:bg-raised hover:bg-raised';
@@ -58,6 +57,15 @@ function PerformanceSwitch() {
 function MenuPanel({ onClose }) {
   const auth = useAuth();
   const navigate = useNavigate();
+  const adminLinks = useAdminLinks();
+  // Nothing the tab bar already holds (MobileTabBar): a rider's two pages, an admin's main three, a seller's Seller
+  // Center, a shopper's orders. An admin's menu lists the rest of the admin pages.
+  // Signed out there are no account pages, just signing in, the display switches and the tab bar's pages.
+  const sections = auth.user ? accountSections(auth) : {};
+  const inTabs = new Set(['/seller', '/account/orders', '/deliveries', '/account/rider']);
+  for (const key of Object.keys(sections)) sections[key] = sections[key].filter(([to]) => !inTabs.has(to));
+  if (auth.isAdmin)
+    sections.workspace = adminLinks.filter((l) => !l.tab).map((l) => [l.to, l.label, l.icon, l.count]);
   const panel = useRef(null);
 
   useEffect(() => {
@@ -99,21 +107,24 @@ function MenuPanel({ onClose }) {
               </span>
               <CaretRight size={16} className="shrink-0 text-ink-3" />
             </Link>
-            {Object.entries(accountSections(auth)).map(
+            {Object.entries(sections).map(
               ([key, links]) =>
                 links.length > 0 && (
-                  <section key={key} aria-label={SECTION_LABELS[key]}>
-                    <p className={sectionLabel}>{SECTION_LABELS[key]}</p>
+                  <section key={key} aria-label={headingFor(key, auth)}>
+                    <p className={sectionLabel}>{headingFor(key, auth)}</p>
                     <ul className="flex flex-col">
-                      {links.map(([to, label, Icon]) => (
+                      {links.map(([to, label, Icon, count]) => (
                         <li key={to}>
-                          <Link
-                            to={to}
-                            onClick={onClose}
-                            className={row}
-                          >
+                          <Link to={to} onClick={onClose} className={row}>
                             <Icon size={20} />
                             {label}
+                            {/* What's waiting there (an admin's approvals, complaints, returns). */}
+                            {count > 0 && (
+                              <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 font-mono text-[11px] font-medium text-on-accent tabular-nums">
+                                {count}
+                                <span className="sr-only"> waiting</span>
+                              </span>
+                            )}
                           </Link>
                         </li>
                       ))}
