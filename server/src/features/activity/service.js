@@ -4,10 +4,11 @@ import { ON_THE_WAY } from '../../models/Order.js';
 import { AppError, notFound } from '../../lib/AppError.js';
 import { relistProducts, unlistSellerProducts } from '../products/service.js';
 import { notify } from '../notifications/service.js';
+import { orderNumber } from '../../lib/format.js';
 
 // Labels for the log, so entries read the same after names change.
 export const userLabel = (u) => `${u.name} (${u.email})`;
-export const orderLabel = (o) => `Order #${String(o._id).slice(-6).toUpperCase()}`;
+export const orderLabel = (o) => `Order ${orderNumber(o._id)}`;
 
 // Written inside the action's own transaction, so an action and its entry succeed or fail together.
 export function record(actor, { action, target, summary, undo, undoable = true }, session) {
