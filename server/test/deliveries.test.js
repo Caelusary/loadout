@@ -1,8 +1,9 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { Notification, Order, User } from '../src/models/index.js';
-import { address, app, productId, signIn, useSeededDb } from './helpers.js';
+import { address, app, productId, signIn, useSeededDb, riderStep } from './helpers.js';
 import { users } from '../src/seed/data.js';
+import { pickRider } from '../src/features/riders/service.js';
 
 useSeededDb();
 
@@ -21,16 +22,14 @@ async function orderUpTo(status) {
 }
 
 describe('deliveries', () => {
-  it('stops the shop at shipped, and assigns the least busy rider when it ships', async () => {
-    const before = await Order.aggregate([{ $match: { status: { $in: ['shipped', 'out-for-delivery'] } } }, { $group: { _id: '$rider', n: { $sum: 1 } } }]);
-    const load = new Map(before.map((r) => [String(r._id), r.n]));
-    const quieter = (load.get(String(id('ramon'))) ?? 0) <= (load.get(String(id('joy'))) ?? 0) ? 'ramon' : 'joy';
+  it('stops the shop at shipped, and assigns the rider dispatch picks when it ships', async () => {
+    const expected = await pickRider();
 
     const { order, glide } = await orderUpTo('shipped');
     const shipped = await Order.findById(order._id).lean();
     expect(shipped.status).toBe('shipped');
-    expect(String(shipped.rider)).toBe(String(id(quieter)));
-    expect(await Notification.exists({ user: id(quieter), title: /New delivery/ })).toBeTruthy();
+    expect(String(shipped.rider)).toBe(String(expected));
+    expect(await Notification.exists({ user: expected, title: /New delivery/ })).toBeTruthy();
 
     for (const status of ['out-for-delivery', 'delivered']) {
       const res = await glide.patch(`/api/orders/${order._id}/status`).send({ status });
@@ -41,10 +40,10 @@ describe('deliveries', () => {
   it('lets only the assigned rider take it out and mark it delivered, in order', async () => {
     const { order, mika } = await orderUpTo('shipped');
     const { rider } = await Order.findById(order._id).lean();
-    const mine = String(rider) === String(id('ramon')) ? 'ramon' : 'joy';
-    const other = mine === 'ramon' ? 'joy' : 'ramon';
+    const mine = Object.keys(users).find((k) => String(id(k)) === String(rider));
+    const other = ['ramon', 'joy', 'dante'].find((k) => k !== mine);
     const me = await signIn(mine);
-    const move = (agent, status) => agent.patch(`/api/deliveries/${order._id}`).send({ status });
+    const move = (agent, status) => riderStep(agent, order._id, status);
 
     expect((await move(await signIn(other), 'out-for-delivery')).status).toBe(404);
     expect((await move(mika, 'delivered')).status).toBe(403);
@@ -60,10 +59,15 @@ describe('deliveries', () => {
     expect((await move(me, 'delivered')).status).toBe(422);
     expect((await me.get('/api/deliveries?view=done')).body.items.map((o) => o._id)).toContain(order._id);
 
-    // Both sides see it, and the rider can open the order; the customer's own "received" is gone.
-    expect((await mika.get(`/api/orders/${order._id}`)).body.order.rider.name).toBe(users[mine].name);
+    // Both sides see it, and the rider can open the order. The customer can say it arrived, but that only records
+    // their answer: it doesn't change the status or who delivered it, and the rider can't answer for them.
+    expect((await mika.get(`/api/orders/${order._id}`)).body.order.rider.name).toBe(users[mine].name.split(' ')[0]); // buyers get a first name
     expect((await me.get(`/api/orders/${order._id}`)).status).toBe(200);
-    expect((await mika.patch(`/api/orders/${order._id}/received`)).status).toBe(404);
+    expect((await me.patch(`/api/orders/${order._id}/received`)).status).toBe(404);
+    const answered = await mika.patch(`/api/orders/${order._id}/received`);
+    expect(answered.status).toBe(200);
+    expect(answered.body.order).toMatchObject({ status: 'delivered', deliveredBy: 'rider' });
+    expect(answered.body.order.receivedAt).toBeTruthy();
   });
 
   it("won't ship without an active rider", async () => {
