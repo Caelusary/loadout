@@ -1,7 +1,21 @@
-import { CONNECTIVITY_LABELS, LAYOUT_LABELS, RESOLUTION_LABELS, SWITCH_LABELS } from './constants.js';
+import {
+  CONNECTIVITY_LABELS,
+  LAYOUT_LABELS,
+  RESOLUTION_LABELS,
+  SWITCH_LABELS,
+  VEHICLE_LABELS,
+} from './constants.js';
 
-const pesoWhole = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 });
-const pesoCents = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 });
+const pesoWhole = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+  maximumFractionDigits: 0,
+});
+const pesoCents = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+  minimumFractionDigits: 2,
+});
 
 // Whole pesos drop the ".00" so prices stay short in tiles; anything with centavos shows both digits.
 export function formatMoney(cents) {
@@ -20,7 +34,8 @@ export function parsePesos(text) {
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
 }
 
-export const centsToPesoInput = (cents) => (Number.isFinite(cents) ? (cents / 100).toFixed(2).replace(/\.00$/, '') : '');
+export const centsToPesoInput = (cents) =>
+  Number.isFinite(cents) ? (cents / 100).toFixed(2).replace(/\.00$/, '') : '';
 
 const dateFormat = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 const dateTimeFormat = new Intl.DateTimeFormat('en-PH', {
@@ -82,3 +97,7 @@ export function refundLevel(order) {
 
 // "1 item", "3 items": a count with its noun, in place of "item(s)".
 export const plural = (n, word) => `${n} ${n === 1 ? word : `${word}s`}`;
+
+// "Motorcycle · DAQ 1937": a rider's vehicle and plate, or a change they asked for.
+export const vehicleText = (v) =>
+  [VEHICLE_LABELS[v?.vehicle] ?? 'No vehicle', v?.plate].filter(Boolean).join(' · ');
