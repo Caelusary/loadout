@@ -7,7 +7,13 @@ export function AddressFields({ register, errors = {}, prefix }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <TextField label="Full name" autoComplete="name" placeholder="Who will receive the order" error={error('fullName')} {...register(name('fullName'))} />
+        <TextField
+          label="Recipient name"
+          autoComplete="name"
+          placeholder="Who will receive the order"
+          error={error('fullName')}
+          {...register(name('fullName'))}
+        />
       </div>
       <div className="sm:col-span-2">
         <TextField
@@ -18,8 +24,20 @@ export function AddressFields({ register, errors = {}, prefix }) {
           {...register(name('line1'))}
         />
       </div>
-      <TextField label="City" autoComplete="address-level2" placeholder="Enter your city" error={error('city')} {...register(name('city'))} />
-      <TextField label="Province" autoComplete="address-level1" placeholder="Enter your province" error={error('province')} {...register(name('province'))} />
+      <TextField
+        label="City"
+        autoComplete="address-level2"
+        placeholder="Enter your city"
+        error={error('city')}
+        {...register(name('city'))}
+      />
+      <TextField
+        label="Province"
+        autoComplete="address-level1"
+        placeholder="Enter your province"
+        error={error('province')}
+        {...register(name('province'))}
+      />
       <TextField
         label="Postal code"
         inputMode="numeric"
