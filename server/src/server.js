@@ -4,6 +4,10 @@ import { connectDB, disconnectDB } from './config/db.js';
 import { seed } from './seed/seed.js';
 import { purgeExpired } from './features/activity/service.js';
 import { autoCompleteShipped } from './features/orders/service.js';
+import { settleSales } from './features/products/service.js';
+import { assignWaiting } from './features/riders/service.js';
+import { checkStock } from './features/products/stockAlerts.js';
+import { purgeAbandonedPhotos } from './lib/pendingPhotos.js';
 
 const { inMemory } = await connectDB();
 if (inMemory) {
@@ -18,12 +22,20 @@ const port = Number(hosted ? process.env.PORT : process.env.API_PORT) || 5000;
 const server = createApp().listen(port, () => console.log(`API listening on http://localhost:${port}`));
 
 // Housekeeping that would otherwise need a cron job: shipped orders nobody confirmed complete after
-// 7 days, and deleted accounts past their 30-day restore window lose their saved copy. Runs now (a
-// sleeping free host wakes here) and hourly; both steps are safe to repeat.
+// 7 days, deleted accounts past their 30-day restore window lose their saved copy, and photos uploaded for a
+// review that was never posted are deleted after a day. Runs now (a sleeping free host wakes here) and hourly;
+// every step is safe to repeat.
 const housekeeping = () =>
-  Promise.all([autoCompleteShipped(), purgeExpired()]).catch((err) => console.error('Housekeeping failed:', err.message));
+  Promise.all([autoCompleteShipped(), purgeExpired(), purgeAbandonedPhotos()]).catch((err) => console.error('Housekeeping failed:', err.message));
 housekeeping();
 setInterval(housekeeping, 60 * 60 * 1000).unref();
+
+// Every minute (and on waking): scheduled sales start and end (checkout also checks), orders left without a rider
+// (everyone declined or was paused) go to the next free one, and shops and shoppers hear about stock changes.
+const everyMinute = () =>
+  Promise.all([settleSales(), assignWaiting(), checkStock()]).catch((err) => console.error('Minute job failed:', err.message));
+everyMinute();
+setInterval(everyMinute, 60 * 1000).unref();
 
 // Render sends SIGTERM on every deploy and restart (node --watch does too). Stop taking connections,
 // let in-flight requests finish, then close MongoDB (and stop the in-memory one so no mongod is left
