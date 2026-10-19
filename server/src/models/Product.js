@@ -96,6 +96,17 @@ const productSchema = new mongoose.Schema(
         },
       ],
     },
+    // When the sale ends (end of a day, Manila time); the price goes back to compareAtCents then. Unset = no end.
+    saleEndsAt: Date,
+    // A sale the seller scheduled for later: its price and start. Until then priceCents is the regular price.
+    // Seller-only, so shoppers can't see a discount coming and wait for it.
+    upcomingSale: {
+      type: new mongoose.Schema({ priceCents: { type: Number, validate: isInteger }, startsAt: Date }, { _id: false }),
+      select: false,
+      default: undefined,
+    },
+    // When the shop was told stock is running low, so it's told once per dip, not on every sale. Cleared on restock.
+    lowStockAlertAt: { type: Date, select: false },
     // Every change to the regular price (compareAtCents during a sale, otherwise priceCents), so a sale
     // can't claim a "was" price the product never really had. Trimmed to about 30 days.
     priceLog: {
