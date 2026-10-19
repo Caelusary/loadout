@@ -1,28 +1,42 @@
-import { Order, Product, ReturnRequest, User } from '../../models/index.js';
+import { Order, Product, ReturnRequest, RiderFeedback, User } from '../../models/index.js';
+import { canManage } from '../../middleware/auth.js';
+import { stuckFilter } from '../returns/controller.js';
 import { ORDER_STATUSES } from '../../models/Order.js';
+import { paymentState } from '../orders/payment.js';
 
 const NET_SALES = {
-  $subtract: ['$subtotalCents', { $add: [{ $ifNull: ['$discountCents', 0] }, { $ifNull: ['$refundedCents', 0] }] }],
+  $subtract: [
+    '$subtotalCents',
+    { $add: [{ $ifNull: ['$discountCents', 0] }, { $ifNull: ['$refundedCents', 0] }] },
+  ],
 };
 
 const TZ = 'Asia/Manila';
 const DAY_MS = 24 * 60 * 60 * 1000;
-const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+const dayKey = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
-function last30Days() {
+// The last `n` days as YYYY-MM-DD in Manila time, oldest first.
+function lastDays(n) {
   const now = Date.now();
-  return Array.from({ length: 30 }, (_, i) => dayKey.format(new Date(now - (29 - i) * DAY_MS)));
+  return Array.from({ length: n }, (_, i) => dayKey.format(new Date(now - (n - 1 - i) * DAY_MS)));
 }
 
 async function salesStats(match = {}) {
-  const days = last30Days();
+  // 60 days, so each of the last 30 can be set beside the same day of the 30 before (the chart's "last month").
+  const days60 = lastDays(60);
+  const days = days60.slice(30);
   const since = new Date(Date.now() - 30 * DAY_MS);
   const recent = { ...match, status: { $ne: 'cancelled' }, createdAt: { $gte: since } };
 
   const [statusRows, dayRows, productRows, refundRows] = await Promise.all([
     Order.aggregate([{ $match: match }, { $group: { _id: '$status', n: { $sum: 1 } } }]),
     Order.aggregate([
-      { $match: recent },
+      { $match: { ...recent, createdAt: { $gte: new Date(Date.now() - 60 * DAY_MS) } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: TZ } },
@@ -31,7 +45,7 @@ async function salesStats(match = {}) {
         },
       },
     ]),
-   
+
     Order.aggregate([
       { $match: recent },
       { $unwind: '$items' },
@@ -47,7 +61,12 @@ async function salesStats(match = {}) {
                 {
                   $cond: [
                     { $gt: ['$subtotalCents', 0] },
-                    { $divide: [{ $subtract: ['$subtotalCents', { $ifNull: ['$discountCents', 0] }] }, '$subtotalCents'] },
+                    {
+                      $divide: [
+                        { $subtract: ['$subtotalCents', { $ifNull: ['$discountCents', 0] }] },
+                        '$subtotalCents',
+                      ],
+                    },
                     1,
                   ],
                 },
@@ -57,18 +76,28 @@ async function salesStats(match = {}) {
         },
       },
     ]),
-  
+
     ReturnRequest.aggregate([
       { $match: { ...match, status: 'refunded', createdAt: { $gte: since } } },
       { $unwind: '$items' },
-      { $group: { _id: '$items.product', units: { $sum: '$items.qty' }, refundCents: { $sum: '$items.refundCents' } } },
+      {
+        $group: {
+          _id: '$items.product',
+          units: { $sum: '$items.qty' },
+          refundCents: { $sum: '$items.refundCents' },
+        },
+      },
     ]),
   ]);
   const refunds = new Map(refundRows.map((r) => [String(r._id), r]));
   const topRows = productRows
     .map((r) => {
       const back = refunds.get(String(r._id));
-      return { ...r, units: r.units - (back?.units ?? 0), salesCents: Math.round(r.salesCents) - (back?.refundCents ?? 0) };
+      return {
+        ...r,
+        units: r.units - (back?.units ?? 0),
+        salesCents: Math.round(r.salesCents) - (back?.refundCents ?? 0),
+      };
     })
     .filter((r) => r.units > 0)
     .sort((a, b) => b.units - a.units || b.salesCents - a.salesCents)
@@ -76,30 +105,60 @@ async function salesStats(match = {}) {
 
   const counts = new Map(statusRows.map((r) => [r._id, r.n]));
   const byDay = new Map(dayRows.map((r) => [r._id, r]));
-  const salesByDay = days.map((date) => ({
+  const salesByDay = days.map((date, i) => ({
     date,
     salesCents: byDay.get(date)?.salesCents ?? 0,
     orders: byDay.get(date)?.orders ?? 0,
+    prevCents: byDay.get(days60[i])?.salesCents ?? 0,
   }));
   const stats = {
     salesCents30d: salesByDay.reduce((sum, d) => sum + d.salesCents, 0),
     orders30d: salesByDay.reduce((sum, d) => sum + d.orders, 0),
     ordersByStatus: Object.fromEntries(ORDER_STATUSES.map((s) => [s, counts.get(s) ?? 0])),
     salesByDay,
-    topProducts: topRows.map((r) => ({ productId: r._id, name: r.name, units: r.units, salesCents: r.salesCents })),
+    topProducts: topRows.map((r) => ({
+      productId: r._id,
+      name: r.name,
+      units: r.units,
+      salesCents: r.salesCents,
+    })),
   };
   return { stats, since };
 }
 
+// The shop's money, simulated like Shopee's Guarantee (see orders/payment.js): what Loadout is still holding until
+// buyers confirm, and what was released to the shop in the last 30 days.
+async function payouts(sellerId) {
+  const since = Date.now() - 30 * DAY_MS;
+  const orders = await Order.find(
+    { seller: sellerId, status: { $ne: 'cancelled' } },
+    'status subtotalCents discountCents refundedCents receivedAt deliveryIssue deliveredBy statusHistory updatedAt',
+  ).lean();
+  let heldCents = 0;
+  let releasedCents30d = 0;
+  let heldOrders = 0;
+  for (const order of orders) {
+    const p = paymentState(order);
+    if (p.state === 'held') {
+      heldCents += p.amountCents;
+      heldOrders += 1;
+    } else if (p.state === 'released' && new Date(p.releasedAt).getTime() >= since) {
+      releasedCents30d += p.amountCents;
+    }
+  }
+  return { heldCents, heldOrders, releasedCents30d };
+}
+
 export async function sellerStats(req, res) {
-  const [{ stats }, lowStock] = await Promise.all([
+  const [{ stats }, lowStock, money] = await Promise.all([
     salesStats({ seller: req.user._id }),
     Product.find({ seller: req.user._id, isActive: true, stock: { $lte: 5 } })
       .select('name slug stock')
       .sort({ stock: 1 })
       .limit(10),
+    payouts(req.user._id),
   ]);
-  res.json({ ...stats, lowStock });
+  res.json({ ...stats, lowStock, payouts: money });
 }
 
 export async function adminStats(req, res) {
@@ -126,4 +185,37 @@ export async function adminStats(req, res) {
     Product.countDocuments({ isActive: true }),
   ]);
   res.json({ ...stats, topSellers, pendingSellers, userCount, activeProducts });
+}
+
+// What's waiting on admins, for the number badges on the admin menu. Each count only for the areas this admin manages.
+// Complaints gathers what buyers flagged: rider ratings and reports (the users area) and "not received" reports (orders).
+export async function adminCounts(req, res) {
+  const can = (area) => canManage(req.user, area);
+  const [sellers, returns, riders, riderFeedback, deliveryReports] = await Promise.all([
+    can('sellers') ? User.countDocuments({ 'sellerProfile.status': 'pending' }) : null,
+    can('orders')
+      ? stuckFilter().then((stuck) => ReturnRequest.countDocuments({ $or: [{ status: 'escalated' }, stuck] }))
+      : null,
+    can('users')
+      ? User.countDocuments({ role: 'rider', 'riderProfile.vehicleRequest': { $exists: true } })
+      : null,
+    can('users') ? RiderFeedback.countDocuments({ flagged: true, reviewedAt: null }) : null,
+    can('orders') ? Order.countDocuments({ 'deliveryIssue.status': 'open' }) : null,
+  ]);
+  const sum = (a, b) => (a === null && b === null ? null : (a ?? 0) + (b ?? 0));
+  const complaints = sum(riderFeedback, deliveryReports);
+  // Approvals: new shops (sellers area) and rider vehicle changes (users area).
+  const approvals = sum(sellers, riders);
+  const counts = Object.fromEntries(
+    Object.entries({
+      sellers,
+      returns,
+      riders,
+      approvals,
+      complaints,
+      riderFeedback,
+      deliveryReports,
+    }).filter(([, n]) => n !== null),
+  );
+  res.json({ counts });
 }
