@@ -23,17 +23,21 @@ function CartLine({ line }) {
           checked={line.checked}
           onChange={(e) => cart.setChecked(line.productId, e.target.checked)}
           aria-label={`Check out ${product?.name ?? 'this item'}`}
-          className="size-[18px] accent-accent-ink"
+          className="check size-[18px]"
         />
       </label>
-      <ProductImage src={image?.url} className={`size-16 rounded-control sm:size-20 ${line.checked ? '' : 'opacity-50'}`} size={160} />
+      <ProductImage
+        src={image?.url}
+        className={`size-16 rounded-control sm:size-20 ${line.checked ? '' : 'opacity-50'}`}
+        size={160}
+      />
       <div className={`flex min-w-0 flex-col gap-1 ${line.checked ? '' : 'opacity-70'}`}>
         {line.available ? (
-          <Link to={`/p/${product.slug}`} className="truncate font-medium text-ink hover:text-accent-ink">
+          <Link to={`/p/${product.slug}`} className="line-clamp-2 font-medium text-ink hover:text-accent-ink">
             {product.name}
           </Link>
         ) : (
-          <p className="truncate font-medium text-ink-3">{product?.name ?? 'Removed product'}</p>
+          <p className="line-clamp-2 font-medium text-ink-3">{product?.name ?? 'Removed product'}</p>
         )}
         {line.available ? (
           <Price cents={product.priceCents} was={product.compareAtCents} className="text-[13px] text-ink-3" />
@@ -44,9 +48,11 @@ function CartLine({ line }) {
           <p className="text-[13px] text-warn">Only {product.stock} left. Lower the quantity.</p>
         )}
         {line.available && line.addedPriceCents != null && line.addedPriceCents !== product.priceCents && (
-          <p className={`flex flex-wrap items-center gap-x-2 text-[13px] ${product.priceCents > line.addedPriceCents ? 'text-warn' : 'text-ok'}`}>
-            {product.priceCents > line.addedPriceCents ? 'Price went up' : 'Price dropped'} from {formatMoney(line.addedPriceCents)} since
-            you added it.
+          <p
+            className={`flex flex-wrap items-center gap-x-2 text-[13px] ${product.priceCents > line.addedPriceCents ? 'text-warn' : 'text-ok'}`}
+          >
+            {product.priceCents > line.addedPriceCents ? 'Price went up' : 'Price dropped'} from{' '}
+            {formatMoney(line.addedPriceCents)} since you added it.
             <button
               type="button"
               className="font-medium text-accent-ink hover:underline"
@@ -65,7 +71,10 @@ function CartLine({ line }) {
             max={Math.min(product.stock, MAX_QTY)}
           />
         )}
-        <Price cents={line.lineCents} className={`w-24 text-right font-medium ${line.checked ? 'text-ink' : 'text-ink-3'}`} />
+        <Price
+          cents={line.lineCents}
+          className={`w-24 text-right font-medium ${line.checked ? 'text-ink' : 'text-ink-3'}`}
+        />
         <button
           type="button"
           onClick={() => cart.remove(line.productId)}
@@ -79,10 +88,18 @@ function CartLine({ line }) {
   );
 }
 
-export function OrderSummary({ groups, shopCount = groups.length, subtotalCents, shippingCents, totalCents, discount, children }) {
+export function OrderSummary({
+  groups,
+  shopCount = groups.length,
+  subtotalCents,
+  shippingCents,
+  totalCents,
+  discount,
+  children,
+}) {
   const discountCents = discount?.discountCents ?? 0;
   return (
-    <aside className="flex flex-col gap-4 rounded-panel border border-seam bg-plate p-5 lg:sticky lg:top-24">
+    <aside className="flex flex-col gap-4 self-start rounded-panel border border-seam bg-plate p-5 lg:sticky lg:top-24">
       <h2 className="wide text-lg font-bold">Summary</h2>
       <dl className="flex flex-col gap-2 text-sm">
         <div className="flex justify-between">
@@ -149,7 +166,7 @@ export default function CartPage() {
                     if (el) el.indeterminate = !allChecked && cart.selected.length > 0;
                   }}
                   onChange={(e) => cart.setAllChecked(e.target.checked)}
-                  className="size-[18px] accent-accent-ink"
+                  className="check size-[18px]"
                 />
               </span>
               Select all ({cart.items.length})
