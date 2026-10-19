@@ -17,8 +17,8 @@ export function OrderRow({ order }) {
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="truncate font-medium">{itemSummary(order)}</p>
         <p className="text-[13px] text-ink-3">
-          <span className="font-mono">{orderNumber(order._id)}</span>, {order.seller?.sellerProfile?.shopName ?? 'Shop'},{' '}
-          {formatDate(order.createdAt)}
+          <span className="font-mono">{orderNumber(order._id)}</span>,{' '}
+          {order.seller?.sellerProfile?.shopName ?? 'Shop'}, {formatDate(order.createdAt)}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-4">
