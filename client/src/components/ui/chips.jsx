@@ -39,9 +39,18 @@ export function StatusPill({ status }) {
 }
 
 // An order's status as people read it: a fully refunded order shows "Refunded" in place of "Delivered",
-// and a partly refunded one keeps its status with a second pill beside it.
-export function OrderStatus({ order }) {
-  const refund = refundLevel(order);
+// and a partly refunded one keeps its status with the amount refunded beside it.
+// `refunds={false}` leaves refunds out, for viewers who have nothing to do with the money (riders).
+export function OrderStatus({ order, refunds = true }) {
+  // After a missed try the rider still has the parcel, so "Waiting for pickup" would be wrong.
+  if (order.status === 'shipped' && order.attempts?.length) {
+    return (
+      <span className="inline-flex h-6 items-center rounded-full border border-warn/50 px-2.5 text-[12px] font-medium text-warn">
+        Missed, trying again
+      </span>
+    );
+  }
+  const refund = refunds ? refundLevel(order) : null;
   if (refund === 'full') {
     return (
       <span className="inline-flex h-6 items-center rounded-full border border-accent-ink/50 px-2.5 text-[12px] font-medium text-accent-ink">
@@ -54,7 +63,7 @@ export function OrderStatus({ order }) {
       <StatusPill status={order.status} />
       {refund === 'partial' && (
         <span className="inline-flex h-6 items-center rounded-full border border-accent-ink/50 px-2.5 text-[12px] font-medium text-accent-ink">
-          Partly refunded
+          {formatMoney(order.refundedCents)} refunded
         </span>
       )}
     </span>
@@ -66,10 +75,13 @@ export function Tag({ children, tone = 'neutral' }) {
     neutral: 'border-edge text-ink-2',
     accent: 'border-accent-ink/50 text-accent-ink',
     bad: 'border-bad/50 text-bad',
+    warn: 'border-warn/50 text-warn',
     ok: 'border-ok/50 text-ok',
   };
   return (
-    <span className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[12px] font-medium ${tones[tone]}`}>
+    <span
+      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[12px] font-medium ${tones[tone]}`}
+    >
       {children}
     </span>
   );
