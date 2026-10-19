@@ -39,7 +39,7 @@ describe('api', () => {
     const err = await api('/orders').catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(502);
-    expect(err.message).toBe('Something went wrong.');
+    expect(err.message).toBe("That didn't work. Try again in a moment.");
   });
 
   it('reports a network failure as status 0, but lets an abort through untouched', async () => {

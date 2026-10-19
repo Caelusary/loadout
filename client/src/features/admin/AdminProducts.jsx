@@ -3,21 +3,32 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
-import { Button } from '../../components/ui/Button.jsx';
 import { Price, Tag } from '../../components/ui/chips.jsx';
 import { Pagination } from '../../components/ui/controls.jsx';
-import { ErrorState, Skeleton, EmptyState } from '../../components/ui/feedback.jsx';
-import { Cell, Table } from '../../components/ui/Table.jsx';
+import { ErrorState, EmptyState } from '../../components/ui/feedback.jsx';
+import { RowMenu } from '../../components/ui/RowMenu.jsx';
+import { TabRow } from '../../components/ui/TabRow.jsx';
+import { Cell, Table, TableSkeleton } from '../../components/ui/Table.jsx';
 import { api, sizedImageUrl, toQuery } from '../../lib/api.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
+
+// The table's columns, shared with its loading placeholder so the two always match.
+const PRODUCT_COLUMNS = [
+  { label: 'Product', skeleton: 'thumb' },
+  { label: 'Shop' },
+  { label: 'Price', skeleton: 'short' },
+  { label: 'Status', skeleton: 'tag' },
+  { label: '', skeleton: 'button', align: 'right' },
+];
 
 export default function AdminProducts() {
   useTitle('Products');
   const toast = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
-  const params = { includeInactive: '1', q: search, page, limit: 20 };
+  const params = { includeInactive: '1', q: search, status, page, limit: 20 };
   const { data, isPending, isError, error, refetch, isPlaceholderData } = useQuery({
     queryKey: ['admin', 'products', params],
     queryFn: ({ signal }) => api(`/products${toQuery(params)}`, { signal }),
@@ -28,17 +39,54 @@ export default function AdminProducts() {
     mutationFn: ({ id, changes }) => api(`/admin/products/${id}`, { method: 'PATCH', body: changes }),
     onSuccess: (res, { changes }) => {
       const p = res.product;
-      toast.show('isFeatured' in changes ? (p.isFeatured ? `${p.name} is featured` : `${p.name} is no longer featured`) : p.isActive ? `${p.name} is listed` : `${p.name} is unlisted`);
+      toast.show(
+        'isFeatured' in changes
+          ? p.isFeatured
+            ? `${p.name} is featured`
+            : `${p.name} is no longer featured`
+          : p.isActive
+            ? `${p.name} is listed`
+            : `${p.name} is unlisted`,
+      );
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
     onError: (err) => toast.error(err.message),
   });
-  const busy = (id, key) => moderate.isPending && moderate.variables?.id === id && key in moderate.variables.changes;
+  // A seller's own unlisting is theirs to undo, so the admin can only relist what an admin took down.
+  const menuFor = (p) => [
+    {
+      label: 'Homepage',
+      items: p.isActive
+        ? [
+            {
+              label: p.isFeatured ? 'Remove from featured' : 'Feature on homepage',
+              onSelect: () => moderate.mutate({ id: p._id, changes: { isFeatured: !p.isFeatured } }),
+            },
+          ]
+        : [],
+    },
+    {
+      label: 'Listing',
+      danger: p.isActive,
+      items:
+        p.isActive || p.unlistedBy === 'admin'
+          ? [
+              {
+                label: p.isActive ? 'Unlist' : 'Relist',
+                onSelect: () => moderate.mutate({ id: p._id, changes: { isActive: !p.isActive } }),
+              },
+            ]
+          : [],
+    },
+  ];
 
   return (
     <>
-      <PanelHeader title="Products" description="Every product on the platform. Up to 8 can be featured in the homepage carousel." />
+      <PanelHeader
+        title="Products"
+        description="Every product on the platform. Up to 8 can be featured in the homepage carousel."
+      />
       <form
         role="search"
         className="mb-5 max-w-sm"
@@ -56,61 +104,140 @@ export default function AdminProducts() {
           className="h-10 w-full rounded-control border border-edge bg-bg px-3 text-sm placeholder:text-ink-3 focus:border-accent-ink focus:outline-none"
         />
       </form>
+      <TabRow
+        label="Filter by status"
+        tabs={[
+          ['', 'All'],
+          ['listed', 'Listed'],
+          ['featured', 'Featured'],
+          ['unlisted', 'Unlisted'],
+        ]}
+        value={status}
+        counts={data?.counts}
+        onChange={(s) => {
+          setStatus(s);
+          setPage(1);
+        }}
+      />
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isPending ? (
-        <Skeleton className="h-64 rounded-panel" />
+        <TableSkeleton columns={PRODUCT_COLUMNS} />
       ) : (
         <div className={isPlaceholderData ? 'opacity-60' : ''}>
-          <Table
-            columns={[{ label: 'Product' }, { label: 'Shop' }, { label: 'Price', align: 'right' }, { label: 'Status' }, { label: 'Moderation', align: 'right' }]}
-            empty={data.items.length === 0 && <EmptyState title="No products match">Try another search.</EmptyState>}
-          >
-            {data.items.map((p) => (
-              <tr key={p._id}>
-                <Cell>
-                  <div className="flex items-center gap-3">
+          {data.items.length === 0 ? (
+            <EmptyState title="No products here">
+              {search ? 'Try another search.' : 'Products with this status show up here.'}
+            </EmptyState>
+          ) : (
+            <>
+              {/* Phones get one compact row per product, like Seller Center's list; wider screens the table. */}
+              <ul className="divide-y divide-seam rounded-panel border border-seam sm:hidden">
+                {data.items.map((p) => (
+                  <li key={p._id} className="flex items-center gap-3 p-3">
                     <div className="size-12 shrink-0 overflow-hidden rounded-control border border-seam bg-raised">
-                      {p.images[0] && <img src={sizedImageUrl(p.images[0].url, 120)} alt="" className="size-full object-contain p-0.5" />}
+                      {p.images[0] && (
+                        <img
+                          src={sizedImageUrl(p.images[0].url, 120)}
+                          alt=""
+                          className="size-full object-contain p-0.5"
+                        />
+                      )}
                     </div>
-                    <Link to={`/p/${p.slug}`} className="max-w-56 truncate font-medium hover:text-accent-ink">
-                      {p.name}
-                    </Link>
-                  </div>
-                </Cell>
-                <Cell className="text-ink-2">{p.seller?.sellerProfile?.shopName ?? 'Deleted account'}</Cell>
-                <Cell align="right">
-                  <Price cents={p.priceCents} was={p.compareAtCents} />
-                </Cell>
-                <Cell>
-                  <div className="flex flex-wrap gap-1.5">
-                    {p.isActive ? <Tag tone="ok">Listed</Tag> : <Tag tone={p.unlistedBy === 'admin' ? 'bad' : 'neutral'}>{p.unlistedBy === 'admin' ? 'Unlisted by admin' : 'Unlisted by seller'}</Tag>}
-                    {p.isFeatured && <Tag tone="accent">Featured</Tag>}
-                  </div>
-                </Cell>
-                <Cell align="right">
-                  <div className="flex justify-end gap-1">
-                    {p.isActive && (
-                      <Button variant="ghost" size="sm" loading={busy(p._id, 'isFeatured')} onClick={() => moderate.mutate({ id: p._id, changes: { isFeatured: !p.isFeatured } })}>
-                        {p.isFeatured ? 'Unfeature' : 'Feature'}
-                      </Button>
-                    )}
-                    {(p.isActive || p.unlistedBy === 'admin') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={p.isActive ? 'hover:text-bad' : ''}
-                        loading={busy(p._id, 'isActive')}
-                        onClick={() => moderate.mutate({ id: p._id, changes: { isActive: !p.isActive } })}
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <Link
+                        to={`/p/${p.slug}`}
+                        className="truncate text-sm font-medium hover:text-accent-ink"
                       >
-                        {p.isActive ? 'Unlist' : 'Relist'}
-                      </Button>
+                        {p.name}
+                      </Link>
+                      <p className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-ink-3">
+                        <span className="truncate">
+                          {p.seller?.sellerProfile?.shopName ?? 'Deleted account'}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <Price cents={p.priceCents} was={p.compareAtCents} tag={false} className="text-ink" />
+                      </p>
+                      <p className="flex flex-wrap items-center gap-x-1.5 text-[12px]">
+                        <span
+                          className={
+                            p.isActive ? 'text-ok' : p.unlistedBy === 'admin' ? 'text-bad' : 'text-ink-3'
+                          }
+                        >
+                          {p.isActive
+                            ? 'Listed'
+                            : p.unlistedBy === 'admin'
+                              ? 'Unlisted by admin'
+                              : 'Unlisted by seller'}
+                        </span>
+                        {p.isFeatured && (
+                          <>
+                            <span aria-hidden="true" className="text-ink-3">
+                              ·
+                            </span>
+                            <span className="text-accent-ink">Featured</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    {menuFor(p).some((g) => g.items.length) && (
+                      <RowMenu ariaLabel={`Manage ${p.name}`} groups={menuFor(p)} />
                     )}
-                  </div>
-                </Cell>
-              </tr>
-            ))}
-          </Table>
+                  </li>
+                ))}
+              </ul>
+              <div className="max-sm:hidden">
+                <Table columns={PRODUCT_COLUMNS}>
+                  {data.items.map((p) => (
+                    <tr key={p._id}>
+                      <Cell>
+                        <div className="flex items-center gap-3">
+                          <div className="size-12 shrink-0 overflow-hidden rounded-control border border-seam bg-raised">
+                            {p.images[0] && (
+                              <img
+                                src={sizedImageUrl(p.images[0].url, 120)}
+                                alt=""
+                                className="size-full object-contain p-0.5"
+                              />
+                            )}
+                          </div>
+                          <Link
+                            to={`/p/${p.slug}`}
+                            className="max-w-56 truncate font-medium hover:text-accent-ink"
+                          >
+                            {p.name}
+                          </Link>
+                        </div>
+                      </Cell>
+                      <Cell className="whitespace-nowrap text-ink-2">
+                        {p.seller?.sellerProfile?.shopName ?? 'Deleted account'}
+                      </Cell>
+                      <Cell>
+                        <Price cents={p.priceCents} was={p.compareAtCents} />
+                      </Cell>
+                      <Cell>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.isActive ? (
+                            <Tag tone="ok">Listed</Tag>
+                          ) : (
+                            <Tag tone={p.unlistedBy === 'admin' ? 'bad' : 'neutral'}>
+                              {p.unlistedBy === 'admin' ? 'Unlisted by admin' : 'Unlisted by seller'}
+                            </Tag>
+                          )}
+                          {p.isFeatured && <Tag tone="accent">Featured</Tag>}
+                        </div>
+                      </Cell>
+                      <Cell align="right">
+                        {menuFor(p).some((g) => g.items.length) && (
+                          <RowMenu ariaLabel={`Manage ${p.name}`} groups={menuFor(p)} />
+                        )}
+                      </Cell>
+                    </tr>
+                  ))}
+                </Table>
+              </div>
+            </>
+          )}
           <Pagination page={data.page} pages={data.pages} onPage={setPage} />
         </div>
       )}

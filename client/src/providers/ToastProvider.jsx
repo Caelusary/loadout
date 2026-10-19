@@ -24,16 +24,17 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext value={value}>
       {children}
-      {/* Phones show toasts under the top bar: the bottom holds the tab bar and, on product pages, the buy bar. */}
+      {/* Toasts drop in under the top bar, where people look first (and the bottom holds the phone tab bar and the
+          compare tray). */}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4 max-sm:top-[calc(env(safe-area-inset-top,0px)+4.5rem)] sm:bottom-0 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4 top-[calc(env(safe-area-inset-top,0px)+4.75rem)]"
       >
         {toasts.map((t) => (
           <div
             key={t.id}
             role="status"
-            className="pointer-events-auto flex max-w-md items-center gap-2.5 rounded-panel border border-seam bg-raised px-4 py-3 text-sm text-ink shadow-[0_8px_24px_-12px_rgb(0_0_0/0.6)] transition-[opacity,translate] duration-200 ease-out starting:opacity-0 max-sm:starting:-translate-y-2 sm:starting:translate-y-2"
+            className="pointer-events-auto flex max-w-md items-center gap-2.5 rounded-panel border border-seam bg-raised px-4 py-3 text-sm text-ink shadow-[0_8px_24px_-12px_rgb(0_0_0/0.6)] transition-[opacity,translate] duration-200 ease-out starting:-translate-y-2 starting:opacity-0"
           >
             {t.tone === 'error' ? (
               <WarningCircle size={18} weight="fill" className="shrink-0 text-bad" />

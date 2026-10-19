@@ -1,11 +1,14 @@
 import { Link } from 'react-router';
+import { useAuth } from '../../providers/AuthProvider.jsx';
 
-// A keycap mark plus the wordmark. `compact` drops the wordmark on phones to make room.
+// A keycap mark plus the wordmark. `compact` drops the wordmark on phones to make room. It leads home: the
+// storefront, or for a rider, their deliveries.
 export function Logo({ compact = false }) {
+  const { isRider } = useAuth();
   return (
     // min 40px square so the compact mark is a comfortable tap target, not just the 28px tile.
     <Link
-      to="/"
+      to={isRider ? '/deliveries' : '/'}
       className="flex min-h-10 min-w-10 shrink-0 items-center justify-center gap-2.5 rounded-control"
       aria-label="Loadout home"
     >

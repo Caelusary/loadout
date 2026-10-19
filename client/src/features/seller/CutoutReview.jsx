@@ -15,7 +15,9 @@ const cutoutName = (file) => `${file.name.replace(/\.[^.]+$/, '')}-cutout.webp`;
 // Shows each picked photo next to its background-removed cutout. The cutout is chosen by default;
 // the seller can keep the original instead (cutouts can clip cables or clear plastic).
 export function CutoutReview({ files, onDone, onCancel }) {
-  const [items, setItems] = useState(() => files.map((file) => ({ file, original: URL.createObjectURL(file), status: 'working', useCutout: true })));
+  const [items, setItems] = useState(() =>
+    files.map((file) => ({ file, original: URL.createObjectURL(file), status: 'working', useCutout: true })),
+  );
   const [download, setDownload] = useState(null); // model download progress, 0..1, first run only
   // Object URLs are released when the review ends, not in the effect cleanup: Strict Mode runs that
   // cleanup right after mount in development, which would blank the previews.
@@ -27,26 +29,38 @@ export function CutoutReview({ files, onDone, onCancel }) {
 
   useEffect(() => {
     let cancelled = false;
+    // The removal runs in a worker (cutout.worker.js), which is allowed the eval the library needs while the page
+    // isn't. One photo at a time; the worker ends when the review closes.
+    const worker = new Worker(new URL('./cutout.worker.js', import.meta.url), { type: 'module' });
+    const removeBackground = (file, n) =>
+      new Promise((resolve, reject) => {
+        const onMessage = ({ data }) => {
+          if (data.id !== n) return;
+          const { key, current, total } = data.progress ?? {};
+          if (key?.startsWith('fetch:') && total)
+            return setDownload(current >= total ? null : current / total);
+          if (data.progress) return;
+          worker.removeEventListener('message', onMessage);
+          if (data.blob) resolve(data.blob);
+          else reject(new Error(data.error));
+        };
+        worker.addEventListener('message', onMessage);
+        worker.addEventListener('error', reject, { once: true });
+        worker.postMessage({ id: n, file, config: CONFIG });
+      });
     (async () => {
-      let removeBackground;
-      try {
-        ({ removeBackground } = await import('@imgly/background-removal'));
-      } catch {
-        if (!cancelled) setItems((list) => list.map((i) => ({ ...i, status: 'failed', useCutout: false })));
-        return;
-      }
-      const progress = (key, current, total) => {
-        if (key.startsWith('fetch:') && total) setDownload(current >= total ? null : current / total);
-      };
       for (let n = 0; n < files.length; n += 1) {
         if (cancelled) return;
         let patch;
         try {
-          const blob = await removeBackground(files[n], { ...CONFIG, progress });
+          const blob = await removeBackground(files[n], n);
           const cutout = new File([blob], cutoutName(files[n]), { type: 'image/webp' });
           const url = URL.createObjectURL(blob);
           urls.current.push(url);
-          patch = cutout.size > MAX_BYTES ? { status: 'failed', useCutout: false } : { status: 'ready', cutout, cutoutUrl: url };
+          patch =
+            cutout.size > MAX_BYTES
+              ? { status: 'failed', useCutout: false }
+              : { status: 'ready', cutout, cutoutUrl: url };
         } catch {
           patch = { status: 'failed', useCutout: false };
         }
@@ -56,6 +70,7 @@ export function CutoutReview({ files, onDone, onCancel }) {
     })();
     return () => {
       cancelled = true;
+      worker.terminate();
     };
     // Runs once for the files this review was opened with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,7 +88,8 @@ export function CutoutReview({ files, onDone, onCancel }) {
   }, []);
 
   const working = items.some((i) => i.status === 'working');
-  const choose = (n, useCutout) => setItems((list) => list.map((item, i) => (i === n ? { ...item, useCutout } : item)));
+  const choose = (n, useCutout) =>
+    setItems((list) => list.map((item, i) => (i === n ? { ...item, useCutout } : item)));
 
   return (
     <div className="flex flex-col gap-4 rounded-panel border border-seam bg-plate p-4">
@@ -101,7 +117,9 @@ export function CutoutReview({ files, onDone, onCancel }) {
               onSelect={() => choose(n, true)}
               checker
             >
-              {item.status === 'ready' && <img src={item.cutoutUrl} alt="" className="size-full object-contain" />}
+              {item.status === 'ready' && (
+                <img src={item.cutoutUrl} alt="" className="size-full object-contain" />
+              )}
               {item.status === 'working' && <span className="size-full animate-pulse bg-raised/60" />}
               {item.status === 'failed' && (
                 <span className="flex flex-col items-center gap-2 px-4 text-center text-[13px] text-ink-2">

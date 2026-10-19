@@ -44,7 +44,13 @@
   --glow: 0 0 0 1px color-mix(in oklab, var(--color-accent-ink) 35%, transparent), 0 2px 10px -3px color-mix(in oklab, var(--color-accent-ink) 45%, transparent);
 }
 
+:root {
+  /* How strongly the hero's loading glow shows; dark needs more to read against black. */
+  --stage-glow: 40%;
+}
+
 :root[data-theme='dark'] {
+  --stage-glow: 75%;
   --color-bg: #07060f;
   --color-plate: #0e0c1b;
   --color-raised: #161329;
@@ -90,6 +96,49 @@
 @utility widest {
   font-family: var(--font-display);
   font-stretch: 125%;
+}
+
+/* A scroll area without a visible bar (the content and the fade below say there's more). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Fades the last few pixels of a scroll area, so a cut-off row reads as "more below" rather than a hard edge. */
+@utility fade-bottom {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+
+/* A themed checkbox: the browser's own is a grey box that ignores the theme. The tick is the on-accent colour,
+   which is near-black in both themes. */
+@utility check {
+  appearance: none;
+  display: grid;
+  flex-shrink: 0;
+  border: 1px solid var(--color-edge);
+  border-radius: 4px;
+  background: var(--color-raised) center / 80% no-repeat;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  &:hover {
+    border-color: var(--color-ink-3);
+  }
+  &:checked {
+    border-color: var(--color-accent-ink);
+    background-color: var(--color-accent-ink);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23021418' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  }
+  &:indeterminate {
+    border-color: var(--color-accent-ink);
+    background-color: var(--color-accent-ink);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23021418' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+  }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 }
 
 @layer base {
@@ -156,6 +205,24 @@
   }
   70% {
     translate: 5px;
+  }
+}
+
+/* Page-level cross-fades (switching category on the shop page): quick, and off with reduced motion or Lite mode. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease-out;
+}
+:root[data-performance]::view-transition-old(root),
+:root[data-performance]::view-transition-new(root) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
   }
 }
 

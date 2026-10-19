@@ -1,22 +1,30 @@
-import { House, ShoppingBagOpen, SquaresFour, Storefront, Truck } from '@phosphor-icons/react';
+import { Briefcase, IdentificationCard, Package, SquaresFour, Storefront, Truck } from '@phosphor-icons/react';
+import { useAdminLinks } from './adminLinks.js';
 import { NavLink } from 'react-router';
 import { useAuth } from '../../providers/AuthProvider.jsx';
-import { useCart } from '../../providers/CartProvider.jsx';
 
-// Phones get app-style navigation within thumb reach: the main pages and the cart. Everything else is in
-// the top bar's menu (MobileMenu).
+// Phones get app-style navigation within thumb reach: each role's everyday jobs, two to four of them. Every place
+// lives in exactly one spot: the logo is home and the cart and notifications sit in the top bar, so neither is a tab,
+// and what's here is left out of the top bar's menu (MobileMenu), which holds the rest.
 // Its height is the --dock token (index.css), which every bottom-fixed element sits above.
 export function MobileTabBar() {
-  const { canShop, isRider } = useAuth();
-  const { count } = useCart();
+  const { user, isRider, isAdmin, isSeller } = useAuth();
+  const adminLinks = useAdminLinks();
 
-  const tabs = [
-    { to: '/', label: 'Home', icon: House, end: true },
-    { to: '/shop', label: 'Shop', icon: Storefront },
-    { to: '/loadout', label: 'Build', icon: SquaresFour },
-    ...(isRider ? [{ to: '/deliveries', label: 'Deliveries', icon: Truck }] : []),
-    ...(canShop ? [{ to: '/cart', label: 'Cart', icon: ShoppingBagOpen, badge: count }] : []),
-  ];
+  const tabs = isRider
+    ? [
+        { to: '/deliveries', label: 'Deliveries', icon: Truck },
+        { to: '/account/rider', label: 'Profile', icon: IdentificationCard },
+      ]
+    : isAdmin
+      ? adminLinks.filter((l) => l.tab).map((l) => ({ ...l, badge: l.count }))
+      : [
+          { to: '/shop', label: 'Shop', icon: Storefront },
+          { to: '/loadout', label: 'Build', icon: SquaresFour },
+          // A seller shops too, so their Seller Center is added rather than swapped in: four tabs at most.
+          ...(isSeller ? [{ to: '/seller', label: 'Seller Center', icon: Briefcase }] : []),
+          ...(user ? [{ to: '/account/orders', label: 'My orders', icon: Package }] : []),
+        ];
 
   return (
     <nav

@@ -55,4 +55,7 @@ export const canShop = (auth) => auth.canShop;
 export const riderOnly = ({ isRider }) => isRider;
 export const sellerOnly = ({ isSeller }) => isSeller;
 export const adminOnly = ({ isAdmin }) => isAdmin;
-export const adminArea = (area) => (auth) => auth.can(area);
+export const adminArea =
+  (...areas) =>
+  (auth) =>
+    areas.some((area) => auth.can(area));

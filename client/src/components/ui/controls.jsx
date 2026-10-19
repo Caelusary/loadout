@@ -39,25 +39,36 @@ export function QtyStepper({ value, onChange, max = MAX_QTY, label = 'Quantity' 
 export function RatingDisplay({ value = 0, count, size = 14 }) {
   const rounded = Math.round(value);
   return (
-    <span className="inline-flex items-center gap-1.5" aria-label={`Rated ${value.toFixed(1)} out of 5`}>
-      <span className="flex text-accent-ink" aria-hidden="true">
+    <span className="inline-flex items-center gap-1.5">
+      {/* The stars read as one image with its rating; the count beside it stays plain text. */}
+      <span className="flex text-accent-ink" role="img" aria-label={`Rated ${value.toFixed(1)} out of 5`}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <Star key={n} size={size} weight={n <= rounded ? 'fill' : 'regular'} className={n <= rounded ? '' : 'text-edge'} />
+          <Star
+            key={n}
+            size={size}
+            weight={n <= rounded ? 'fill' : 'regular'}
+            className={n <= rounded ? '' : 'text-edge'}
+          />
         ))}
       </span>
-      {count !== undefined && <span className="font-mono text-[12px] text-ink-3 tabular-nums">({count})</span>}
+      {count !== undefined && (
+        <span className="font-mono text-[12px] text-ink-3 tabular-nums">({count})</span>
+      )}
     </span>
   );
 }
 
-export function RatingInput({ value, onChange, error }) {
+export function RatingInput({ value, onChange, error, label = 'Rating', disabled = false }) {
   const name = useId();
   return (
-    <fieldset>
-      <legend className="mb-1.5 text-[13px] font-medium text-ink-2">Rating</legend>
+    <fieldset disabled={disabled}>
+      <legend className="mb-1.5 text-[13px] font-medium text-ink-2">{label}</legend>
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((n) => (
-          <label key={n} className="grid size-10 cursor-pointer place-items-center rounded-control hover:bg-raised">
+          <label
+            key={n}
+            className="grid size-10 cursor-pointer place-items-center rounded-control hover:bg-raised"
+          >
             <input
               type="radio"
               name={name}
