@@ -3,7 +3,7 @@ import { useThemeColors } from '../../providers/ThemeProvider.jsx';
 
 // A page-wide neon backdrop: a slowly drifting magenta/cyan haze with a soft glow that follows the
 // cursor. One full-screen fragment shader drawn at reduced resolution; it pauses with the tab and holds
-// a single still frame for reduced motion.
+// a single still frame for reduced motion and on touch screens.
 
 const VERT = `attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
 
@@ -121,7 +121,10 @@ export function NeonBackdrop() {
       gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
       const u = Object.fromEntries(['uRes', 'uTime', 'uMouse', 'uBg', 'uCyan', 'uPink', 'uLight'].map((n) => [n, gl.getUniformLocation(prog, n)]));
 
-      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // One still frame with reduced motion, and on touch screens: with no cursor for the glow to follow, the slow
+      // drift alone isn't worth redrawing the whole screen 30 times a second behind every page on a phone.
+      const still =
+        matchMedia('(prefers-reduced-motion: reduce)').matches || !matchMedia('(hover: hover) and (pointer: fine)').matches;
       const mouse = { x: 0.5, y: 0.3, tx: 0.5, ty: 0.3 };
       let frame = 0;
       let last = 0;
@@ -144,7 +147,7 @@ export function NeonBackdrop() {
         mouse.x += (mouse.tx - mouse.x) * k;
         mouse.y += (mouse.ty - mouse.y) * k;
         gl.uniform2f(u.uRes, el.width, el.height);
-        gl.uniform1f(u.uTime, reduced ? 12 : (now - start) / 1000);
+        gl.uniform1f(u.uTime, still ? 12 : (now - start) / 1000);
         gl.uniform2f(u.uMouse, mouse.x, mouse.y);
         gl.uniform3fv(u.uBg, toRgb(c.bg));
         gl.uniform3fv(u.uCyan, toRgb(c.accent));
@@ -163,10 +166,10 @@ export function NeonBackdrop() {
       };
       const play = () => {
         cancelAnimationFrame(frame);
-        if (reduced) draw(performance.now());
+        if (still) draw(performance.now());
         else if (!document.hidden) frame = requestAnimationFrame(loop);
       };
-      state.current.redraw = () => reduced && draw(performance.now());
+      state.current.redraw = () => still && draw(performance.now());
 
       const onMove = (e) => {
         mouse.tx = e.clientX / innerWidth;
@@ -174,7 +177,7 @@ export function NeonBackdrop() {
       };
       const onResize = () => {
         resize();
-        if (reduced) draw(performance.now());
+        if (still) draw(performance.now());
       };
 
       resize();
