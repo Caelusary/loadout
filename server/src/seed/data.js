@@ -101,15 +101,41 @@ export const users = {
     email: 'lea@loadout.test',
     role: 'customer',
     shippingAddress: address('Lea Villanueva', '9 Gen. Luna St', 'Cebu City', 'Cebu', '6000', '09391827364'),
-  },  // Delivery riders: marking an order shipped hands it to whichever has fewer on the way.
-  ramon: { _id: id('a1', 12), name: 'Ramon Aquino', email: 'ramon@loadout.test', role: 'rider' },
-  joy: { _id: id('a1', 13), name: 'Joy Ramos', email: 'joy@loadout.test', role: 'rider' },
+  },
+  // Delivery riders. Dispatch weighs rating against how many orders each has on the way. Ramon and Joy carry the
+  // seeded deliveries; Dante shows the low-rating alert and Rico a report that paused him (see riderStory below).
+  ramon: {
+    _id: id('a1', 12), name: 'Ramon Aquino', email: 'ramon@loadout.test', role: 'rider',
+    riderProfile: { phone: '09171112233', vehicle: 'motorcycle', plate: 'NAB 4821' },
+  },
+  joy: {
+    _id: id('a1', 13), name: 'Joy Ramos', email: 'joy@loadout.test', role: 'rider',
+    riderProfile: { phone: '09184445566', vehicle: 'motorcycle', plate: 'DAQ 1937' },
+  },
+  dante: {
+    _id: id('a1', 14), name: 'Dante Lim', email: 'dante@loadout.test', role: 'rider',
+    riderProfile: { phone: '09207778899', vehicle: 'bicycle' },
+  },
+  rico: {
+    _id: id('a1', 15), name: 'Rico Mendoza', email: 'rico@loadout.test', role: 'rider',
+    riderProfile: { phone: '09221234567', vehicle: 'car', plate: 'CBT 5520' },
+  },
+  // Earlier buyers (the first checkouts below): their orders are older than the dashboards' 60 days, so they add
+  // reviews without changing any sales numbers.
+  bea: { _id: id('a1', 16), name: 'Bea Santos', email: 'bea.santos@loadout.test', role: 'customer', shippingAddress: address('Bea Santos', '22 Shaw Blvd', 'Pasig', 'Metro Manila', '1600', '09175550101') },
+  carlo: { _id: id('a1', 17), name: 'Carlo Dizon', email: 'carlo@loadout.test', role: 'customer', shippingAddress: address('Carlo Dizon', '5 Jupiter St, Bel-Air', 'Makati', 'Metro Manila', '1209', '09175550102') },
+  jas: { _id: id('a1', 18), name: 'Jasmine Tan', email: 'jasmine@loadout.test', role: 'customer', shippingAddress: address('Jasmine Tan', '140 Boni Ave', 'Mandaluyong', 'Metro Manila', '1550', '09175550103') },
+  miguel: { _id: id('a1', 19), name: 'Miguel Garcia', email: 'miguel@loadout.test', role: 'customer', shippingAddress: address('Miguel Garcia', '8 Quimpo Blvd', 'Davao City', 'Davao del Sur', '8000', '09175550104') },
+  andrea: { _id: id('a1', 20), name: 'Andrea Flores', email: 'andrea@loadout.test', role: 'customer', shippingAddress: address('Andrea Flores', '31 Iznart St', 'Iloilo City', 'Iloilo', '5000', '09175550105') },
+  josh: { _id: id('a1', 21), name: 'Josh Navarro', email: 'josh@loadout.test', role: 'customer', shippingAddress: address('Josh Navarro', '12 Lawton Ave', 'Taguig', 'Metro Manila', '1630', '09175550106') },
+  nina: { _id: id('a1', 22), name: 'Nina Castillo', email: 'nina@loadout.test', role: 'customer', shippingAddress: address('Nina Castillo', '17 Session Rd', 'Baguio', 'Benguet', '2600', '09175550107') },
+  rafael: { _id: id('a1', 23), name: 'Rafael Ong', email: 'rafael@loadout.test', role: 'customer', shippingAddress: address('Rafael Ong', '3 Sumulong Hwy', 'Antipolo', 'Rizal', '1870', '09175550108') },
 
 };
 
 // Bump when the product photos are re-rendered, so browsers fetch the new files instead of their
 // cached copies. Mirrored in client/src/lib/constants.js; `npm run photos` updates a live database.
-export const PHOTO_VERSION = 8;
+export const PHOTO_VERSION = 9;
 
 // Three angles per product, rendered from its model (see client/scripts/shots.mjs).
 const shot = (slug, name) => [
@@ -167,6 +193,7 @@ export const products = [
     description: 'A 60% starter board with crisp clicky switches and doubleshot PBT keycaps. Fits in a sling bag.',
     priceCents: 279000,
     compareAtCents: 329000, // on sale for the demo
+    saleEndsAt: new Date(Date.now() + (2 * 24 + 5) * 60 * 60 * 1000), // shows the countdown
     stock: 31,
     specs: { connectivity: 'wired', switchType: 'clicky', layout: '60', pollingRateHz: 1000, weightGrams: 560 },
   }),
@@ -257,7 +284,7 @@ export const products = [
     name: 'Glide Glow Pad 49',
     brand: 'Glide',
     category: 'mousepad',
-    description: 'Speed-weave pad with an RGB-lit stitched edge and 12 lighting modes, powered over USB-C. 490 × 420 mm.',
+    description: 'Desk-length speed-weave pad with an RGB-lit edge and 12 lighting modes, powered over USB-C. 800 × 330 mm.',
     priceCents: 345000,
     stock: 9,
     isFeatured: true,
@@ -288,6 +315,7 @@ export const products = [
     description: 'Closed-back wireless headset with memory-foam cushions and a detachable boom mic. 60 hours per charge.',
     priceCents: 725000,
     compareAtCents: 799000, // on sale for the demo
+    saleEndsAt: new Date(Date.now() + 10 * 60 * 60 * 1000), // ends today
     stock: 8,
     isFeatured: true,
     specs: { connectivity: 'wireless', weightGrams: 290, batteryMah: 1800 },
@@ -449,6 +477,22 @@ export const products = [
 // Each checkout is split into one order per seller, like the real checkout.
 // [customer, days ago, status, [[product number, qty], ...]]
 export const checkouts = [
+  // Earlier buyers, 2 to 4 months back: everything delivered and reviewed (see pastReviews).
+  ['rafael', 128, 'delivered', [[1, 1], [9, 1], [17, 1]]],
+  ['bea', 121, 'delivered', [[1, 1], [25, 1], [26, 1], [30, 1]]],
+  ['carlo', 114, 'delivered', [[1, 1], [9, 1], [26, 1], [18, 1]]],
+  ['miguel', 106, 'delivered', [[1, 1], [25, 1], [20, 1], [6, 1]]],
+  ['jas', 97, 'delivered', [[23, 1], [17, 1], [33, 1]]],
+  ['andrea', 89, 'delivered', [[23, 1], [17, 1], [32, 1], [30, 1]]],
+  ['josh', 78, 'delivered', [[23, 1], [9, 1], [20, 1], [6, 1]]],
+  ['nina', 68, 'delivered', [[1, 1], [25, 1], [32, 1]]],
+  // The month before the dashboard's 30 days, a little quieter, so the sales chart has something to compare against.
+  ['paolo', 57, 'delivered', [[2, 1]]],
+  ['lea', 51, 'delivered', [[11, 1], [16, 1]]],
+  ['mika', 46, 'delivered', [[5, 1]]],
+  ['paolo', 41, 'delivered', [[22, 1]]],
+  ['lea', 36, 'delivered', [[27, 1], [3, 1]]],
+  ['mika', 32, 'delivered', [[14, 1]]],
   ['mika', 29, 'delivered', [[1, 1], [9, 1]]],
   ['paolo', 27, 'delivered', [[12, 1], [15, 1]]],
   ['lea', 25, 'delivered', [[17, 1]]],
@@ -486,6 +530,73 @@ export const reviews = [
   ['paolo', 25, 5, 'Feels like nothing', 'I forget it is wireless. Clicks are crisp and the battery lasts all week.'],
   ['paolo', 27, 4, 'Comfy and light', 'Great for long sessions and the mic is clear. Wish the white did not show dust so easily.'],
   ['lea', 23, 5, 'Heavy in the best way', 'The aluminum case does not move at all and it sounds deep. Worth saving up for.'],
+];
+
+// Buyer photos on a few of the earlier buyers' reviews, keyed "buyer:product number". Free-licence Pexels photos
+// (client/public/reviews), picked to look like a buyer's own desk: Marcus Richardson (Ridge 75), minhphuc .workspace
+// and Sai Krishna Sudevan (Aster 75).
+export const reviewPhotos = {
+  'jas:23': ['/reviews/northpaw-ridge-75-desk.webp'],
+  'bea:1': ['/reviews/northpaw-aster-75-topo-mat.webp', '/reviews/northpaw-aster-75-night-desk.webp'],
+};
+
+// The earlier buyers' reviews: [buyer, product number, stars, title, body, shop reply?]. A spread of ratings, so the
+// breakdown bars on the busier products have something to show.
+export const pastReviews = [
+  ['bea', 1, 5, 'Worth every peso', 'Tri-mode works exactly as advertised. I switch between my laptop and PC all day with zero lag.'],
+  ['carlo', 1, 4, 'Great board, heavy case', 'Typing feel is excellent and it sounds deep. It is heavier than I expected, so not great for travel.'],
+  ['miguel', 1, 5, 'Arrived fast in Davao', 'Packed well and it reached me in four days. The knob is genuinely useful for volume.'],
+  ['nina', 1, 3, 'Good, but the stabilizers rattle', 'The switches are lovely but the spacebar rattles a little. Some lube fixed most of it.', 'Thanks for the honest note, Nina. We now lube every stabilizer before shipping.'],
+  ['rafael', 1, 4, 'Solid daily driver', 'Battery life is long and the keycaps feel thick. The software is basic but does the job.'],
+  ['jas', 23, 5, 'The sound is unreal', 'Deep, muted thock straight out of the box. Prettiest board on my desk.'],
+  ['josh', 23, 4, 'Compact without compromise', 'I keep the arrow keys and lose the numpad. The cable is a bit stiff.'],
+  ['andrea', 23, 2, 'Two keys stopped working', 'After three weeks the J and K keys went dead. Swapping in new switches fixed it, but I expected better.', 'Sorry about that, Andrea. Message us and we will send replacement switches for free.'],
+  ['carlo', 9, 5, 'Best sensor I have used', 'Zero spin-outs even on fast flicks. The coating has not worn down after two months.'],
+  ['josh', 9, 5, 'Light and fast', 'Perfect for shooters. Charges quickly and lasts a week of play.'],
+  ['rafael', 9, 3, 'Too small for my hand', 'Tracks perfectly but my palm hangs off the back. Fine for claw grip, not for palm grip.'],
+  ['bea', 25, 4, 'Clean, quiet clicks', 'Quiet enough for late nights. The scroll wheel is a little loose for my taste.'],
+  ['nina', 25, 5, 'Lightest mouse I own', 'My wrist thanks me. The shape is safe and the feet glide well on cloth.'],
+  ['miguel', 25, 1, 'Stopped charging', 'It stopped taking a charge after a month. The shop replaced it quickly, but the first one was a dud.', 'Glad the replacement is working, Miguel. That batch had a faulty port and we have pulled it.'],
+  ['andrea', 17, 5, 'Silence is golden', 'The noise cancelling beats my old earbuds. Comfortable even with glasses.'],
+  ['jas', 17, 4, 'Great sound, tight fit', 'Rich bass and a clear mic. The headband is snug for the first week.'],
+  ['rafael', 17, 2, 'The mic picks up everything', 'Music sounds great, but my team hears my keyboard on calls. Not for a noisy room.'],
+  ['miguel', 20, 4, 'Sharp picture', 'Crisp 4K and the autofocus is quick. It struggles a little in a dim room.'],
+  ['josh', 20, 5, 'My streams look pro now', 'Viewers noticed the upgrade straight away. The mount fits my monitor perfectly.'],
+  ['bea', 26, 5, 'Fast but controlled', 'Glides fast yet stops right where I want. The edges have not frayed.'],
+  ['carlo', 26, 3, 'Too fast for me', 'Well made, but I prefer a slower surface. Good if you like speed.'],
+  ['nina', 32, 4, 'Cute and practical', 'The two colours look great on my desk and the felt keeps my wrists warm.'],
+  ['andrea', 32, 5, 'My desk looks so tidy', 'Covers my whole desk. No smell and no curling at the corners.'],
+  ['jas', 33, 3, 'Okay for calls', 'Fine for meetings, but colours look a little washed out under warm light.'],
+  ['josh', 6, 4, 'Wireless done right', 'Bluetooth pairs instantly and the 2.4 GHz dongle has no lag. I wish it came in white.'],
+  ['miguel', 6, 5, 'My favourite purchase', 'Smaller than my old board and I do not miss the extra keys at all.'],
+  ['carlo', 18, 4, 'Open and airy', 'Sounds spacious and great for single-player games. It leaks sound, so not for the office.'],
+  ['andrea', 30, 4, 'Great for night work', 'Lights the desk without glare. The clamp could be a little sturdier.'],
+  ['bea', 30, 5, 'Easy on the eyes', 'Late-night coding is much more comfortable now. It takes a minute to install.'],
+];
+
+// Refunded returns, each with the review its buyer left: [customer, product number, reason, what they reported,
+// rating, review title, review text]. A refunded product's review is low, the way a real one would be, and shops see a
+// "Returned for a refund" tag on it. Each is on a delivered order above, and for one unit of that line.
+export const refundedReturns = [
+  ['mika', 19, 'not-as-described', 'The ear cups are much smaller than they look in the photos and sit on my ears instead of around them.', 2, 'Smaller than it looks', 'The cups press on my ears and get sore within an hour. Sound is fine, but the size is not what the photos show.'],
+  ['lea', 24, 'damaged', 'The wrist rest arrived with a torn seam and the foam poking out.', 2, 'Torn seam on arrival', 'The fabric is soft and the height is right, but the seam was torn open out of the box, so I sent it back.'],
+];
+
+// What buyers said about riders, applied to the oldest delivered orders in turn (each also marked received):
+// [rider, stars, comment, report, reviewedNote]. Dante's five ratings average 2.4, which sets off the admins'
+// low-rating alert. Ramon's two are as bad but too few to say anything yet, so no alert (on purpose). Rico was
+// reported, which paused him from new deliveries until an admin looks. Joy is doing fine.
+export const riderStory = [
+  ['dante', 2, 'Left the box at the gate without calling.', null, 'Spoke to Dante about calling ahead.'],
+  ['dante', 3, null, null, null],
+  ['dante', 2, 'Over an hour late and the box was dented.', null, null],
+  ['dante', 2, null, null, null],
+  ['dante', 3, null, null, null],
+  ['rico', null, null, { reason: 'harassment', note: 'He kept texting my number after the delivery, asking to meet up.' }, null],
+  ['ramon', 2, "Didn't call when he arrived, I had to go looking for him.", null, null],
+  ['ramon', 1, null, null, null],
+  ['joy', 5, 'Quick and polite.', null, null],
+  ['joy', 5, null, null, null],
 ];
 
 // Discount codes. Each customer may use a code once; the server computes and splits the discount.
