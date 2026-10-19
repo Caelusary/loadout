@@ -1,25 +1,31 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Pagination } from '../../components/ui/controls.jsx';
 import { ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { api, toQuery } from '../../lib/api.js';
-import { STATUS_LABELS } from '../../lib/constants.js';
+import {
+  ORDER_STATUSES,
+  SHOP_NEXT as NEXT,
+  SHOP_NEXT_LABEL as NEXT_LABEL,
+  STATUS_LABELS,
+} from '../../lib/constants.js';
 import { orderNumber } from '../../lib/format.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { OrdersTable, StatusTabs } from '../orders/OrdersTable.jsx';
 
-// The shop's part ends at shipped: that hands the order to a rider, who marks it delivered.
-const NEXT = { placed: 'processing', processing: 'shipped' };
-const NEXT_LABEL = { processing: 'Start processing', shipped: 'Hand to rider' };
 
 export default function SellerOrders() {
   useTitle('Shop orders');
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState('placed');
+  // The dashboard links here with ?status= to open on that tab.
+  const [searchParams] = useSearchParams();
+  const linked = searchParams.get('status');
+  const [status, setStatus] = useState(ORDER_STATUSES.includes(linked) ? linked : 'placed');
   const [page, setPage] = useState(1);
   const params = { status, page };
   const { data, isPending, isError, error, refetch } = useQuery({
@@ -40,8 +46,12 @@ export default function SellerOrders() {
 
   return (
     <>
-      <PanelHeader title="Orders" description="Prepare each order, then hand it to a rider. The rider marks it delivered." />
+      <PanelHeader
+        title="Orders"
+        description="Prepare each order, then mark it ready for pickup. The rider collects it and marks it delivered."
+      />
       <StatusTabs
+        counts={data?.counts}
         value={status}
         onChange={(s) => {
           setStatus(s);
@@ -51,7 +61,7 @@ export default function SellerOrders() {
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isPending ? (
-        <Skeleton className="h-64 rounded-panel" />
+        <OrdersTable orders={[]} action={() => null} loading />
       ) : (
         <>
           <OrdersTable
