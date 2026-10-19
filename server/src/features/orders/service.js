@@ -1,14 +1,39 @@
-import { Order, Product, User } from '../../models/index.js';
+import { Order, Product } from '../../models/index.js';
 import { ON_THE_WAY } from '../../models/Order.js';
 import { releaseCouponIfCheckoutVoid } from '../coupons/service.js';
 import { notify, orderNotices } from '../notifications/service.js';
+import { orderNumber } from '../../lib/format.js';
 
 export const OPEN_STATUSES = ['placed', 'processing', ...ON_THE_WAY];
 // Not yet handed to the courier, so the stock is still on the seller's shelf and can be counted back.
 export const UNSHIPPED = ['placed', 'processing'];
+
+// A rider needs the buyer's name, street and phone to deliver, and not a minute longer: once an order is
+// delivered or cancelled the rider's copy keeps only the city, so a rider can't look a buyer up afterwards.
+// The buyer's note in a delivery report is never theirs to read. Takes and returns plain JSON.
+export function riderCopy(order) {
+  const { deliveryIssue, shippingAddress: to, user, ...rest } = order;
+  const done = !OPEN_STATUSES.includes(order.status);
+  return {
+    ...rest,
+    user: user && { _id: user._id, name: user.name }, // never the buyer's email
+    shippingAddress: done && to ? { city: to.city, province: to.province } : to,
+    ...(deliveryIssue && { deliveryIssue: { ...deliveryIssue, note: undefined } }),
+  };
+}
+// The shop packs the order and hands it to a rider; it never contacts or ships to the buyer itself. So it sees who
+// ordered (their name) and roughly where (the city), never their email, street or phone. Takes and returns plain JSON.
+export function shopCopy(order) {
+  const { shippingAddress: to, user, ...rest } = order;
+  return {
+    ...rest,
+    user: user && { _id: user._id, name: user.name },
+    shippingAddress: to && { city: to.city, province: to.province },
+  };
+}
+
 export const AUTO_DELIVER_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const orderNumber = (id) => `#${String(id).slice(-6).toUpperCase()}`;
 
 // Cancels every matching unshipped order inside the caller's transaction: each one restocks its items
 // and gives back a discount code's use once its whole checkout is cancelled. Returns the cancelled orders.
@@ -52,25 +77,16 @@ export const noticesForCancelled = (orders, { skip } = {}) =>
       .filter((notice) => !skip || String(notice.user) !== String(skip)),
   );
 
-// Dispatch: the active rider with the fewest orders on the way gets the next one (ties go to the
-// longest-registered rider, so the pick is stable). Null when there are no active riders.
-export async function pickRider(session) {
-  const riders = await User.find({ role: 'rider', isActive: true }, '_id').sort({ createdAt: 1, _id: 1 }).session(session);
-  if (!riders.length) return null;
-  const load = await Order.aggregate([
-    { $match: { rider: { $in: riders.map((r) => r._id) }, status: { $in: ON_THE_WAY } } },
-    { $group: { _id: '$rider', n: { $sum: 1 } } },
-  ]).session(session);
-  const count = new Map(load.map((r) => [String(r._id), r.n]));
-  return riders.reduce((best, r) => ((count.get(String(r._id)) ?? 0) < (count.get(String(best._id)) ?? 0) ? r : best))._id;
-}
+// Dispatch lives with the riders (ratings, holds and declines all feed into it).
+export { pickRider } from '../riders/service.js';
 
 // Orders shipped more than 7 days ago that the rider never marked delivered count as delivered. Runs at start-up and
 // hourly (see server.js); each order is claimed with a conditional update, so overlapping runs are safe.
 export async function autoCompleteShipped(now = new Date()) {
   const cutoff = new Date(now.getTime() - AUTO_DELIVER_DAYS * DAY_MS);
   const due = await Order.find(
-    { status: { $in: ON_THE_WAY }, statusHistory: { $elemMatch: { status: 'shipped', at: { $lte: cutoff } } } },
+    // A missed delivery waits for the rider's next try instead (the buyer may have asked for a later day).
+    { status: { $in: ON_THE_WAY }, attempts: { $exists: false }, statusHistory: { $elemMatch: { status: 'shipped', at: { $lte: cutoff } } } },
     '_id statusHistory',
   );
   const done = [];
@@ -79,7 +95,7 @@ export async function autoCompleteShipped(now = new Date()) {
     const shippedAt = [...statusHistory].reverse().find((h) => h.status === 'shipped').at;
     const at = new Date(shippedAt.getTime() + AUTO_DELIVER_DAYS * DAY_MS);
     const order = await Order.findOneAndUpdate(
-      { _id, status: { $in: ON_THE_WAY } },
+      { _id, status: { $in: ON_THE_WAY }, attempts: { $exists: false } },
       { status: 'delivered', deliveredBy: 'auto', $push: { statusHistory: { status: 'delivered', at } } },
       { new: true },
     );
