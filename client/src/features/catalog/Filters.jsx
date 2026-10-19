@@ -1,4 +1,5 @@
-import { useId } from 'react';
+import { CaretDown } from '@phosphor-icons/react';
+import { useId, useState } from 'react';
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -12,26 +13,55 @@ import {
   SWITCH_TYPES,
 } from '../../lib/constants.js';
 
-function OptionList({ legend, name, options, labels, value, onChange }) {
+// One filter as a section that opens and closes; opening pushes the ones below down. The header names what's picked,
+// so a closed section still shows the filter in use. Sections start open when they're the category or in use.
+function OptionList({ legend, name, options, labels, value, onChange, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen || Boolean(value));
+  const panel = useId();
   return (
-    <fieldset className="flex flex-col gap-0.5">
-      <legend className="mb-2 text-[13px] font-medium text-ink-3">{legend}</legend>
-      {[['', 'Any'], ...options.map((o) => [o, labels[o]])].map(([optionValue, label]) => (
-        <label
-          key={optionValue || 'any'}
-          className="flex h-9 cursor-pointer items-center gap-2.5 rounded-control px-2 text-sm text-ink-2 hover:bg-raised has-checked:text-ink"
-        >
-          <input
-            type="radio"
-            name={name}
-            checked={(value ?? '') === optionValue}
-            onChange={() => onChange(optionValue)}
-            className="accent-accent-ink"
-          />
-          {label}
-        </label>
-      ))}
-    </fieldset>
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panel}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-11 w-full items-center justify-between gap-2 rounded-control px-2.5 text-left hover:bg-raised"
+      >
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="text-[13px] font-medium text-ink-2">{legend}</span>
+          {value && <span className="truncate text-[13px] text-accent-ink">{labels[value] ?? value}</span>}
+        </span>
+        <CaretDown
+          size={14}
+          className={`shrink-0 text-ink-3 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {/* Height animates through the grid row (0fr to 1fr); inert keeps the hidden radios out of the tab order. */}
+      <div
+        id={panel}
+        inert={!open}
+        className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      >
+        <fieldset className="flex min-h-0 flex-col gap-0.5 overflow-hidden">
+          <legend className="sr-only">{legend}</legend>
+          {[['', 'Any'], ...options.map((o) => [o, labels[o]])].map(([optionValue, label]) => (
+            <label
+              key={optionValue || 'any'}
+              className="flex h-9 cursor-pointer items-center gap-2.5 rounded-control px-2 text-sm text-ink-2 hover:bg-raised has-checked:text-ink"
+            >
+              <input
+                type="radio"
+                name={name}
+                checked={(value ?? '') === optionValue}
+                onChange={() => onChange(optionValue)}
+                className="accent-accent-ink"
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      </div>
+    </div>
   );
 }
 
@@ -43,13 +73,14 @@ export function Filters({ params, brands = [], onChange }) {
   const showKeyboard = !category || category === 'keyboard';
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col divide-y divide-seam/60">
       <OptionList
         legend="Category"
         name={`${uid}-category`}
         options={CATEGORIES}
         labels={CATEGORY_LABELS}
         value={category}
+        defaultOpen
         // Spec filters from another category would hide everything, so drop them.
         onChange={(value) => onChange({ category: value, switchType: '', layout: '', resolution: '' })}
       />
@@ -103,69 +134,6 @@ export function Filters({ params, brands = [], onChange }) {
           onChange={set('brand')}
         />
       )}
-      <PriceFilter
-        key={`${params.get('minPrice')}-${params.get('maxPrice')}`}
-        min={params.get('minPrice') ?? ''}
-        max={params.get('maxPrice') ?? ''}
-        onApply={(minPrice, maxPrice) => onChange({ minPrice, maxPrice })}
-      />
-      <label className="flex h-9 cursor-pointer items-center gap-2.5 px-2 text-sm text-ink-2">
-        <input
-          type="checkbox"
-          checked={params.get('inStock') === '1'}
-          onChange={(e) => onChange({ inStock: e.target.checked ? '1' : '' })}
-          className="accent-accent-ink"
-        />
-        In stock only
-      </label>
-      <label className="flex h-9 cursor-pointer items-center gap-2.5 px-2 text-sm text-ink-2">
-        <input
-          type="checkbox"
-          checked={params.get('onSale') === '1'}
-          onChange={(e) => onChange({ onSale: e.target.checked ? '1' : '' })}
-          className="accent-accent-ink"
-        />
-        On sale
-      </label>
     </div>
-  );
-}
-
-function PriceFilter({ min, max, onApply }) {
-  const apply = (form) => {
-    const data = new FormData(form);
-    const clean = (v) => (/^\d+$/.test(String(v).trim()) ? String(v).trim() : '');
-    onApply(clean(data.get('min')), clean(data.get('max')));
-  };
-  return (
-    <form
-      className="flex flex-col gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        apply(e.currentTarget);
-      }}
-      onBlur={(e) => apply(e.currentTarget)}
-    >
-      <p className="text-[13px] font-medium text-ink-3">Price (₱)</p>
-      <div className="flex items-center gap-2">
-        <input
-          name="min"
-          defaultValue={min}
-          inputMode="numeric"
-          placeholder="Min"
-          aria-label="Minimum price in pesos"
-          className="h-10 w-full rounded-control border border-edge bg-bg px-3 font-mono text-sm tabular-nums placeholder:font-sans placeholder:text-ink-3 focus:border-accent-ink focus:outline-none"
-        />
-        <span className="text-ink-3">to</span>
-        <input
-          name="max"
-          defaultValue={max}
-          inputMode="numeric"
-          placeholder="Max"
-          aria-label="Maximum price in pesos"
-          className="h-10 w-full rounded-control border border-edge bg-bg px-3 font-mono text-sm tabular-nums placeholder:font-sans placeholder:text-ink-3 focus:border-accent-ink focus:outline-none"
-        />
-      </div>
-    </form>
   );
 }
