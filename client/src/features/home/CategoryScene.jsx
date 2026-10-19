@@ -54,8 +54,9 @@ function CategoryItem({ category, active, box, lift, reducedMotion, spinRef, onL
 const ORDER = Object.keys(CATEGORY_MODELS);
 
 function Stage({ active, compact, reducedMotion, spinRef, onActiveLoaded }) {
-  // Only the selected category's model loads at first; the rest follow one at a time when the page is
-  // idle, so their parsing and uploads never land together. Picking a tile loads its model right away.
+  // Only the selected category's model loads; another one loads when its tile is picked (hovering a tile has
+  // already downloaded it, see prefetchModel). Loading all five up front cost a phone ~2 MB and seconds of parsing
+  // for models most visitors never look at. Ones already picked stay mounted, so switching back is instant.
   const [mounted, setMounted] = useState(() => [active]);
   if (!mounted.includes(active)) setMounted([...mounted, active]);
   const [loaded, setLoaded] = useState(() => new Set());
@@ -68,18 +69,6 @@ function Stage({ active, compact, reducedMotion, spinRef, onActiveLoaded }) {
   useEffect(() => {
     if (activeLoaded) onActiveLoaded(active);
   }, [active, activeLoaded, onActiveLoaded]);
-  useEffect(() => {
-    const next = ORDER.find((c) => !mounted.includes(c));
-    // Wait until everything mounted so far has finished loading, then take the next one when idle.
-    if (!next || mounted.some((c) => !loaded.has(c))) return;
-    const add = () => setMounted((m) => (m.includes(next) ? m : [...m, next]));
-    if (!window.requestIdleCallback) {
-      const id = setTimeout(add, 600);
-      return () => clearTimeout(id);
-    }
-    const id = requestIdleCallback(add, { timeout: 4000 });
-    return () => cancelIdleCallback(id);
-  }, [mounted, loaded]);
 
   const { viewport } = useThree();
   const [fw, fh] = compact ? FILL.compact : FILL.wide;
