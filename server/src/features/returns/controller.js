@@ -62,6 +62,7 @@ export async function createReturn(req, res) {
       for (const i of r.items) alreadyReturned.set(String(i.product), (alreadyReturned.get(String(i.product)) ?? 0) + i.qty);
     }
 
+    let grossBefore = order.items.reduce((sum, i) => sum + i.priceCents * (alreadyReturned.get(String(i.product)) ?? 0), 0);
     const seen = new Set();
     const lines = items.map((entry) => {
       const { productId, qty } = entry ?? {};
@@ -72,7 +73,9 @@ export async function createReturn(req, res) {
       if (!Number.isInteger(qty) || qty < 1 || qty > left) {
         throw invalid({ items: left ? `You can return up to ${left} of ${line.name}.` : `${line.name} is already being returned.` });
       }
-      return { product: line.product, name: line.name, qty, refundCents: refundFor(order, line, qty) };
+      const refundCents = refundFor(order, line, qty, grossBefore);
+      grossBefore += line.priceCents * qty;
+      return { product: line.product, name: line.name, qty, refundCents };
     });
 
     const [created] = await ReturnRequest.create(
@@ -109,32 +112,55 @@ export async function orderReturns(req, res) {
 
 // Seller's returns, newest first; `status` narrows the list.
 export async function soldReturns(req, res) {
-  const filter = { seller: req.user._id };
+  const base = { seller: req.user._id };
+  const filter = { ...base };
   if (RETURN_STATUSES.includes(req.query.status)) filter.status = req.query.status;
-  res.json(await paginate(ReturnRequest, filter, pageParams(req.query), (q) => q.sort({ createdAt: -1, _id: -1 }).populate('user', 'name')));
+  const [page, counts] = await Promise.all([
+    paginate(ReturnRequest, filter, pageParams(req.query), (q) => q.sort({ createdAt: -1, _id: -1 }).populate('user', 'name')),
+    returnCounts(base),
+  ]);
+  res.json({ ...page, counts });
+}
+
+// How many returns sit in each status tab, over the list's other filters.
+async function returnCounts(base) {
+  const rows = await ReturnRequest.aggregate([{ $match: base }, { $group: { _id: '$status', n: { $sum: 1 } } }]);
+  return Object.fromEntries(RETURN_STATUSES.map((s) => [s, rows.find((r) => r._id === s)?.n ?? 0]));
 }
 
 // Admins see escalated returns by default: the ones waiting on them. `stuck` lists new or approved
 // returns the shop hasn't moved for 3 days, or whose shop can no longer act.
+export async function stuckFilter() {
+  const cantAct = await User.find(
+    { sellerProfile: { $exists: true }, $or: [{ isActive: false }, { 'sellerProfile.status': { $ne: 'approved' } }] },
+    '_id',
+  ).lean();
+  return {
+    status: { $in: ['requested', 'approved'] },
+    $or: [{ updatedAt: { $lt: new Date(Date.now() - STUCK_MS) } }, { seller: { $in: cantAct.map((u) => u._id) } }],
+  };
+}
+
 export async function adminReturns(req, res) {
   let filter;
   if (req.query.status === 'stuck') {
-    const cantAct = await User.find(
-      { sellerProfile: { $exists: true }, $or: [{ isActive: false }, { 'sellerProfile.status': { $ne: 'approved' } }] },
-      '_id',
-    ).lean();
-    filter = {
-      status: { $in: ['requested', 'approved'] },
-      $or: [{ updatedAt: { $lt: new Date(Date.now() - STUCK_MS) } }, { seller: { $in: cantAct.map((u) => u._id) } }],
-    };
+    filter = await stuckFilter();
   } else {
     filter = { status: RETURN_STATUSES.includes(req.query.status) ? req.query.status : 'escalated' };
   }
-  const page = await paginate(ReturnRequest, filter, pageParams(req.query), (q) =>
-    q.sort({ createdAt: -1, _id: -1 }).populate('user', 'name').populate('seller', SELLER_STATE),
-  );
+  const [page, counts, stuck] = await Promise.all([
+    paginate(ReturnRequest, filter, pageParams(req.query), (q) =>
+      q.sort({ createdAt: -1, _id: -1 }).populate('user', 'name').populate('seller', SELLER_STATE),
+    ),
+    returnCounts({}),
+    stuckFilter().then((f) => ReturnRequest.countDocuments(f)),
+  ]);
   // A deleted shop comes back as null, which also counts as unable to act.
-  res.json({ ...page, items: page.items.map((r) => ({ ...r.toJSON(), adminCanSettle: adminCanSettle(r, r.seller) })) });
+  res.json({
+    ...page,
+    items: page.items.map((r) => ({ ...r.toJSON(), adminCanSettle: adminCanSettle(r, r.seller) })),
+    counts: { ...counts, stuck },
+  });
 }
 
 // Moves a return from one status to the next, only if it's still where the caller expects it.
