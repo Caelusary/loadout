@@ -1,4 +1,5 @@
 import { useTitle } from '../../components/layout/Page.jsx';
+import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { ButtonLink } from '../../components/ui/Button.jsx';
 import { EmptyState, ErrorState } from '../../components/ui/feedback.jsx';
 import { ProductGrid } from '../catalog/ProductTile.jsx';
@@ -9,11 +10,11 @@ export default function WishlistPage() {
   const wishlist = useWishlist();
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="wide text-xl font-bold">Wishlist</h2>
-        <p className="text-sm text-ink-2">Products you saved for later. Unlisted products come back here if the shop relists them.</p>
-      </div>
+    <section className="flex flex-col">
+      <PanelHeader
+        title="Wishlist"
+        description="Products you saved for later. Unlisted products come back here if the shop relists them."
+      />
       {wishlist.isError ? (
         <ErrorState error={wishlist.error} onRetry={wishlist.refetch} />
       ) : !wishlist.isPending && wishlist.items.length === 0 ? (
