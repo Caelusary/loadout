@@ -54,6 +54,35 @@ const CATEGORY_WORDS = {
 const STOP_WORDS = new Set(['a', 'an', 'the', 'for', 'with', 'and', 'of', 'in', 'my']);
 const SPEC_TEXT = ['specs.connectivity', 'specs.switchType', 'specs.layout', 'specs.resolution', 'specs.sensor'];
 
+// Words that ask for a kind of price rather than a product: "sale" means on sale, "cheap" means the cheapest
+// third of each category (cheap for what it is: a cheap monitor still costs more than a pricey mouse pad).
+// Shops can't tag their own products cheap; it's worked out from prices. Includes the Filipino "mura".
+const SALE_WORDS = new Set(['sale', 'sales', 'onsale', 'discount', 'discounts', 'discounted', 'promo', 'promos', 'deal', 'deals']);
+const CHEAP_WORDS = new Set(['cheap', 'cheaper', 'cheapest', 'budget', 'affordable', 'mura', 'murang']);
+
+export function searchIntent(text) {
+  const words = String(text).toLowerCase().split(/\s+/).filter(Boolean);
+  const sale = words.some((w) => SALE_WORDS.has(w));
+  const cheap = words.some((w) => CHEAP_WORDS.has(w));
+  const rest = words.filter((w) => !SALE_WORDS.has(w) && !CHEAP_WORDS.has(w) && !(sale && w === 'on'));
+  return { sale, cheap, text: rest.join(' ') };
+}
+
+// The highest price that still counts as cheap in each category: the top of its cheapest third. A category
+// with fewer than three products has no meaningful third, so all of it counts.
+export async function cheapFilter(base) {
+  const groups = await Product.aggregate([
+    { $match: base },
+    { $sort: { priceCents: 1 } },
+    { $group: { _id: '$category', prices: { $push: '$priceCents' } } },
+  ]);
+  const or = groups.map(({ _id, prices }) => ({
+    category: _id,
+    priceCents: { $lte: prices.length < 3 ? prices.at(-1) : prices[Math.ceil(prices.length / 3) - 1] },
+  }));
+  return or.length ? { $or: or } : { _id: null };
+}
+
 // Turns a typed search into a Mongo filter: every word must match the name, brand, description,
 // category, or a spec value, so "wireless mouse" finds wireless mice even though neither word is in
 // their names. At most six words, each a literal (escaped) pattern.
@@ -95,6 +124,19 @@ export function searchScore(text) {
     $cond: [{ $regexMatch: { input: `$${field}`, regex: `\\b${escapeRegex(word)}`, options: 'i' } }, points, 0],
   });
   return words.length ? { $add: words.flatMap((word) => [hit('name', word, 3), hit('brand', word, 2)]) } : 0;
+}
+
+// Starts scheduled sales whose day has come and ends the ones past their last day. Runs every minute, at
+// start-up and before a cart is priced, so a sale never charges the wrong price for long. Safe to repeat.
+export async function settleSales(now = new Date()) {
+  await Product.updateMany({ 'upcomingSale.startsAt': { $lte: now } }, [
+    { $set: { compareAtCents: '$priceCents', priceCents: '$upcomingSale.priceCents' } },
+    { $unset: 'upcomingSale' },
+  ]);
+  await Product.updateMany({ saleEndsAt: { $lte: now } }, [
+    { $set: { priceCents: { $ifNull: ['$compareAtCents', '$priceCents'] } } },
+    { $unset: ['compareAtCents', 'saleEndsAt'] },
+  ]);
 }
 
 function editDistance(a, b) {
