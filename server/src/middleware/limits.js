@@ -30,6 +30,31 @@ export const uploadLimiter = perUserFailures({
   message: 'That is a lot of uploads for one hour. Try again later.',
 });
 
+// Review photos are public, so they get a tighter cap than a seller's product uploads.
+export const reviewPhotoLimiter = perUserFailures({
+  limit: 30,
+  windowMs: 60 * 60 * 1000,
+  countSuccess: true,
+  message: 'That is a lot of photos for one hour. Try again later.',
+});
+
+// Riders take one photo per delivery; this allows a long day with retakes.
+export const proofPhotoLimiter = perUserFailures({
+  limit: 120,
+  windowMs: 60 * 60 * 1000,
+  countSuccess: true,
+  message: 'That is a lot of photos for one hour. Try again later.',
+});
+
+// A buyer changing the day for a missed delivery's next try. Each change notifies the rider, so it's capped well
+// above any real use (picking a day, then changing your mind once or twice).
+export const retryDayLimiter = perUserFailures({
+  limit: 10,
+  windowMs: 60 * 60 * 1000,
+  countSuccess: true,
+  message: "You've changed the delivery day a lot. Try again in an hour.",
+});
+
 // A ceiling for the whole API per visitor, far above what browsing uses (a shop page makes a handful
 // of requests), so a script hammering search or listings slows itself down instead of the database.
 // In production req.ip is the visitor address Vercel vouches for (middleware/proxy.js).
