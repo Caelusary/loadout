@@ -20,8 +20,52 @@ export function ScrollRow({ as: Tag = 'div', className = '', style, children, ..
     el.addEventListener('scroll', update, { passive: true });
     const ro = new ResizeObserver(update);
     ro.observe(el);
+
+    // A mouse wheel only scrolls up and down, which would leave a cut-off row unreachable on a desktop. While the
+    // row has room that way, the wheel moves it sideways instead; at its ends the page scrolls as usual.
+    const onWheel = (e) => {
+      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // pinch zoom, or a trackpad already sideways
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0) return;
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      if ((dy < 0 && el.scrollLeft <= 0) || (dy > 0 && el.scrollLeft >= max - 1)) return;
+      e.preventDefault();
+      el.scrollLeft += dy;
+    };
+    // Dragging with the mouse scrolls it too (touch already does). A drag doesn't count as a click on what it ends on.
+    let drag = null;
+    const onDown = (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || el.scrollWidth <= el.clientWidth) return;
+      drag = { x: e.clientX, left: el.scrollLeft, moved: false };
+    };
+    const onMove = (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) < 5) return;
+      drag.moved = true;
+      el.scrollLeft = drag.left - dx;
+    };
+    const onUp = () => {
+      if (drag?.moved) {
+        const swallow = (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+        };
+        el.addEventListener('click', swallow, { capture: true, once: true });
+        setTimeout(() => el.removeEventListener('click', swallow, { capture: true }), 0);
+      }
+      drag = null;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
     return () => {
       el.removeEventListener('scroll', update);
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
       ro.disconnect();
     };
   }, []);
