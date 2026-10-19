@@ -6,6 +6,8 @@ import { Price } from '../../components/ui/chips.jsx';
 import { QtyStepper } from '../../components/ui/controls.jsx';
 import { FREE_SHIPPING_MIN_CENTS, MAX_QTY, SHIPPING_FEE_CENTS } from '../../lib/constants.js';
 import { formatMoney } from '../../lib/format.js';
+import { SaleEnds } from '../../components/ui/SaleEnds.jsx';
+import { BackInStock } from './BackInStock.jsx';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useCart } from '../../providers/CartProvider.jsx';
 import { CompareButton } from '../compare/CompareButton.jsx';
@@ -58,7 +60,7 @@ export function BuyBox({ product }) {
 
   let blocked = '';
   if (!product.isActive) blocked = 'This product is no longer listed.';
-  else if (product.stock === 0) blocked = 'Sold out. Check back later.';
+  else if (product.stock === 0) blocked = 'Sold out for now.';
   else if (isAdmin) blocked = "Admin accounts can't buy products.";
   else if (isRider) blocked = "Rider accounts can't buy products.";
   else if (ownProduct) blocked = 'This is your product.';
@@ -105,6 +107,9 @@ export function BuyBox({ product }) {
           {stockNote}
         </span>
       </div>
+      {product.compareAtCents && product.saleEndsAt && (
+        <SaleEnds endsAt={product.saleEndsAt} className="-mt-2 text-[13px] font-medium text-accent-ink" />
+      )}
       {/* Shipping up front, so it isn't a surprise at checkout. It's charged per shop, so the threshold is too. */}
       <p className="-mt-2 flex items-center gap-1.5 text-[13px] text-ink-2">
         <Truck size={16} className="shrink-0 text-ink-3" />
@@ -113,7 +118,10 @@ export function BuyBox({ product }) {
           : `${formatMoney(SHIPPING_FEE_CENTS)} shipping · free on ${formatMoney(FREE_SHIPPING_MIN_CENTS)}+ from this shop`}
       </p>
       {blocked ? (
-        <p className="rounded-control border border-seam px-4 py-3 text-sm text-ink-2">{blocked}</p>
+        <>
+          <p className="rounded-control border border-seam px-4 py-3 text-sm text-ink-2">{blocked}</p>
+          {product.isActive && product.stock === 0 && !ownProduct && <BackInStock product={product} />}
+        </>
       ) : (
         <div ref={buyRow} className="flex flex-wrap gap-3">
           <QtyStepper value={Math.min(qty, buyMax)} onChange={setQty} max={buyMax} />
