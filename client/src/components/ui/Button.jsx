@@ -30,7 +30,16 @@ function Spinner() {
   );
 }
 
-export function Button({ variant, size, loading = false, disabled, className, children, type = 'button', ...props }) {
+export function Button({
+  variant,
+  size,
+  loading = false,
+  disabled,
+  className,
+  children,
+  type = 'button',
+  ...props
+}) {
   return (
     <button
       type={type}
