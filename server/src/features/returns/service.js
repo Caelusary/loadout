@@ -21,12 +21,15 @@ export const adminCanSettle = (ret, seller, now = Date.now()) =>
   (['requested', 'approved'].includes(ret.status) && (now - lastMoved(ret) > STUCK_MS || !shopCanAct(seller)));
 export const statusAt = (history, status) => [...history].reverse().find((h) => h.status === status)?.at;
 
-// A line's refund: its price times the quantity, less that share of the order's discount (the share rounds
-// up, so refunds never add up to more than was paid). Shipping isn't refunded.
-export function refundFor(order, line, qty) {
+// A line's refund: its price times the quantity, less that share of the order's discount. Shipping isn't refunded.
+// The share is worked out on the running total (`grossBefore` is the order's value already refunded or in this
+// request), rounding up, so refunds never add up to more than was paid, and returning everything gives back
+// exactly what was paid instead of a centavo or two less.
+export function refundFor(order, line, qty, grossBefore = 0) {
   const gross = line.priceCents * qty;
-  const discountShare = order.subtotalCents ? Math.ceil(((order.discountCents ?? 0) * gross) / order.subtotalCents) : 0;
-  return Math.max(0, gross - discountShare);
+  const discount = order.discountCents ?? 0;
+  const shareUpTo = (g) => (order.subtotalCents ? Math.ceil((discount * g) / order.subtotalCents) : 0);
+  return Math.max(0, gross - (shareUpTo(grossBefore + gross) - shareUpTo(grossBefore)));
 }
 
 // When the 7 days start. A seller marking an order delivered the moment it ships would otherwise run the
