@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Order, Review, User } from '../../models/index.js';
+import { Order, Product, Review, User } from '../../models/index.js';
 import { ON_THE_WAY } from '../../models/Order.js';
 import { ADMIN_AREAS, ROLES } from '../../models/User.js';
 import { AppError, invalid, notFound } from '../../lib/AppError.js';
@@ -8,8 +8,16 @@ import { endOtherSessions, endSession } from '../../middleware/auth.js';
 import { unlistSellerProducts } from '../products/service.js';
 import { sendResetLink } from '../auth/reset.js';
 import { noticesForCancelled, OPEN_STATUSES, releaseCouponsAfterCommit } from '../orders/service.js';
-import { assertCanClose, assertNothingOpen, cancelClosedAccountOrders, openOrders, plural, REAPPLY_WAIT_MS } from './service.js';
+import {
+  assertCanClose,
+  assertNothingOpen,
+  cancelClosedAccountOrders,
+  openOrders,
+  plural,
+  REAPPLY_WAIT_MS,
+} from './service.js';
 import { record, userLabel } from '../activity/service.js';
+import { ratingTotals, reassign } from '../riders/service.js';
 
 export async function updateMe(req, res) {
   const data = pick(req.body, ['name', 'email', 'shippingAddress']);
@@ -26,7 +34,9 @@ export async function updateMe(req, res) {
 async function checkPassword(userId, password, field) {
   const user = await User.findById(userId).select('+password');
   if (!password || !(await user.comparePassword(String(password)))) {
-    throw invalid({ [field]: field === 'currentPassword' ? 'Current password is incorrect.' : 'Password is incorrect.' });
+    throw invalid({
+      [field]: field === 'currentPassword' ? 'Current password is incorrect.' : 'Password is incorrect.',
+    });
   }
   return user;
 }
@@ -37,7 +47,8 @@ export async function changePassword(req, res) {
   if (!newPassword || String(newPassword).length < 8) {
     throw invalid({ newPassword: 'New password must be at least 8 characters.' });
   }
-  if (Buffer.byteLength(String(newPassword), 'utf8') > 72) throw invalid({ newPassword: 'New password must be at most 72 characters.' });
+  if (Buffer.byteLength(String(newPassword), 'utf8') > 72)
+    throw invalid({ newPassword: 'New password must be at most 72 characters.' });
   if (String(newPassword) === String(currentPassword)) {
     throw invalid({ newPassword: 'Choose a password different from the current one.' });
   }
@@ -49,14 +60,22 @@ export async function changePassword(req, res) {
 }
 
 export async function applyToSell(req, res) {
-  if (req.user.role !== 'customer') throw new AppError(403, 'FORBIDDEN', 'Only customer accounts can apply to sell.');
+  if (req.user.role !== 'customer')
+    throw new AppError(403, 'FORBIDDEN', 'Only customer accounts can apply to sell.');
   // A declined application (still a customer, status suspended) can be sent again after a week.
   const previous = req.user.sellerProfile;
   if (previous) {
-    if (previous.status !== 'suspended') throw new AppError(409, 'CONFLICT', 'You have already applied to sell.');
-    const waitUntil = new Date(new Date(previous.reviewedAt ?? previous.appliedAt).getTime() + REAPPLY_WAIT_MS);
+    if (previous.status !== 'suspended')
+      throw new AppError(409, 'CONFLICT', 'You have already applied to sell.');
+    const waitUntil = new Date(
+      new Date(previous.reviewedAt ?? previous.appliedAt).getTime() + REAPPLY_WAIT_MS,
+    );
     if (waitUntil > new Date()) {
-      throw new AppError(409, 'CONFLICT', `You can apply again on ${waitUntil.toLocaleDateString('en-PH', { dateStyle: 'long' })}.`);
+      throw new AppError(
+        409,
+        'CONFLICT',
+        `You can apply again on ${waitUntil.toLocaleDateString('en-PH', { dateStyle: 'long' })}.`,
+      );
     }
   }
   const { shopName, bio } = pick(req.body, ['shopName', 'bio']);
@@ -72,21 +91,54 @@ export async function applyToSell(req, res) {
   res.status(201).json({ user: req.user });
 }
 
+// Every account in one list. The role filter comes with a count per role (for the search in use), and each row carries
+// what matters for its role: a customer's order count, a seller's listed products, a rider's rating.
 export async function listUsers(req, res) {
-  const filter = {};
-  if (ROLES.includes(req.query.role)) filter.role = req.query.role;
+  const match = {};
   if (req.query.q) {
     const re = new RegExp(escapeRegex(req.query.q), 'i');
-    filter.$or = [{ name: re }, { email: re }];
+    match.$or = [{ name: re }, { email: re }];
   }
-  res.json(await paginate(User, filter, pageParams(req.query), (q) => q.sort({ createdAt: -1, _id: -1 })));
+  const filter = ROLES.includes(req.query.role) ? { ...match, role: req.query.role } : match;
+  const [page, byRole] = await Promise.all([
+    paginate(User, filter, pageParams(req.query), (q) => q.sort({ createdAt: -1, _id: -1 })),
+    User.aggregate([{ $match: match }, { $group: { _id: '$role', n: { $sum: 1 } } }]),
+  ]);
+  const ids = (role) => page.items.filter((u) => u.role === role).map((u) => u._id);
+  const [orders, listed, ratings] = await Promise.all([
+    Order.aggregate([
+      { $match: { user: { $in: ids('customer') } } },
+      { $group: { _id: '$user', n: { $sum: 1 } } },
+    ]),
+    Product.aggregate([
+      { $match: { seller: { $in: ids('seller') }, isActive: true } },
+      { $group: { _id: '$seller', n: { $sum: 1 } } },
+    ]),
+    ratingTotals(ids('rider')),
+  ]);
+  const count = (rows) => new Map(rows.map((r) => [String(r._id), r.n]));
+  const [orderCount, listedCount] = [count(orders), count(listed)];
+  const items = page.items.map((u) => {
+    const json = u.toJSON();
+    const id = String(u._id);
+    if (u.role === 'customer') json.orderCount = orderCount.get(id) ?? 0;
+    if (u.role === 'seller') json.listedCount = listedCount.get(id) ?? 0;
+    if (u.role === 'rider') {
+      const t = ratings.get(id) ?? { sum: 0, count: 0 };
+      json.rating = { avg: t.count ? Math.round((t.sum / t.count) * 10) / 10 : null, count: t.count };
+    }
+    return json;
+  });
+  const roleCounts = Object.fromEntries(byRole.map((r) => [r._id, r.n]));
+  res.json({ ...page, items, roleCounts: { ...roleCounts, all: byRole.reduce((n, r) => n + r.n, 0) } });
 }
 
 // Admins manage customers and sellers; only the owner manages admins; nobody manages the owner.
 async function loadOtherUser(req) {
   const target = await User.findById(req.params.id);
   if (!target) throw notFound('That user');
-  if (target._id.equals(req.user._id)) throw new AppError(409, 'CONFLICT', 'You cannot change your own account here.');
+  if (target._id.equals(req.user._id))
+    throw new AppError(409, 'CONFLICT', 'You cannot change your own account here.');
   if (target.isOwner) throw new AppError(403, 'FORBIDDEN', "The owner's account can't be changed.");
   if (target.role === 'admin' && !req.user.isOwner)
     throw new AppError(403, 'FORBIDDEN', 'Only the owner can change admin accounts.');
@@ -102,8 +154,10 @@ function readChange(body) {
   if (sent.length !== 1) throw invalid({ isActive: 'Send one of isActive, role or permissions.' });
   const [kind] = sent;
   const value = body[kind];
-  if (kind === 'isActive' && typeof value !== 'boolean') throw invalid({ isActive: 'isActive must be true or false.' });
-  if (kind === 'role' && !['admin', 'customer', 'rider'].includes(value)) throw invalid({ role: 'Role must be admin, rider or customer.' });
+  if (kind === 'isActive' && typeof value !== 'boolean')
+    throw invalid({ isActive: 'isActive must be true or false.' });
+  if (kind === 'role' && !['admin', 'customer', 'rider'].includes(value))
+    throw invalid({ role: 'Role must be admin, rider or customer.' });
   if (kind === 'permissions' && !(Array.isArray(value) && value.every((a) => ADMIN_AREAS.includes(a)))) {
     throw invalid({ permissions: `Permissions must be a list of: ${ADMIN_AREAS.join(', ')}.` });
   }
@@ -114,15 +168,22 @@ function readChange(body) {
 async function changeRiderRole(target, role, session) {
   if (role === 'rider') {
     if (target.role !== 'customer') throw invalid({ role: 'Only customer accounts can be made riders.' });
-    if (target.sellerProfile) throw invalid({ role: 'This customer has applied to sell, so they cannot be made a rider.' });
+    if (target.sellerProfile)
+      throw invalid({ role: 'This customer has applied to sell, so they cannot be made a rider.' });
     const open = await Order.exists({ user: target._id, status: { $in: OPEN_STATUSES } }).session(session);
-    if (open) throw invalid({ role: 'This customer has orders on the way. Make them a rider once those are done.' });
+    if (open)
+      throw invalid({ role: 'This customer has orders on the way. Make them a rider once those are done.' });
     const cart = target.cart.map((line) => line.toObject());
     Object.assign(target, { role, cart: [] });
     return { action: 'user.rider', summary: `made ${target.name} a rider`, undo: { cart } };
   }
-  const onTheWay = await Order.countDocuments({ rider: target._id, status: { $in: ON_THE_WAY } }).session(session);
-  if (onTheWay) throw invalid({ role: `${target.name} has ${plural(onTheWay, 'delivery', 'deliveries')} on the way. Finish those first.` });
+  const onTheWay = await Order.countDocuments({ rider: target._id, status: { $in: ON_THE_WAY } }).session(
+    session,
+  );
+  if (onTheWay)
+    throw invalid({
+      role: `${target.name} has ${plural(onTheWay, 'delivery', 'deliveries')} on the way. Finish those first.`,
+    });
   target.role = 'customer';
   return { action: 'user.unrider', summary: `removed ${target.name} as a rider` };
 }
@@ -131,7 +192,8 @@ async function changeRiderRole(target, role, session) {
 function changeRole(target, role) {
   if (role === 'admin') {
     if (target.role !== 'customer') throw invalid({ role: 'Only customer accounts can be made admins.' });
-    if (target.sellerProfile) throw invalid({ role: 'This customer has applied to sell, so they cannot be made an admin.' });
+    if (target.sellerProfile)
+      throw invalid({ role: 'This customer has applied to sell, so they cannot be made an admin.' });
     const cart = target.cart.map((line) => line.toObject());
     Object.assign(target, { role, adminPermissions: [...ADMIN_AREAS], cart: [] }); // admins don't shop
     return { action: 'user.promote', summary: `made ${target.name} an admin`, undo: { cart } };
@@ -147,9 +209,19 @@ function changePermissions(target, areas) {
   const before = [...(target.adminPermissions ?? [])];
   const after = ADMIN_AREAS.filter((a) => areas.includes(a));
   target.adminPermissions = after;
-  const names = { users: 'users', sellers: 'sellers', products: 'products', orders: 'orders', coupons: 'discount codes' };
+  const names = {
+    users: 'users',
+    sellers: 'sellers',
+    products: 'products',
+    orders: 'orders',
+    coupons: 'discount codes',
+  };
   const list = after.length ? after.map((a) => names[a]).join(', ') : 'nothing but the dashboard';
-  return { action: 'user.permissions', summary: `set ${target.name}'s access to ${list}`, undo: { before, after } };
+  return {
+    action: 'user.permissions',
+    summary: `set ${target.name}'s access to ${list}`,
+    undo: { before, after },
+  };
 }
 
 export async function updateUser(req, res) {
@@ -160,7 +232,8 @@ export async function updateUser(req, res) {
   // Admins and their permissions are the owner's alone; riders any admin who manages users can change.
   if (kind === 'permissions' || (kind === 'role' && value === 'admin')) ownerOnly();
   const target = await loadOtherUser(req);
-  const riderChange = kind === 'role' && (value === 'rider' || (value === 'customer' && target.role === 'rider'));
+  const riderChange =
+    kind === 'role' && (value === 'rider' || (value === 'customer' && target.role === 'rider'));
   if (kind === 'role' && !riderChange) ownerOnly();
   if (kind === 'isActive' && target.isActive === value) return res.json({ user: target }); // nothing to change or log
   // Deactivating asks the admin whether to cancel the account's unshipped orders (see openOrders).
@@ -171,10 +244,21 @@ export async function updateUser(req, res) {
     else if (kind === 'role') entry = changeRole(target, value);
     else if (kind === 'permissions') entry = changePermissions(target, value);
     else {
+      // A rider with a parcel in hand finishes it first; ones not picked up yet go to other riders below.
+      if (!value && target.role === 'rider') {
+        const out = await Order.countDocuments({ rider: target._id, status: 'out-for-delivery' }).session(session);
+        if (out)
+          throw invalid({
+            isActive: `${target.name} has ${plural(out, 'delivery', 'deliveries')} out right now. Deactivate them once delivered.`,
+          });
+      }
       target.isActive = value;
       // A deactivated account's cookies must not come back to life if it's reactivated later.
       if (!value) target.set('sessions', []);
-      entry = { action: value ? 'user.activate' : 'user.deactivate', summary: `${value ? 'activated' : 'deactivated'} ${target.name}` };
+      entry = {
+        action: value ? 'user.activate' : 'user.deactivate',
+        summary: `${value ? 'activated' : 'deactivated'} ${target.name}`,
+      };
     }
     await target.save({ session });
     if (kind === 'isActive' && !value && target.role === 'seller') {
@@ -182,11 +266,21 @@ export async function updateUser(req, res) {
     }
     const orders = cancelling ? await cancelClosedAccountOrders(target._id, session) : [];
     if (orders.length) entry.summary += ` and cancelled ${plural(orders.length, 'unshipped order')}`;
-    await record(req.user, { ...entry, target: { kind: 'user', id: target._id, label: userLabel(target) } }, session);
+    await record(
+      req.user,
+      { ...entry, target: { kind: 'user', id: target._id, label: userLabel(target) } },
+      session,
+    );
     return orders;
   });
   await releaseCouponsAfterCommit(cancelled);
   await noticesForCancelled(cancelled);
+  // A deactivated rider's orders waiting for pickup would otherwise sit until the 7-day auto-complete marked them
+  // delivered.
+  if (kind === 'isActive' && !value && target.role === 'rider') {
+    const waiting = await Order.find({ rider: target._id, status: 'shipped' }, '_id declines');
+    for (const order of waiting) await reassign(order, target._id);
+  }
   res.json({ user: target, cancelled: cancelled.length });
 }
 
@@ -231,7 +325,11 @@ export async function sendResetEmail(req, res) {
   const target = await loadOtherUser(req);
   if (!target.isActive) throw new AppError(409, 'CONFLICT', 'Activate the account first.');
   if (!(await sendResetLink(target))) {
-    throw new AppError(429, 'RATE_LIMITED', 'A reset email went to this account in the last 2 minutes. Wait a moment first.');
+    throw new AppError(
+      429,
+      'RATE_LIMITED',
+      'A reset email went to this account in the last 2 minutes. Wait a moment first.',
+    );
   }
   await record(req.user, {
     action: 'user.reset-email',
@@ -245,7 +343,8 @@ export async function sendResetEmail(req, res) {
 // People close their own account. It takes their password, and unlike an admin's delete nothing is
 // kept for restoring: they asked to leave. Admins ask the owner instead.
 export async function deleteMe(req, res) {
-  if (req.user.role === 'admin') throw new AppError(403, 'FORBIDDEN', 'Admin accounts are closed by the owner.');
+  if (req.user.role === 'admin')
+    throw new AppError(403, 'FORBIDDEN', 'Admin accounts are closed by the owner.');
   await checkPassword(req.user._id, req.body?.password, 'password');
   const cancelling = req.body?.cancelOrders === true;
   assertCanClose(await openOrders(req.user._id), cancelling, 'You have');
