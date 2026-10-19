@@ -29,7 +29,11 @@ export function ArcArrowLink({ to, label, className = '' }) {
           className="opacity-60 transition-[stroke-dasharray,stroke-dashoffset,opacity] duration-300 ease-out [stroke-dasharray:var(--arc)_var(--gap)] [stroke-dashoffset:var(--off)] group-hover/arc:opacity-100 group-hover/arc:[stroke-dasharray:var(--c)_0] group-hover/arc:[stroke-dashoffset:var(--c)] group-focus-visible/arc:opacity-100 group-focus-visible/arc:[stroke-dasharray:var(--c)_0] group-focus-visible/arc:[stroke-dashoffset:var(--c)]"
         />
       </svg>
-      <ArrowRight size={16} weight="bold" className="transition-transform duration-200 ease-out group-hover/arc:translate-x-0.5" />
+      <ArrowRight
+        size={16}
+        weight="bold"
+        className="transition-transform duration-200 ease-out group-hover/arc:translate-x-0.5"
+      />
     </Link>
   );
 }
