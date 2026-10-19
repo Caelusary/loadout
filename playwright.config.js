@@ -28,7 +28,9 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: baseURL,
+    // Ready once the API answers through the web server's proxy: it listens only after seeding, so the first test
+    // never meets a half-started backend (which shows up as a failed sign-in).
+    url: `${baseURL}/api/health`,
     reuseExistingServer: false,
     timeout: 180_000,
     env: { MONGODB_URI: '', PORT: String(WEB_PORT), API_PORT: String(API_PORT) },
