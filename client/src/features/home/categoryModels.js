@@ -1,4 +1,5 @@
 import { PlugsConnected, Headphones, Keyboard, Mouse, Rectangle, Webcam } from '@phosphor-icons/react';
+import { assetUrl } from '../../lib/api.js';
 
 // The hero shows one model per category, never a specific product.
 // `modelUrl` reuses a seed product's Sketchfab .glb (credits in README); if it fails to load,
@@ -92,3 +93,13 @@ export const categoryModel = (category) => {
   const entry = CATEGORY_MODELS[category];
   return entry.modelUrl ? { ...entry.stand, modelUrl: entry.modelUrl } : entry.stand;
 };
+
+// Downloads a category's model into the browser cache when someone shows intent (hovers, focuses or presses its
+// tile), so picking it only has to parse, not fetch. Download only: parsing happens on pick.
+const prefetched = new Set();
+export function prefetchModel(category) {
+  const url = categoryModel(category).modelUrl;
+  if (!url || prefetched.has(url)) return;
+  prefetched.add(url);
+  fetch(assetUrl(url), { priority: 'low' }).catch(() => prefetched.delete(url));
+}
