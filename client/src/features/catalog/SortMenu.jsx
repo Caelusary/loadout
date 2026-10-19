@@ -29,7 +29,7 @@ function SortOptions({ sorts, value, onPick, name, title }) {
 
 // Phones and tablets get a bottom sheet like the filters; desktop gets a small dropdown. `label` and `title` let
 // other single-choice pickers (the admin role and activity filters) look the same as the shop's sort.
-export function SortMenu({ sorts, value, onChange, label: prefix = 'Sort', title = 'Sort by' }) {
+export function SortMenu({ sorts, value, onChange, label: prefix = 'Sort', title = 'Sort by', width = 'w-52' }) {
   const id = useId();
   const sheet = useRef(null);
   const box = useRef(null);
@@ -59,7 +59,7 @@ export function SortMenu({ sorts, value, onChange, label: prefix = 'Sort', title
       <Button
         variant="secondary"
         size="sm"
-        className="w-52 [&>span]:w-full [&>span]:justify-between"
+        className={`${width} [&>span]:w-full [&>span]:justify-between`}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (window.matchMedia('(min-width: 1024px)').matches ? setOpen((o) => !o) : sheet.current?.showModal())}
