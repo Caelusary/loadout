@@ -13,9 +13,7 @@ import { MenuButton } from './MobileMenu.jsx';
 import { SearchOverlay } from './SearchOverlay.jsx';
 import { NavTip } from './NavTip.jsx';
 import { NotificationBell } from './NotificationBell.jsx';
-import { accountSections } from './accountLinks.js';
-
-const SECTION_LABELS = { workspace: 'Workspace', you: 'You' };
+import { accountSections, sectionLabel } from './accountLinks.js';
 
 function AccountMenu() {
   const auth = useAuth();
@@ -37,6 +35,8 @@ function AccountMenu() {
   }, [open]);
 
   const sections = accountSections(auth);
+  // A rider's two pages sit in the navbar itself, so the menu keeps only settings and sign out.
+  if (auth.isRider) sections.workspace = [];
 
   return (
     <div ref={ref} className="relative">
@@ -77,9 +77,9 @@ function AccountMenu() {
           {Object.entries(sections).map(
             ([key, links]) =>
               links.length > 0 && (
-                <div key={key} role="group" aria-label={SECTION_LABELS[key]}>
+                <div key={key} role="group" aria-label={sectionLabel(key, auth)}>
                   <p className="px-3 pt-3 pb-1 text-[11px] font-medium tracking-wider text-ink-3 uppercase">
-                    {SECTION_LABELS[key]}
+                    {sectionLabel(key, auth)}
                   </p>
                   {links.map(([to, label, Icon]) => (
                     <Link
@@ -175,45 +175,68 @@ function BackButton() {
   );
 }
 
+const RIDER_NAV = [
+  ['/deliveries', 'Deliveries'],
+  ['/account/rider', 'Delivery profile'],
+];
+
 export function Navbar() {
-  const { user, status, canShop } = useAuth();
+  const { user, status, canShop, isRider } = useAuth();
   const { count } = useCart();
+  const { pathname } = useLocation();
   // The homepage has its own spec search in the hero.
-  const onHome = useLocation().pathname === '/';
+  const onHome = pathname === '/';
+  // A rider's two navbar pages are where they start, and the shop (links, search) isn't theirs to browse.
+  const atStart = onHome || (isRider && RIDER_NAV.some(([to]) => to === pathname));
 
   return (
     <header className="sticky top-0 z-30 border-b border-seam bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center gap-4 px-4 sm:px-6">
-        {!onHome && <BackButton />}
+        {!atStart && <BackButton />}
         <Logo compact={!onHome} />
-        <nav className="flex items-center max-sm:hidden" aria-label="Main">
-          <NavLink
-            to="/shop"
-            className={({ isActive }) =>
-              `flex h-10 items-center rounded-control px-3 text-sm transition-colors hover:text-ink ${isActive ? 'text-ink' : 'text-ink-2'}`
-            }
-          >
-            Shop
-          </NavLink>
-          <NavLink
-            to="/loadout"
-            className={({ isActive }) =>
-              `flex h-10 items-center rounded-control px-3 text-sm transition-colors hover:text-ink ${isActive ? 'text-ink' : 'text-ink-2'}`
-            }
-          >
-            Build
-          </NavLink>
-        </nav>
+        {isRider && (
+          <nav className="flex items-center gap-1.5 max-sm:hidden" aria-label="Main">
+            {RIDER_NAV.map(([to, label]) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `flex h-10 items-center rounded-control px-3 text-sm transition-colors hover:text-ink ${isActive ? 'text-ink' : 'text-ink-2'}`
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
+        {!isRider && (
+          <nav className="flex items-center gap-1.5 max-sm:hidden" aria-label="Main">
+            <NavLink
+              to="/shop"
+              className={({ isActive }) =>
+                `flex h-10 items-center rounded-control px-3 text-sm transition-colors hover:text-ink ${isActive ? 'text-ink' : 'text-ink-2'}`
+              }
+            >
+              Shop
+            </NavLink>
+            <NavLink
+              to="/loadout"
+              className={({ isActive }) =>
+                `flex h-10 items-center rounded-control px-3 text-sm transition-colors hover:text-ink ${isActive ? 'text-ink' : 'text-ink-2'}`
+              }
+            >
+              Build
+            </NavLink>
+          </nav>
+        )}
         <div className="ml-auto flex flex-1 items-center justify-end gap-2">
           {/* The home page has its own search bar, so the navbar only adds one elsewhere. */}
-          {!onHome && <SearchBox />}
-          {!onHome && <SearchOverlay />}
+          {!onHome && !isRider && <SearchBox />}
+          {!onHome && !isRider && <SearchOverlay />}
           <SettingsPill />
           {canShop && (
-            <NavTip
-              label={count ? `Cart · ${count} item${count === 1 ? '' : 's'}` : 'Cart'}
-              className="max-sm:hidden"
-            >
+            // The cart is in the top bar on phones too: it's not a tab there (MobileTabBar).
+            <NavTip label={count ? `Cart · ${count} item${count === 1 ? '' : 's'}` : 'Cart'}>
               <Link
                 to="/cart"
                 aria-label={`Cart, ${count} item${count === 1 ? '' : 's'}`}
