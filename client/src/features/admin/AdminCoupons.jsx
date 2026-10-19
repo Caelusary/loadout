@@ -6,9 +6,9 @@ import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Tag } from '../../components/ui/chips.jsx';
-import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
+import { EmptyState, ErrorState } from '../../components/ui/feedback.jsx';
 import { SelectField, TextField } from '../../components/ui/fields.jsx';
-import { Cell, Table } from '../../components/ui/Table.jsx';
+import { Cell, Table, TableSkeleton } from '../../components/ui/Table.jsx';
 import { api, applyServerErrors } from '../../lib/api.js';
 import { formatDate, formatMoney, parsePesos } from '../../lib/format.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
@@ -17,7 +17,11 @@ const KEY = ['admin', 'coupons'];
 
 const schema = z
   .object({
-    code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{4,20}$/, 'Use 4 to 20 letters or numbers'),
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9]{4,20}$/, 'Use 4 to 20 letters or numbers'),
     type: z.enum(['percent', 'fixed'], { errorMap: () => ({ message: 'Choose a discount type' }) }),
     value: z.string().trim().min(1, 'Enter an amount'),
     minSubtotal: z.string().trim(),
@@ -26,9 +30,12 @@ const schema = z
   })
   .superRefine((v, ctx) => {
     const n = Number(v.value);
-    if (v.type === 'percent' && !(Number.isInteger(n) && n >= 1 && n <= 90)) ctx.addIssue({ path: ['value'], code: 'custom', message: 'Enter a whole percent from 1 to 90' });
-    if (v.type === 'fixed' && !(parsePesos(v.value) > 0)) ctx.addIssue({ path: ['value'], code: 'custom', message: 'Enter a peso amount' });
-    if (v.minSubtotal && Number.isNaN(parsePesos(v.minSubtotal))) ctx.addIssue({ path: ['minSubtotal'], code: 'custom', message: 'Enter a peso amount' });
+    if (v.type === 'percent' && !(Number.isInteger(n) && n >= 1 && n <= 90))
+      ctx.addIssue({ path: ['value'], code: 'custom', message: 'Enter a whole percent from 1 to 90' });
+    if (v.type === 'fixed' && !(parsePesos(v.value) > 0))
+      ctx.addIssue({ path: ['value'], code: 'custom', message: 'Enter a peso amount' });
+    if (v.minSubtotal && Number.isNaN(parsePesos(v.minSubtotal)))
+      ctx.addIssue({ path: ['minSubtotal'], code: 'custom', message: 'Enter a peso amount' });
   });
 
 const describe = (c) => (c.type === 'percent' ? `${c.value}% off` : `${formatMoney(c.value)} off`);
@@ -80,7 +87,11 @@ function CreateCoupon() {
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="grid gap-4 rounded-panel border border-seam bg-plate p-5 sm:grid-cols-2 lg:grid-cols-3">
+    <form
+      onSubmit={onSubmit}
+      noValidate
+      className="grid gap-4 rounded-panel border border-seam bg-plate p-5 sm:grid-cols-2 lg:grid-cols-3"
+    >
       <h2 className="wide text-lg font-bold sm:col-span-2 lg:col-span-3">New code</h2>
       <TextField label="Code" placeholder="SUMMER15" error={errors.code?.message} {...register('code')} />
       <SelectField
@@ -92,10 +103,36 @@ function CreateCoupon() {
         error={errors.type?.message}
         {...register('type')}
       />
-      <TextField label={type === 'percent' ? 'Percent' : 'Amount (₱)'} inputMode="decimal" placeholder={type === 'percent' ? '15' : '200'} error={errors.value?.message} {...register('value')} />
-      <TextField label="Minimum subtotal (₱)" optional inputMode="decimal" placeholder="3000" error={errors.minSubtotal?.message} {...register('minSubtotal')} />
-      <TextField label="Total uses" optional inputMode="numeric" hint="Leave blank for unlimited" error={errors.maxUses?.message} {...register('maxUses')} />
-      <TextField label="Expires" optional type="date" error={errors.expiresAt?.message} {...register('expiresAt')} />
+      <TextField
+        label={type === 'percent' ? 'Percent' : 'Amount (₱)'}
+        inputMode="decimal"
+        placeholder={type === 'percent' ? '15' : '200'}
+        error={errors.value?.message}
+        {...register('value')}
+      />
+      <TextField
+        label="Minimum subtotal (₱)"
+        optional
+        inputMode="decimal"
+        placeholder="3000"
+        error={errors.minSubtotal?.message}
+        {...register('minSubtotal')}
+      />
+      <TextField
+        label="Total uses"
+        optional
+        inputMode="numeric"
+        hint="Leave blank for unlimited"
+        error={errors.maxUses?.message}
+        {...register('maxUses')}
+      />
+      <TextField
+        label="Expires"
+        optional
+        type="date"
+        error={errors.expiresAt?.message}
+        {...register('expiresAt')}
+      />
       <div className="sm:col-span-2 lg:col-span-3">
         <Button type="submit" loading={isSubmitting}>
           Create code
@@ -104,6 +141,17 @@ function CreateCoupon() {
     </form>
   );
 }
+
+// The table's columns, shared with its loading placeholder so the two always match.
+const COUPON_COLUMNS = [
+  { label: 'Code', skeleton: 'line' },
+  { label: 'Discount', skeleton: 'short' },
+  { label: 'Minimum', skeleton: 'short' },
+  { label: 'Used', skeleton: 'short' },
+  { label: 'Expires', skeleton: 'short' },
+  { label: 'Status', skeleton: 'tag' },
+  { label: '', skeleton: 'button', align: 'right' },
+];
 
 export default function AdminCoupons() {
   useTitle('Discount codes');
@@ -124,14 +172,17 @@ export default function AdminCoupons() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PanelHeader title="Discount codes" description="Customers enter these at checkout. Each customer can use a code once." />
+      <PanelHeader
+        title="Discount codes"
+        description="Customers enter these at checkout. Each customer can use a code once."
+      />
       {isError ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isPending ? (
-        <Skeleton className="h-48" />
+        <TableSkeleton columns={COUPON_COLUMNS} />
       ) : (
         <Table
-          columns={[{ label: 'Code' }, { label: 'Discount' }, { label: 'Minimum' }, { label: 'Used' }, { label: 'Expires' }, { label: 'Status' }, { label: '', align: 'right' }]}
+          columns={COUPON_COLUMNS}
           empty={!data.length && <EmptyState title="No codes yet">Create one below.</EmptyState>}
         >
           {data.map((c) => {
@@ -140,7 +191,9 @@ export default function AdminCoupons() {
               <tr key={c._id}>
                 <Cell className="font-mono font-medium">{c.code}</Cell>
                 <Cell>{describe(c)}</Cell>
-                <Cell className="font-mono tabular-nums">{c.minSubtotalCents ? formatMoney(c.minSubtotalCents) : 'None'}</Cell>
+                <Cell className="font-mono tabular-nums">
+                  {c.minSubtotalCents ? formatMoney(c.minSubtotalCents) : 'None'}
+                </Cell>
                 <Cell className="font-mono tabular-nums">
                   {c.usedCount}
                   {c.maxUses ? ` / ${c.maxUses}` : ''}
@@ -151,10 +204,13 @@ export default function AdminCoupons() {
                 </Cell>
                 <Cell align="right">
                   {/* An expired code can't be used either way, so turning it off or on would do nothing. */}
-                  {label === 'Expired' ? (
-                    <span className="text-[13px] text-ink-3">None</span>
-                  ) : (
-                    <Button variant="ghost" size="sm" onClick={() => toggle.mutate(c)} loading={toggle.isPending && toggle.variables?._id === c._id}>
+                  {label === 'Expired' ? null : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggle.mutate(c)}
+                      loading={toggle.isPending && toggle.variables?._id === c._id}
+                    >
                       {c.isActive ? 'Turn off' : 'Turn on'}
                     </Button>
                   )}
