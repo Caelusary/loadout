@@ -70,7 +70,8 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
 
   // Same rules as the server: the fallback for orders without a delivered entry, and a seller's
   // delivered mark never starting the window before the automatic completion would have.
-  const deliveredAt = lastAt(order.statusHistory, 'delivered') ?? (order.status === 'delivered' ? order.updatedAt : null);
+  const deliveredAt =
+    lastAt(order.statusHistory, 'delivered') ?? (order.status === 'delivered' ? order.updatedAt : null);
   const shippedAt = lastAt(order.statusHistory, 'shipped');
   const startsAt =
     deliveredAt && order.deliveredBy === 'seller' && shippedAt
@@ -84,23 +85,66 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
   for (const r of returns) {
     for (const i of r.items) returned.set(i.product, (returned.get(i.product) ?? 0) + i.qty);
   }
-  const returnable = order.items.map((i) => ({ ...i, left: i.qty - (returned.get(i.product) ?? 0) })).filter((i) => i.left > 0);
+  const returnable = order.items
+    .map((i) => ({ ...i, left: i.qty - (returned.get(i.product) ?? 0) }))
+    .filter((i) => i.left > 0);
   const canAsk = loaded && isCustomer && windowOpen && !waiting && returnable.length > 0;
   const busy = act.isPending;
 
   if (!returns.length && !(isCustomer && order.status === 'delivered')) return null;
 
   const dialog = {
-    decline: { title: 'Decline this return?', label: 'Decline', field: 'Why? The customer sees this.', send: (r) => ({ path: `/returns/${r._id}/decision`, body: { decision: 'decline', note }, done: 'Return declined' }) },
-    escalate: { title: 'Ask an admin to review?', label: 'Send to an admin', field: 'Why do you disagree with the shop?', send: (r) => ({ path: `/returns/${r._id}/escalate`, body: { note }, done: 'Sent to an admin' }) },
-    'admin-approve': { title: 'Approve this return?', label: 'Approve', field: 'Your reason (both sides see it)', send: (r) => ({ path: `/admin/returns/${r._id}`, body: { decision: 'approve', note }, done: 'Return approved' }) },
-    'admin-refund': { title: 'Record the refund?', label: 'Record refund', field: 'How do you know the item went back? (both sides see this)', send: (r) => ({ path: `/admin/returns/${r._id}`, body: { decision: 'refund', note }, done: 'Refund recorded and stock returned' }) },
-    'admin-decline': { title: 'Close this return?', label: 'Close it', field: 'Your reason (both sides see it)', send: (r) => ({ path: `/admin/returns/${r._id}`, body: { decision: 'decline', note }, done: 'Return closed' }) },
+    decline: {
+      title: 'Decline this return?',
+      label: 'Decline',
+      field: 'Why? The customer sees this.',
+      send: (r) => ({
+        path: `/returns/${r._id}/decision`,
+        body: { decision: 'decline', note },
+        done: 'Return declined',
+      }),
+    },
+    escalate: {
+      title: 'Ask an admin to review?',
+      label: 'Send to an admin',
+      field: 'Why do you disagree with the shop?',
+      send: (r) => ({ path: `/returns/${r._id}/escalate`, body: { note }, done: 'Sent to an admin' }),
+    },
+    'admin-approve': {
+      title: 'Approve this return?',
+      label: 'Approve',
+      field: 'Your reason (both sides see it)',
+      send: (r) => ({
+        path: `/admin/returns/${r._id}`,
+        body: { decision: 'approve', note },
+        done: 'Return approved',
+      }),
+    },
+    'admin-refund': {
+      title: 'Record the refund?',
+      label: 'Record refund',
+      field: 'How do you know the item went back? (both sides see this)',
+      send: (r) => ({
+        path: `/admin/returns/${r._id}`,
+        body: { decision: 'refund', note },
+        done: 'Refund recorded and stock returned',
+      }),
+    },
+    'admin-decline': {
+      title: 'Close this return?',
+      label: 'Close it',
+      field: 'Your reason (both sides see it)',
+      send: (r) => ({
+        path: `/admin/returns/${r._id}`,
+        body: { decision: 'decline', note },
+        done: 'Return closed',
+      }),
+    },
   }[noteFor?.kind];
 
   return (
     <section aria-labelledby="returns-heading" className="mt-10 flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
+      <div className="flex flex-col gap-1">
         <h2 id="returns-heading" className="wide text-lg font-bold">
           Returns
         </h2>
@@ -115,21 +159,28 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
 
       {returns.map((r) => {
         const declinedAt = lastAt(r.history, 'declined');
-        const canEscalate = isCustomer && r.status === 'declined' && now - new Date(declinedAt).getTime() < WINDOW_DAYS * DAY_MS;
+        const canEscalate =
+          isCustomer &&
+          r.status === 'declined' &&
+          now - new Date(declinedAt).getTime() < WINDOW_DAYS * DAY_MS;
         return (
           <article key={r._id} className="flex flex-col gap-3 rounded-panel border border-seam p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Tag tone={STATUS[r.status].tone}>{STATUS[r.status].label}</Tag>
-              <span className="font-mono text-[13px] text-ink-2 tabular-nums">Refund {formatMoney(r.refundCents)}</span>
+              <span className="font-mono text-[13px] text-ink-2 tabular-nums">
+                Refund {formatMoney(r.refundCents)}
+              </span>
             </div>
             <p className="text-sm">
-              {r.items.map((i) => `${i.qty} × ${i.name}`).join(', ')} · <span className="text-ink-2">{REASON_LABELS[r.reason]}</span>
+              {r.items.map((i) => `${i.qty} × ${i.name}`).join(', ')} ·{' '}
+              <span className="text-ink-2">{REASON_LABELS[r.reason]}</span>
             </p>
             <p className="text-sm text-ink-2">{r.details}</p>
             <ol className="flex flex-col gap-1 border-l border-seam pl-3 text-[13px]">
               {r.history.map((h, i) => (
                 <li key={i} className="text-ink-3">
-                  <span className="font-mono tabular-nums">{formatDateTime(h.at)}</span> · {WHO[h.by]}: {STATUS[h.status].label}
+                  <span className="font-mono tabular-nums">{formatDateTime(h.at)}</span> · {WHO[h.by]}:{' '}
+                  {STATUS[h.status].label}
                   {h.note && <span className="block text-ink-2">&ldquo;{h.note}&rdquo;</span>}
                 </li>
               ))}
@@ -140,22 +191,46 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
                   <Button
                     size="sm"
                     loading={busy}
-                    onClick={() => act.mutate({ path: `/returns/${r._id}/decision`, body: { decision: 'approve' }, done: 'Return approved' })}
+                    onClick={() =>
+                      act.mutate({
+                        path: `/returns/${r._id}/decision`,
+                        body: { decision: 'approve' },
+                        done: 'Return approved',
+                      })
+                    }
                   >
                     Approve
                   </Button>
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => setNoteFor({ ret: r, kind: 'decline' })}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => setNoteFor({ ret: r, kind: 'decline' })}
+                  >
                     Decline
                   </Button>
                 </>
               )}
               {isSellerOfOrder && r.status === 'approved' && (
-                <Button size="sm" loading={busy} onClick={() => act.mutate({ path: `/returns/${r._id}/received`, done: 'Refund recorded and stock returned' })}>
+                <Button
+                  size="sm"
+                  loading={busy}
+                  onClick={() =>
+                    act.mutate({
+                      path: `/returns/${r._id}/received`,
+                      done: 'Refund recorded and stock returned',
+                    })
+                  }
+                >
                   I got the items back
                 </Button>
               )}
               {canEscalate && (
-                <Button size="sm" variant="secondary" onClick={() => setNoteFor({ ret: r, kind: 'escalate' })}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setNoteFor({ ret: r, kind: 'escalate' })}
+                >
                   Ask an admin to review
                 </Button>
               )}
@@ -165,13 +240,21 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
                   <Button size="sm" onClick={() => setNoteFor({ ret: r, kind: 'admin-approve' })}>
                     Approve return
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setNoteFor({ ret: r, kind: 'admin-decline' })}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setNoteFor({ ret: r, kind: 'admin-decline' })}
+                  >
                     Close without refund
                   </Button>
                 </>
               )}
               {can('orders') && r.adminCanSettle && r.status === 'approved' && (
-                <Button size="sm" variant="secondary" onClick={() => setNoteFor({ ret: r, kind: 'admin-refund' })}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setNoteFor({ ret: r, kind: 'admin-refund' })}
+                >
                   Record refund for the shop
                 </Button>
               )}
@@ -213,7 +296,13 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
           setNote('');
         }}
       >
-        <TextAreaField label={dialog?.field} rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+        <TextAreaField
+          label={dialog?.field}
+          rows={3}
+          maxLength={500}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </ConfirmDialog>
     </section>
   );
@@ -223,14 +312,20 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
 const returnSchema = z
   .object({
     qty: z.record(z.coerce.number().int().min(0)),
-    reason: z.enum(RETURN_REASONS.map((r) => r.value), { errorMap: () => ({ message: 'Choose a reason.' }) }),
+    reason: z.enum(
+      RETURN_REASONS.map((r) => r.value),
+      { errorMap: () => ({ message: 'Choose a reason.' }) },
+    ),
     details: z
       .string()
       .trim()
       .min(10, 'Describe the problem in at least 10 characters.')
       .max(1000, 'Keep it under 1000 characters.'),
   })
-  .refine((v) => Object.values(v.qty).some((n) => n > 0), { path: ['items'], message: 'Choose at least one item.' });
+  .refine((v) => Object.values(v.qty).some((n) => n > 0), {
+    path: ['items'],
+    message: 'Choose at least one item.',
+  });
 
 function ReturnForm({ items, orderId, onCancel, onSent }) {
   const [formError, setFormError] = useState('');
@@ -243,12 +338,18 @@ function ReturnForm({ items, orderId, onCancel, onSent }) {
   } = useForm({
     resolver: zodResolver(returnSchema),
     // With only one product to return there's nothing to choose: it starts selected at 1.
-    defaultValues: { qty: Object.fromEntries(items.map((i) => [i.product, items.length === 1 ? 1 : 0])), reason: '', details: '' },
+    defaultValues: {
+      qty: Object.fromEntries(items.map((i) => [i.product, items.length === 1 ? 1 : 0])),
+      reason: '',
+      details: '',
+    },
   });
 
   const submit = handleSubmit(async ({ qty, reason, details }) => {
     setFormError('');
-    const chosen = items.filter((i) => qty[i.product] > 0).map((i) => ({ productId: i.product, qty: qty[i.product] }));
+    const chosen = items
+      .filter((i) => qty[i.product] > 0)
+      .map((i) => ({ productId: i.product, qty: qty[i.product] }));
     try {
       await api(`/orders/${orderId}/returns`, { method: 'POST', body: { items: chosen, reason, details } });
       onSent();
@@ -298,7 +399,13 @@ function ReturnForm({ items, orderId, onCancel, onSent }) {
           />
         )}
       />
-      <TextAreaField label="What's wrong with it?" rows={3} maxLength={1000} error={errors.details?.message} {...register('details')} />
+      <TextAreaField
+        label="What's wrong with it?"
+        rows={3}
+        maxLength={1000}
+        error={errors.details?.message}
+        {...register('details')}
+      />
       <FormError message={formError} />
       <div className="flex gap-2">
         <Button type="submit" loading={isSubmitting}>
