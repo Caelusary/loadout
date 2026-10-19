@@ -29,8 +29,16 @@ const schema = z.object({
 
 const PAYMENT_OPTIONS = [
   { value: 'cod', label: PAYMENT_LABELS.cod, description: 'Pay the courier when it arrives.' },
-  { value: 'mock-gcash', label: PAYMENT_LABELS['mock-gcash'], description: 'No GCash number or login is asked for. For the demo.' },
-  { value: 'mock-card', label: PAYMENT_LABELS['mock-card'], description: 'No card details are collected. For the demo.' },
+  {
+    value: 'mock-gcash',
+    label: PAYMENT_LABELS['mock-gcash'],
+    description: 'No GCash number or login is asked for. For the demo.',
+  },
+  {
+    value: 'mock-card',
+    label: PAYMENT_LABELS['mock-card'],
+    description: 'No card details are collected. For the demo.',
+  },
 ];
 
 export default function CheckoutPage() {
@@ -106,8 +114,10 @@ export default function CheckoutPage() {
       setPlaced(true);
       if (!buyNow) cart.checkedOut(items);
       // The order went through either way; only claim the address was saved if the server says so.
-      if (values.saveAddress && res.addressSaved) setUser({ ...user, shippingAddress: values.shippingAddress });
-      else if (values.saveAddress) toast.error("Order placed, but your address couldn't be saved to your account.");
+      if (values.saveAddress && res.addressSaved)
+        setUser({ ...user, shippingAddress: values.shippingAddress });
+      else if (values.saveAddress)
+        toast.error("Order placed, but your address couldn't be saved to your account.");
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       navigate(`/order-confirmed/${res.checkoutId}`, { replace: true });
@@ -121,7 +131,9 @@ export default function CheckoutPage() {
         setFormError(err.message);
       } else if (['OUT_OF_STOCK', 'UNAVAILABLE', 'OWN_PRODUCT'].includes(err.code)) {
         queryClient.invalidateQueries({ queryKey: ['products'] });
-        setFormError(`${err.message} ${buyNow ? 'Go back to the product and try again.' : 'Update your cart and try again.'}`);
+        setFormError(
+          `${err.message} ${buyNow ? 'Go back to the product and try again.' : 'Update your cart and try again.'}`,
+        );
       } else if (!applyServerErrors(err, setError)) {
         setFormError(err.message);
       }
@@ -147,6 +159,7 @@ export default function CheckoutPage() {
                   legend="Payment"
                   name="paymentMethod"
                   options={PAYMENT_OPTIONS}
+                  stacked
                   value={field.value}
                   onChange={field.onChange}
                   error={errors.paymentMethod?.message}
