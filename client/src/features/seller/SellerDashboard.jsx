@@ -4,13 +4,17 @@ import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { ButtonLink } from '../../components/ui/Button.jsx';
 import { api } from '../../lib/api.js';
+import { formatMoney } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { StatsView } from '../stats/StatsView.jsx';
 
 export default function SellerDashboard() {
   useTitle('Seller Center');
   const { user } = useAuth();
-  const query = useQuery({ queryKey: ['stats', 'seller'], queryFn: ({ signal }) => api('/seller/stats', { signal }) });
+  const query = useQuery({
+    queryKey: ['stats', 'seller'],
+    queryFn: ({ signal }) => api('/seller/stats', { signal }),
+  });
 
   return (
     <>
@@ -25,9 +29,14 @@ export default function SellerDashboard() {
       />
       <StatsView
         query={query}
+        // Held and released are simulated, like Shopee's Guarantee: buyers' money waits until they confirm delivery.
+        statusLink={(s) => `/seller/orders?status=${s}`}
+        productLink={(p) => `/seller/products/${p.productId}/edit`}
         figures={(d) => [
-          ['Waiting to process', String(d.ordersByStatus.placed)],
+          ['Waiting to process', String(d.ordersByStatus.placed), '/seller/orders?status=placed'],
           ['Low on stock', String(d.lowStock.length)],
+          ['Held until buyers confirm', formatMoney(d.payouts.heldCents)],
+          ['Released, last 30 days', formatMoney(d.payouts.releasedCents30d)],
         ]}
         aside={(d) =>
           d.lowStock.length > 0 && (
@@ -36,7 +45,10 @@ export default function SellerDashboard() {
               <ul className="flex flex-col gap-2.5 text-sm">
                 {d.lowStock.map((p) => (
                   <li key={p._id} className="flex items-baseline justify-between gap-4">
-                    <Link to={`/seller/products/${p._id}/edit`} className="truncate text-ink-2 hover:text-accent-ink">
+                    <Link
+                      to={`/seller/products/${p._id}/edit`}
+                      className="truncate text-ink-2 hover:text-accent-ink"
+                    >
                       {p.name}
                     </Link>
                     <span className={`font-mono tabular-nums ${p.stock === 0 ? 'text-bad' : 'text-warn'}`}>
