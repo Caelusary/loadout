@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireApprovedSeller, requireArea, requireAuth } from '../../middleware/auth.js';
 import { perUserFailures } from '../../middleware/limits.js';
 import * as orders from './controller.js';
+import * as receipt from './receipt.js';
 
 const router = Router();
 // A checkout with a code counts its failures like the code preview does, so codes can't be guessed here.
@@ -16,6 +17,9 @@ router.get('/orders/mine', requireAuth, orders.myOrders);
 router.get('/orders/sold', requireAuth, requireApprovedSeller, orders.soldOrders);
 router.get('/orders/:id', requireAuth, orders.getOrder);
 router.patch('/orders/:id/cancel', requireAuth, orders.cancelOrder);
+router.patch('/orders/:id/received', requireAuth, receipt.confirmReceived);
+router.post('/orders/:id/delivery-issue', requireAuth, receipt.reportNotReceived);
+router.patch('/admin/orders/:id/delivery-issue', requireAuth, requireArea('orders'), receipt.settleDeliveryIssue);
 router.patch('/orders/:id/status', requireAuth, requireApprovedSeller, orders.advanceOrder);
 
 export default router;
