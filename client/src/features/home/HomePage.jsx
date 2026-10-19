@@ -23,7 +23,7 @@ function Featured() {
         {isError ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : (
-          <ProductGrid products={data ?? []} loading={isPending} skeletonCount={4} />
+          <ProductGrid products={data ?? []} loading={isPending} skeletonCount={4} fullRows />
         )}
       </Container>
     </section>
@@ -39,14 +39,14 @@ function NewArrivals() {
           <h2 id="new-title" className="wide text-2xl font-bold">
             New in
           </h2>
-          <Link to="/shop" className="text-sm text-ink-2 hover:text-accent-ink">
+          <Link to="/shop" className="-my-2 py-2 text-base font-medium text-ink-2 hover:text-accent-ink">
             See all products
           </Link>
         </div>
         {isError ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : (
-          <ProductGrid products={data?.items ?? []} loading={isPending} />
+          <ProductGrid products={data?.items ?? []} loading={isPending} fullRows />
         )}
       </Container>
     </section>
@@ -55,12 +55,8 @@ function NewArrivals() {
 
 function Shops() {
   const { data } = useQuery({
-    queryKey: ['shops', 'featured'],
-    queryFn: async () => {
-      const slugs = ['northpaw-keys', 'glide-lab', 'hush-audio'];
-      const results = await Promise.allSettled(slugs.map((s) => api(`/shops/${s}`)));
-      return results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
-    },
+    queryKey: ['shops'],
+    queryFn: ({ signal }) => api('/shops', { signal }).then((r) => r.shops),
     staleTime: 5 * 60_000,
   });
   if (!data?.length) return null;
@@ -74,7 +70,7 @@ function Shops() {
           Every product comes from an independent seller who ships it themselves.
         </p>
         <ul className="divide-y divide-seam border-y border-seam">
-          {data.map(({ shop, products }) => (
+          {data.map((shop) => (
             <li key={shop.slug}>
               <Link
                 to={`/s/${shop.slug}`}
@@ -83,7 +79,7 @@ function Shops() {
                 <span className="wide text-lg font-bold group-hover:text-accent-ink">{shop.shopName}</span>
                 <span className="text-sm text-ink-2">{shop.bio}</span>
                 <span className="font-mono text-[13px] text-ink-3 tabular-nums">
-                  {products.length} products
+                  {shop.productCount} {shop.productCount === 1 ? 'product' : 'products'}
                 </span>
               </Link>
             </li>
