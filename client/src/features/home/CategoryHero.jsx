@@ -6,7 +6,7 @@ import { ButtonLink } from '../../components/ui/Button.jsx';
 import { CATEGORIES, CATEGORY_LABELS, PHOTO_VERSION } from '../../lib/constants.js';
 import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { canRender3D, useActiveOnScreen, useMediaQuery, useReducedMotion } from './capabilities.js';
-import { CATEGORY_MODELS } from './categoryModels.js';
+import { CATEGORY_MODELS, prefetchModel } from './categoryModels.js';
 import { HeroSearch } from './HeroSearch.jsx';
 import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
@@ -48,7 +48,12 @@ function StagePhoto({ category }) {
         src={`/products/${shot}.webp?v=${PHOTO_VERSION}`}
         alt=""
         draggable="false"
-        style={{ width: side, height: side, maskImage: mask, translate: `${shift(shotCenter[0])} ${shift(shotCenter[1])}` }}
+        style={{
+          width: side,
+          height: side,
+          maskImage: mask,
+          translate: `${shift(shotCenter[0])} ${shift(shotCenter[1])}`,
+        }}
         className="max-w-none object-contain"
       />
     </div>
@@ -59,7 +64,7 @@ const LEFT = CATEGORIES.slice(0, 3);
 const RIGHT = CATEGORIES.slice(3);
 
 // Clicking a tile puts its category on the stage; only the arrow goes to the shop.
-function CategoryTile({ category, active, onSelect }) {
+function CategoryTile({ category, active, onSelect, onIntent }) {
   const { icon: Icon, blurb } = CATEGORY_MODELS[category];
   const label = CATEGORY_LABELS[category];
   return (
@@ -72,6 +77,8 @@ function CategoryTile({ category, active, onSelect }) {
         type="button"
         aria-pressed={active}
         onClick={() => onSelect(category)}
+        onPointerEnter={() => onIntent(category)}
+        onFocus={() => onIntent(category)}
         className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-panel py-3 pl-4 text-left sm:min-h-[76px] sm:gap-3.5"
       >
         <span className="grid size-11 shrink-0 place-items-center rounded-control border border-b-[3px] border-seam bg-bg text-ink-2 transition-colors group-data-active:border-accent group-data-active:text-accent-ink">
@@ -98,16 +105,23 @@ export function CategoryHero() {
   const [shown, setShown] = useState(() => new Set());
   const markShown = useCallback((c) => setShown((s) => (s.has(c) ? s : new Set(s).add(c))), []);
   const sceneReady = shown.has(active);
-  // Start the 3D scene once the page is idle: three.js's environment setup blocks for most of a second,
-  // and the product shot already stands in until the scene fades in.
+  // Start the 3D scene once the page has settled: loaded (images, fonts, the product lists) and then idle.
+  // three.js's environment setup blocks for most of a second, so starting mid-load would hold up the first taps.
   const [idle, setIdle] = useState(false);
   useEffect(() => {
-    if (window.requestIdleCallback) {
-      const id = requestIdleCallback(() => setIdle(true), { timeout: 2000 });
-      return () => cancelIdleCallback(id);
-    }
-    const id = setTimeout(() => setIdle(true), 400);
-    return () => clearTimeout(id);
+    let id;
+    const whenIdle = () => {
+      id = window.requestIdleCallback
+        ? requestIdleCallback(() => setIdle(true), { timeout: 3000 })
+        : setTimeout(() => setIdle(true), 400);
+    };
+    if (document.readyState === 'complete') whenIdle();
+    else addEventListener('load', whenIdle, { once: true });
+    return () => {
+      removeEventListener('load', whenIdle);
+      if (window.cancelIdleCallback) cancelIdleCallback(id);
+      clearTimeout(id);
+    };
   }, []);
   const canThreeD = useMemo(() => canRender3D(), []);
   // Performance mode shows the category photo instead, so the 3D engine and models never load.
@@ -142,7 +156,11 @@ export function CategoryHero() {
   // Dimmed while the hint is up; full strength once the shopper has touched the stage.
   const dim = threeD && !engaged ? 'opacity-35' : 'opacity-100';
 
-  const tile = (c) => <CategoryTile key={c} category={c} active={c === active} onSelect={pick} />;
+  // Only with 3D on: Performance mode and devices without WebGL never load models.
+  const intent = (c) => threeD && prefetchModel(c);
+  const tile = (c) => (
+    <CategoryTile key={c} category={c} active={c === active} onSelect={pick} onIntent={intent} />
+  );
   // Phones and tablets pick a category from a chip strip under the search, right above the starters it drives.
   const picker = (
     <ScrollRow
@@ -159,6 +177,7 @@ export function CategoryHero() {
               type="button"
               aria-pressed={on}
               onClick={() => pick(c)}
+              onPointerDown={() => intent(c)}
               className={`flex h-11 items-center gap-2 rounded-full border px-4 text-[14px] font-medium whitespace-nowrap transition-colors ${
                 on ? 'border-accent-ink bg-plate text-accent-ink' : 'border-seam text-ink-2 active:bg-raised'
               }`}
@@ -222,6 +241,13 @@ export function CategoryHero() {
               stage stays empty until the model has drawn and then fades in at full size; a photo first
               would flash a smaller keyboard. */}
           {!threeD && <StagePhoto category={active} />}
+          {/* While the model loads, a soft neon glow breathes where it will appear, so the stage never reads as empty.
+              No edges: the model fades in over it rather than replacing a box. */}
+          {threeD && !sceneReady && (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+              <div className="h-[55%] w-[75%] max-w-lg animate-pulse rounded-[50%] bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-accent)_var(--stage-glow),transparent),transparent)] blur-2xl motion-reduce:animate-none" />
+            </div>
+          )}
           {threeD && idle && (
             <div
               className={`absolute inset-0 transition-opacity duration-500 ease-out ${sceneReady ? dim : 'opacity-0'}`}
