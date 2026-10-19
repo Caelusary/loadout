@@ -3,7 +3,10 @@ import multer from 'multer';
 import { optionalAuth, requireApprovedSeller, requireArea, requireAuth } from '../../middleware/auth.js';
 import { invalid } from '../../lib/AppError.js';
 import { uploadLimiter } from '../../middleware/limits.js';
-import * as products from './controller.js';
+import * as catalog from './catalog.js';
+import * as manage from './manage.js';
+import { moderateProduct } from './moderate.js';
+import * as stock from './stockAlerts.js';
 
 // 8 MB fits a .glb model; images are held to 2 MB in the controller. Other file types are turned away
 // by name before any of the body is read into memory.
@@ -21,14 +24,17 @@ const seller = [requireAuth, requireApprovedSeller];
 const router = Router();
 
 // Literal paths before /products/:slug.
-router.get('/products', optionalAuth, products.listProducts);
-router.get('/products/featured', products.featuredProducts);
-router.get('/products/mine', ...seller, products.myProducts);
-router.get('/products/:slug', optionalAuth, products.getProduct);
-router.post('/products', ...seller, products.createProduct);
-router.patch('/products/:id', ...seller, products.updateProduct);
-router.delete('/products/:id', ...seller, products.deleteProduct);
-router.patch('/admin/products/:id', requireAuth, requireArea('products'), products.moderateProduct);
-router.post('/uploads', ...seller, uploadLimiter, uploadFile, products.upload);
+router.get('/products', optionalAuth, catalog.listProducts);
+router.get('/products/featured', catalog.featuredProducts);
+router.get('/products/mine', ...seller, manage.myProducts);
+router.get('/products/:slug', optionalAuth, catalog.getProduct);
+router.get('/products/:id/stock-alert', requireAuth, stock.getStockAlert);
+router.put('/products/:id/stock-alert', requireAuth, stock.subscribeStockAlert);
+router.delete('/products/:id/stock-alert', requireAuth, stock.unsubscribeStockAlert);
+router.post('/products', ...seller, manage.createProduct);
+router.patch('/products/:id', ...seller, manage.updateProduct);
+router.delete('/products/:id', ...seller, manage.deleteProduct);
+router.patch('/admin/products/:id', requireAuth, requireArea('products'), moderateProduct);
+router.post('/uploads', ...seller, uploadLimiter, uploadFile, manage.upload);
 
 export default router;
