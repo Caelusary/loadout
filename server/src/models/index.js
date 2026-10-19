@@ -6,3 +6,6 @@ export { default as Coupon } from './Coupon.js';
 export { default as Notification } from './Notification.js';
 export { default as ActivityLog } from './ActivityLog.js';
 export { default as ReturnRequest } from './ReturnRequest.js';
+export { default as RiderFeedback } from './RiderFeedback.js';
+export { default as PendingPhoto } from './PendingPhoto.js';
+export { default as StockAlert } from './StockAlert.js';
