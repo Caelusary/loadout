@@ -23,6 +23,7 @@ import cartRoutes from './features/cart/routes.js';
 import activityRoutes from './features/activity/routes.js';
 import returnsRoutes from './features/returns/routes.js';
 import deliveriesRoutes from './features/deliveries/routes.js';
+import ridersRoutes from './features/riders/routes.js';
 
 export function createApp() {
   const app = express();
@@ -68,6 +69,7 @@ export function createApp() {
     activityRoutes,
     returnsRoutes,
     deliveriesRoutes,
+    ridersRoutes,
   ]) {
     app.use('/api', routes);
   }
