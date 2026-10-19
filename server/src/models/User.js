@@ -40,6 +40,41 @@ const sellerProfileSchema = new mongoose.Schema(
   { _id: false }
 );
 
+export const VEHICLES = ['motorcycle', 'bicycle', 'car', 'van'];
+
+const vehicleField = { type: String, enum: { values: VEHICLES, message: '{VALUE} is not a vehicle we deliver with' } };
+const plateField = {
+  type: String,
+  trim: true,
+  uppercase: true,
+  match: [/^[A-Z0-9][A-Z0-9 -]{1,10}$/, 'Enter the plate as it reads, like ABC 1234'],
+};
+
+// A vehicle or plate change waiting for an admin. Buyers are told what to look out for at the door, so it can't
+// change unchecked; the current vehicle stays in use until it's approved.
+const vehicleRequestSchema = new mongoose.Schema(
+  { vehicle: vehicleField, plate: plateField, at: { type: Date, default: Date.now } },
+  { _id: false },
+);
+
+// A rider's details and dispatch state. The phone is for admins only: buyers see the first name, vehicle and
+// plate while their order is on the way, and nothing after.
+const riderProfileSchema = new mongoose.Schema(
+  {
+    phone: { type: String, trim: true, match: [/^\+?\d{7,15}$/, 'Enter a valid phone number'] },
+    vehicle: vehicleField,
+    plate: plateField,
+    vehicleRequest: vehicleRequestSchema,
+    // Paused from new deliveries while an admin looks at a report. Orders already out with them carry on.
+    heldAt: Date,
+    heldReason: { type: String, trim: true, maxlength: 200 },
+    // When admins were told this rider's average fell below 3 stars, so they're told once, not on every rating.
+    // Cleared when it climbs back to 3.3.
+    lowRatingAlertAt: Date,
+  },
+  { _id: false },
+);
+
 const cartLineSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
@@ -116,6 +151,7 @@ const userSchema = new mongoose.Schema(
     },
     shippingAddress: addressSchema,
     sellerProfile: sellerProfileSchema, // present only once the user applies to sell
+    riderProfile: riderProfileSchema, // riders only
     wishlist: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
       validate: { validator: (arr) => arr.length <= 100, message: 'A wishlist can hold at most 100 products' },
