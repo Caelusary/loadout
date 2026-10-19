@@ -46,7 +46,11 @@ export default function ModelViewer({ product }) {
       <Warmup onDone={setWarm} />
       <OrbitControls
         enablePan={false}
-        enableZoom={false}
+        // The wheel zooms in up to about twice as close; the camera starts at its farthest.
+        enableZoom
+        zoomSpeed={1.6}
+        minDistance={2.6}
+        maxDistance={5.25}
         autoRotate={!reducedMotion}
         autoRotateSpeed={0.8}
         minPolarAngle={Math.PI / 4}
