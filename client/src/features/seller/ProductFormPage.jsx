@@ -43,40 +43,67 @@ const optionalNumber = (label, min, max, { integer = true } = {}) => {
 };
 
 const pesoField = (label) =>
-  z.string().min(1, `${label} is required`).refine((v) => !Number.isNaN(parsePesos(v)), 'Enter a price like 4850 or 4850.50');
+  z
+    .string()
+    .min(1, `${label} is required`)
+    .refine((v) => !Number.isNaN(parsePesos(v)), 'Enter a price like 4850 or 4850.50');
 
 // Mirrors server/src/models/Product.js. `price` is the regular price; on sale, customers pay
 // `salePrice` and the regular one shows struck through (sent as priceCents + compareAtCents).
 const schema = z
   .object({
-  name: z.string().trim().min(1, 'Product name is required').min(3, 'Product name must be at least 3 characters').max(120, 'Product name must be at most 120 characters'),
-  brand: z.string().trim().min(1, 'Brand is required').min(2, 'Brand must be at least 2 characters').max(40, 'Brand must be at most 40 characters'),
-  category: z.enum(CATEGORIES, { errorMap: () => ({ message: 'Choose a category' }) }),
-  description: z.string().trim().max(2000, 'Description must be at most 2000 characters'),
-  price: pesoField('Price'),
-  onSale: z.boolean(),
-  salePrice: z.string(),
-  stock: z.preprocess(
-    (v) => (v === '' ? undefined : Number(v)),
-    z.number({ required_error: 'Stock is required', invalid_type_error: 'Stock must be a number' }).int('Stock must be a whole number').min(0, 'Stock cannot be negative'),
-  ),
-  specs: z.object({
-    connectivity: optionalEnum(CONNECTIVITY),
-    switchType: optionalEnum(SWITCH_TYPES),
-    layout: optionalEnum(LAYOUTS),
-    resolution: optionalEnum(RESOLUTIONS),
-    pollingRateHz: optionalNumber('Polling rate', 125, 8000),
-    dpiMax: optionalNumber('Max DPI', 100, 50000),
-    weightGrams: optionalNumber('Weight', 1, 5000, { integer: false }),
-    batteryMah: optionalNumber('Battery', 0, 100000),
-    fps: optionalNumber('Frame rate', 15, 120),
-    sensor: z.preprocess(blankToUndefined, z.string().trim().max(40, 'Sensor must be at most 40 characters').optional()),
-  }),
-  images: z
-    .array(z.object({ url: z.string(), publicId: z.string().optional(), alt: z.string().trim().min(1, 'Describe the image').max(120, 'Keep it under 120 characters') }))
-    .min(1, 'Add at least one image')
-    .max(6, 'You can add up to 6 images'),
-  modelUrl: z.string().optional(),
+    name: z
+      .string()
+      .trim()
+      .min(1, 'Product name is required')
+      .min(3, 'Product name must be at least 3 characters')
+      .max(120, 'Product name must be at most 120 characters'),
+    brand: z
+      .string()
+      .trim()
+      .min(1, 'Brand is required')
+      .min(2, 'Brand must be at least 2 characters')
+      .max(40, 'Brand must be at most 40 characters'),
+    category: z.enum(CATEGORIES, { errorMap: () => ({ message: 'Choose a category' }) }),
+    description: z.string().trim().max(2000, 'Description must be at most 2000 characters'),
+    price: pesoField('Price'),
+    onSale: z.boolean(),
+    salePrice: z.string(),
+    saleStarts: z.string(), // yyyy-mm-dd, blank = now
+    saleEnds: z.string(), // yyyy-mm-dd, blank = until turned off
+    stock: z.preprocess(
+      (v) => (v === '' ? undefined : Number(v)),
+      z
+        .number({ required_error: 'Stock is required', invalid_type_error: 'Stock must be a number' })
+        .int('Stock must be a whole number')
+        .min(0, 'Stock cannot be negative'),
+    ),
+    specs: z.object({
+      connectivity: optionalEnum(CONNECTIVITY),
+      switchType: optionalEnum(SWITCH_TYPES),
+      layout: optionalEnum(LAYOUTS),
+      resolution: optionalEnum(RESOLUTIONS),
+      pollingRateHz: optionalNumber('Polling rate', 125, 8000),
+      dpiMax: optionalNumber('Max DPI', 100, 50000),
+      weightGrams: optionalNumber('Weight', 1, 5000, { integer: false }),
+      batteryMah: optionalNumber('Battery', 0, 100000),
+      fps: optionalNumber('Frame rate', 15, 120),
+      sensor: z.preprocess(
+        blankToUndefined,
+        z.string().trim().max(40, 'Sensor must be at most 40 characters').optional(),
+      ),
+    }),
+    images: z
+      .array(
+        z.object({
+          url: z.string(),
+          publicId: z.string().optional(),
+          alt: z.string().trim().min(1, 'Describe the image').max(120, 'Keep it under 120 characters'),
+        }),
+      )
+      .min(1, 'Add at least one image')
+      .max(6, 'You can add up to 6 images'),
+    modelUrl: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     if (!v.onSale) return;
@@ -84,9 +111,29 @@ const schema = z
     if (!v.salePrice || Number.isNaN(sale)) {
       ctx.addIssue({ code: 'custom', path: ['salePrice'], message: 'Enter the sale price, like 3990' });
     } else if (sale >= parsePesos(v.price)) {
-      ctx.addIssue({ code: 'custom', path: ['salePrice'], message: 'The sale price must be lower than the regular price' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['salePrice'],
+        message: 'The sale price must be lower than the regular price',
+      });
+    }
+    // Dates compare as yyyy-mm-dd strings.
+    if (v.saleEnds && v.saleEnds < manilaToday()) {
+      ctx.addIssue({ code: 'custom', path: ['saleEnds'], message: 'That day has already passed' });
+    } else if (v.saleStarts && v.saleEnds && v.saleEnds < v.saleStarts) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['saleEnds'],
+        message: 'The sale has to end on or after its first day',
+      });
     }
   });
+
+// Sale days run midnight to midnight in Manila, whatever the seller's own clock says (coupons work the same way).
+const manilaDay = (date) => new Date(date).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+const manilaToday = () => manilaDay(Date.now());
+const dayStart = (day) => (day ? new Date(`${day}T00:00:00+08:00`).toISOString() : null);
+const dayEnd = (day) => (day ? new Date(`${day}T23:59:59.999+08:00`).toISOString() : null);
 
 const ENUM_OPTIONS = {
   connectivity: [CONNECTIVITY, CONNECTIVITY_LABELS],
@@ -98,7 +145,12 @@ const UNITS = { pollingRateHz: 'Hz', weightGrams: 'g', batteryMah: 'mAh', fps: '
 
 // On a sale, priceCents is what the customer pays (the sale price field) and compareAtCents is the regular price.
 const SERVER_FIELD_NAMES = { priceCents: 'price' };
-const SALE_FIELD_NAMES = { priceCents: 'salePrice', compareAtCents: 'price' };
+const SALE_FIELD_NAMES = {
+  priceCents: 'salePrice',
+  compareAtCents: 'price',
+  saleStartsAt: 'saleStarts',
+  saleEndsAt: 'saleEnds',
+};
 const SPEC_PLACEHOLDERS = {
   pollingRateHz: 'e.g. 1000',
   dpiMax: 'e.g. 26000',
@@ -110,16 +162,35 @@ const SPEC_PLACEHOLDERS = {
 
 function toFormValues(product) {
   if (!product) {
-    return { name: '', brand: '', category: '', description: '', price: '', onSale: false, salePrice: '', stock: '', specs: {}, images: [], modelUrl: '' };
+    return {
+      name: '',
+      brand: '',
+      category: '',
+      description: '',
+      price: '',
+      onSale: false,
+      salePrice: '',
+      saleStarts: '',
+      saleEnds: '',
+      stock: '',
+      specs: {},
+      images: [],
+      modelUrl: '',
+    };
   }
+  // A sale scheduled for later keeps the product at its regular price until it starts.
+  const upcoming = product.upcomingSale;
+  const salePrice = upcoming?.priceCents ?? (product.compareAtCents ? product.priceCents : null);
   return {
     name: product.name,
     brand: product.brand,
     category: product.category,
     description: product.description ?? '',
     price: centsToPesoInput(product.compareAtCents ?? product.priceCents),
-    onSale: Boolean(product.compareAtCents),
-    salePrice: product.compareAtCents ? centsToPesoInput(product.priceCents) : '',
+    onSale: salePrice != null,
+    salePrice: salePrice != null ? centsToPesoInput(salePrice) : '',
+    saleStarts: upcoming?.startsAt ? manilaDay(upcoming.startsAt) : '',
+    saleEnds: product.saleEndsAt ? manilaDay(product.saleEndsAt) : '',
     stock: String(product.stock),
     specs: Object.fromEntries(Object.entries(product.specs ?? {}).map(([k, v]) => [k, String(v)])),
     images: product.images.map(({ url, publicId, alt }) => ({ url, publicId, alt })),
@@ -149,9 +220,17 @@ function ProductForm({ product }) {
     setValue,
     setError,
     formState: { errors, isSubmitting, dirtyFields },
-  } = useForm({ resolver: zodResolver(schema), mode: 'onBlur', reValidateMode: 'onChange', defaultValues: toFormValues(product) });
+  } = useForm({
+    resolver: zodResolver(schema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: toFormValues(product),
+  });
   const images = useFieldArray({ control, name: 'images' });
-  const [category, name, modelUrl, onSale] = useWatch({ control, name: ['category', 'name', 'modelUrl', 'onSale'] });
+  const [category, name, modelUrl, onSale] = useWatch({
+    control,
+    name: ['category', 'name', 'modelUrl', 'onSale'],
+  });
 
   // Picked photos go through the background-removal review first; the chosen versions upload from there.
   const onPick = (files) => {
@@ -202,10 +281,14 @@ function ProductForm({ product }) {
       // On sale, the customer pays the sale price and the regular price is kept to show struck through.
       priceCents: parsePesos(values.onSale ? values.salePrice : values.price),
       compareAtCents: values.onSale ? parsePesos(values.price) : null,
+      saleStartsAt: values.onSale ? dayStart(values.saleStarts) : null,
+      saleEndsAt: values.onSale ? dayEnd(values.saleEnds) : null,
       // When editing, send stock only if the seller changed it: otherwise saving an unrelated edit would reset
       // stock to its value when the form opened and undo any sales made since.
       ...(!product || dirtyFields.stock ? { stock: values.stock } : {}),
-      specs: Object.fromEntries(fields.filter((k) => values.specs[k] !== undefined).map((k) => [k, values.specs[k]])),
+      specs: Object.fromEntries(
+        fields.filter((k) => values.specs[k] !== undefined).map((k) => [k, values.specs[k]]),
+      ),
       images: values.images,
       modelUrl: values.modelUrl || '',
     };
@@ -217,7 +300,8 @@ function ProductForm({ product }) {
       toast.show(product ? 'Product saved' : 'Product added to your shop');
       navigate('/seller/products');
     } catch (err) {
-      if (!applyServerErrors(err, setError, values.onSale ? SALE_FIELD_NAMES : SERVER_FIELD_NAMES)) setFormError(err.message);
+      if (!applyServerErrors(err, setError, values.onSale ? SALE_FIELD_NAMES : SERVER_FIELD_NAMES))
+        setFormError(err.message);
     }
   });
 
@@ -226,9 +310,19 @@ function ProductForm({ product }) {
       <FormError message={formError} />
       <section className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <TextField label="Product name" placeholder="e.g. Aster 75 Wireless" error={errors.name?.message} {...register('name')} />
+          <TextField
+            label="Product name"
+            placeholder="e.g. Aster 75 Wireless"
+            error={errors.name?.message}
+            {...register('name')}
+          />
         </div>
-        <TextField label="Brand" placeholder="e.g. Northpaw" error={errors.brand?.message} {...register('brand')} />
+        <TextField
+          label="Brand"
+          placeholder="e.g. Northpaw"
+          error={errors.brand?.message}
+          {...register('brand')}
+        />
         <SelectField
           label="Category"
           placeholder="Choose a category"
@@ -236,25 +330,65 @@ function ProductForm({ product }) {
           error={errors.category?.message}
           {...register('category')}
         />
-        <TextField label="Price (₱)" inputMode="decimal" placeholder="e.g. 4850" error={errors.price?.message} {...register('price')} />
-        <TextField label="Stock" inputMode="numeric" placeholder="How many you have" error={errors.stock?.message} {...register('stock')} />
+        <TextField
+          label="Price (₱)"
+          inputMode="decimal"
+          placeholder="e.g. 4850"
+          error={errors.price?.message}
+          {...register('price')}
+        />
+        <TextField
+          label="Stock"
+          inputMode="numeric"
+          placeholder="How many you have"
+          error={errors.stock?.message}
+          {...register('stock')}
+        />
         <div className="flex flex-col gap-3 sm:col-span-2">
           <Checkbox label="Put this product on sale" {...register('onSale')} />
           {onSale && (
-            <div className="max-w-xs">
+            <div className="grid gap-4 sm:grid-cols-3">
               <TextField
                 label="Sale price (₱)"
                 inputMode="decimal"
                 placeholder="Lower than the price above"
-                hint="Shoppers see the regular price struck through and a Sale tag."
                 error={errors.salePrice?.message}
                 {...register('salePrice')}
               />
+              <TextField
+                label="Starts"
+                optional
+                type="date"
+                min={manilaToday()}
+                hint="Blank starts it now."
+                error={errors.saleStarts?.message}
+                {...register('saleStarts')}
+              />
+              <TextField
+                label="Ends"
+                optional
+                type="date"
+                min={manilaToday()}
+                hint="Blank runs until you turn it off."
+                error={errors.saleEnds?.message}
+                {...register('saleEnds')}
+              />
+              <p className="text-[13px] text-ink-3 sm:col-span-3">
+                Shoppers see the regular price struck through and a Sale tag. Sales start at midnight and end
+                at 11:59 PM, Philippine time.
+              </p>
             </div>
           )}
         </div>
         <div className="sm:col-span-2">
-          <TextAreaField label="Description" optional rows={5} placeholder="Materials, what comes in the box, who it suits" error={errors.description?.message} {...register('description')} />
+          <TextAreaField
+            label="Description"
+            optional
+            rows={5}
+            placeholder="Materials, what comes in the box, who it suits"
+            error={errors.description?.message}
+            {...register('description')}
+          />
         </div>
       </section>
 
@@ -296,8 +430,8 @@ function ProductForm({ product }) {
         <div>
           <h2 className="font-medium">Images</h2>
           <p className="text-[13px] text-ink-3">
-            JPG, PNG or WebP up to 2 MB. The first image is the main one. Backgrounds are removed for you, and you can keep
-            the original instead.
+            JPG, PNG or WebP up to 2 MB. The first image is the main one. Backgrounds are removed for you, and
+            you can keep the original instead.
           </p>
         </div>
         {images.fields.length > 0 && (
@@ -305,16 +439,32 @@ function ProductForm({ product }) {
             {images.fields.map((field, i) => (
               // Photo, alt text, then its actions: under the field on phones, a fixed column on wider screens so every
               // row's field is the same width whether or not it has "Make main".
-              <li key={field.id} className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-4 gap-y-1 sm:grid-cols-[72px_minmax(0,1fr)_11rem]">
-                <img src={assetUrl(field.url)} alt="" className="size-[72px] rounded-control border border-seam bg-raised object-contain p-1" />
-                <TextField label={i === 0 ? 'Alt text (main image)' : 'Alt text'} error={errors.images?.[i]?.alt?.message} {...register(`images.${i}.alt`)} />
+              <li
+                key={field.id}
+                className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-4 gap-y-1 sm:grid-cols-[72px_minmax(0,1fr)_11rem]"
+              >
+                <img
+                  src={assetUrl(field.url)}
+                  alt=""
+                  className="size-[72px] rounded-control border border-seam bg-raised object-contain p-1"
+                />
+                <TextField
+                  label={i === 0 ? 'Alt text (main image)' : 'Alt text'}
+                  error={errors.images?.[i]?.alt?.message}
+                  {...register(`images.${i}.alt`)}
+                />
                 <div className="col-start-2 flex gap-1 sm:col-start-auto sm:justify-end sm:pt-6">
                   {i > 0 && (
                     <Button variant="ghost" size="sm" onClick={() => images.move(i, 0)}>
                       Make main
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" className="hover:text-bad" onClick={() => images.remove(i)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hover:text-bad"
+                    onClick={() => images.remove(i)}
+                  >
                     Remove
                   </Button>
                 </div>
@@ -334,7 +484,9 @@ function ProductForm({ product }) {
             id="image-upload"
             onChange={(e) => onPick(e.target.files)}
           />
-          {reviewing && <CutoutReview files={reviewing} onDone={onImages} onCancel={() => setReviewing(null)} />}
+          {reviewing && (
+            <CutoutReview files={reviewing} onDone={onImages} onCancel={() => setReviewing(null)} />
+          )}
           {!reviewing && (
             <Button
               variant="secondary"
@@ -363,8 +515,20 @@ function ProductForm({ product }) {
           ) : (
             <p className="text-sm text-ink-3">No model uploaded</p>
           )}
-          <input ref={modelInput} type="file" accept=".glb" className="sr-only" onChange={(e) => onModel(e.target.files[0])} />
-          <Button variant="secondary" size="sm" onClick={() => modelInput.current.click()} loading={uploading === 'model'} disabled={Boolean(uploading)}>
+          <input
+            ref={modelInput}
+            type="file"
+            accept=".glb"
+            className="sr-only"
+            onChange={(e) => onModel(e.target.files[0])}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => modelInput.current.click()}
+            loading={uploading === 'model'}
+            disabled={Boolean(uploading)}
+          >
             {modelUrl ? 'Replace model' : 'Upload .glb'}
           </Button>
           {modelUrl && (
@@ -376,10 +540,18 @@ function ProductForm({ product }) {
       </section>
 
       <div className="flex gap-2 border-t border-seam pt-6">
-        <Button type="submit" size="lg" loading={isSubmitting} disabled={Boolean(uploading) || Boolean(reviewing)}>
+        <Button
+          type="submit"
+          size="lg"
+          loading={isSubmitting}
+          disabled={Boolean(uploading) || Boolean(reviewing)}
+        >
           {product ? 'Save product' : 'Add product'}
         </Button>
-        <Link to="/seller/products" className="inline-flex h-12 items-center px-4 text-sm text-ink-2 hover:text-ink">
+        <Link
+          to="/seller/products"
+          className="inline-flex h-12 items-center px-4 text-sm text-ink-2 hover:text-ink"
+        >
           Cancel
         </Link>
       </div>
