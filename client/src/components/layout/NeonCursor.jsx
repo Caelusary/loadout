@@ -28,6 +28,8 @@ export function NeonCursor() {
     let target = null;
     let frame = 0; // 0 while the loop is asleep
     let shown = false;
+    let snap = false; // set by scrolling: jump straight to the new target instead of trailing
+    const pick = (el) => el?.closest?.('[data-cursor-box]') ?? el?.closest?.(INTERACTIVE) ?? null;
 
     const onMove = (e) => {
       p.x = e.clientX;
@@ -38,7 +40,7 @@ export function NeonCursor() {
         Object.assign(r, { x: p.x, y: p.y });
         dot.current.style.opacity = reticle.current.style.opacity = '1';
       }
-      target = e.target.closest?.('[data-cursor-box]') ?? e.target.closest?.(INTERACTIVE) ?? null;
+      target = pick(e.target);
       wake();
     };
 
@@ -50,7 +52,8 @@ export function NeonCursor() {
         goal = { x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width + PAD * 2, h: b.height + PAD * 2 };
       }
       // How quickly the brackets catch up: a slight trail, not a lag. Performance mode snaps them on.
-      const k = document.documentElement.dataset.performance ? 1 : 0.5;
+      const k = snap || document.documentElement.dataset.performance ? 1 : 0.5;
+      snap = false;
       r.x += (goal.x - r.x) * k;
       r.y += (goal.y - r.y) * k;
       r.w += (goal.w - r.w) * k;
@@ -68,6 +71,14 @@ export function NeonCursor() {
     const wake = () => {
       if (!frame) frame = requestAnimationFrame(tick);
     };
+    // Scrolling moves the page under a still pointer: lock onto whatever is under it now, at once, rather than
+    // trailing after the element it was on.
+    const onScroll = () => {
+      if (!shown) return;
+      target = pick(document.elementFromPoint(p.x, p.y));
+      snap = true;
+      wake();
+    };
 
     const onDown = (e) => {
       if (document.documentElement.dataset.performance) return; // no click pulse in Performance mode
@@ -84,13 +95,13 @@ export function NeonCursor() {
     };
 
     addEventListener('pointermove', onMove, { passive: true });
-    addEventListener('scroll', wake, { passive: true, capture: true });
+    addEventListener('scroll', onScroll, { passive: true, capture: true });
     addEventListener('pointerdown', onDown, { passive: true });
     document.documentElement.addEventListener('pointerleave', onLeave);
     return () => {
       cancelAnimationFrame(frame);
       removeEventListener('pointermove', onMove);
-      removeEventListener('scroll', wake, { capture: true });
+      removeEventListener('scroll', onScroll, { capture: true });
       removeEventListener('pointerdown', onDown);
       document.documentElement.removeEventListener('pointerleave', onLeave);
       document.documentElement.classList.remove('neon-cursor');
