@@ -31,7 +31,7 @@ export const PAYMENT_LABELS = { cod: 'Cash on delivery', 'mock-gcash': 'GCash (s
 export const STATUS_LABELS = {
   placed: 'Placed',
   processing: 'Processing',
-  shipped: 'Shipped',
+  shipped: 'Waiting for pickup',
   'out-for-delivery': 'Out for delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
@@ -53,7 +53,7 @@ export const FREE_SHIPPING_MIN_CENTS = 300000;
 export const shippingFor = (subtotalCents) => (subtotalCents >= FREE_SHIPPING_MIN_CENTS ? 0 : SHIPPING_FEE_CENTS);
 
 export const MAX_QTY = 10;
-export const MAX_COMPARE = 4;
+export const MAX_COMPARE = 3;
 
 // Returns: what counts, how long after delivery, and when an unconfirmed order completes itself.
 export const RETURN_REASONS = [
@@ -71,4 +71,37 @@ export const ADMIN_AREA_LABELS = { users: 'Users', sellers: 'Sellers', products:
 export const REAPPLY_WAIT_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Cache-buster on the bundled product photos; matches PHOTO_VERSION in server/src/seed/data.js.
-export const PHOTO_VERSION = 8;
+export const PHOTO_VERSION = 9;
+
+// Riders. Mirrors server/src/models/User.js, Order.js and RiderFeedback.js (constants-sync.test.js checks).
+export const VEHICLE_LABELS = { motorcycle: 'Motorcycle', bicycle: 'Bicycle', car: 'Car', van: 'Van' };
+export const DECLINE_REASON_LABELS = {
+  'too-far': 'Too far from my route',
+  'vehicle-problem': 'Vehicle problem',
+  unavailable: "I'm not available",
+  other: 'Something else',
+};
+// Why a rider couldn't hand an order over (Order.attempts). After MAX_ATTEMPTS misses it goes back to the shop.
+export const ATTEMPT_REASON_LABELS = {
+  'not-home': 'Buyer not home',
+  'wrong-address': "Couldn't find the address",
+  refused: 'Buyer refused it',
+};
+export const MAX_ATTEMPTS = 2;
+export const RIDER_REPORT_LABELS = {
+  unsafe: 'Unsafe driving or handling',
+  harassment: 'Harassment or unwanted contact',
+  'asked-for-money': 'Asked for extra money',
+  rude: 'Rude or threatening',
+  other: 'Something else',
+};
+
+// The next step each side can move an order to, and its button. The shop's part ends at shipped ("Waiting for
+// pickup"); the rider takes it from there.
+export const SHOP_NEXT = { placed: 'processing', processing: 'shipped' };
+export const SHOP_NEXT_LABEL = { processing: 'Start processing', shipped: 'Ready for pickup' };
+export const RIDER_NEXT = { shipped: 'out-for-delivery', 'out-for-delivery': 'delivered' };
+export const RIDER_NEXT_LABEL = { 'out-for-delivery': 'Out for delivery', delivered: 'Mark delivered' };
+
+// Photos on one review.
+export const MAX_REVIEW_PHOTOS = 3;
