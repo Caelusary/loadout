@@ -11,9 +11,11 @@ import { cancelOrders, noticesForCancelled, releaseCouponsAfterCommit } from '..
 export async function listSellers(req, res) {
   const filter = { sellerProfile: { $exists: true } };
   if (SELLER_STATUSES.includes(req.query.status)) filter['sellerProfile.status'] = req.query.status;
-  res.json(
-    await paginate(User, filter, pageParams(req.query), (q) => q.sort({ 'sellerProfile.appliedAt': -1 })),
-  );
+  const [page, ...tallies] = await Promise.all([
+    paginate(User, filter, pageParams(req.query), (q) => q.sort({ 'sellerProfile.appliedAt': -1 })),
+    ...SELLER_STATUSES.map((s) => User.countDocuments({ 'sellerProfile.status': s })),
+  ]);
+  res.json({ ...page, counts: Object.fromEntries(SELLER_STATUSES.map((s, i) => [s, tallies[i]])) });
 }
 
 export async function updateSeller(req, res) {
@@ -66,6 +68,32 @@ export async function updateSeller(req, res) {
     link: status === 'approved' ? '/seller' : '/account',
   });
   res.json({ user: target });
+}
+
+// Every open shop, for the homepage: name, bio and how many products it lists, oldest shop first. The same for
+// everyone, so the CDN keeps it for a minute.
+export async function listShops(req, res) {
+  const owners = await User.find(
+    { role: 'seller', 'sellerProfile.status': 'approved', isActive: true },
+    'sellerProfile.shopName sellerProfile.slug sellerProfile.bio sellerProfile.logoUrl createdAt',
+  )
+    .sort({ createdAt: 1 })
+    .lean();
+  const counts = await Product.aggregate([
+    { $match: { seller: { $in: owners.map((o) => o._id) }, isActive: true } },
+    { $group: { _id: '$seller', n: { $sum: 1 } } },
+  ]);
+  const countFor = new Map(counts.map((c) => [String(c._id), c.n]));
+  res.set('CDN-Cache-Control', 'max-age=60, stale-while-revalidate=300');
+  res.json({
+    shops: owners.map(({ _id, sellerProfile: { shopName, slug, bio, logoUrl } }) => ({
+      shopName,
+      slug,
+      bio,
+      logoUrl,
+      productCount: countFor.get(String(_id)) ?? 0,
+    })),
+  });
 }
 
 export async function getShop(req, res) {
