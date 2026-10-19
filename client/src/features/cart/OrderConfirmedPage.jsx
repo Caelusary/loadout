@@ -8,14 +8,19 @@ import { ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { api } from '../../lib/api.js';
 import { orderNumber, formatMoney, plural } from '../../lib/format.js';
 
-const itemCount = (order) => plural(order.items.reduce((sum, i) => sum + i.qty, 0), 'item');
+const itemCount = (order) =>
+  plural(
+    order.items.reduce((sum, i) => sum + i.qty, 0),
+    'item',
+  );
 
 export default function OrderConfirmedPage() {
   useTitle('Order placed');
   const { checkoutId } = useParams();
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['orders', 'mine', checkoutId],
-    queryFn: ({ signal }) => api(`/orders/mine?checkoutId=${encodeURIComponent(checkoutId)}`, { signal }).then((r) => r.items),
+    queryFn: ({ signal }) =>
+      api(`/orders/mine?checkoutId=${encodeURIComponent(checkoutId)}`, { signal }).then((r) => r.items),
   });
 
   return (
@@ -43,6 +48,7 @@ export default function OrderConfirmedPage() {
                 <p className="font-medium">{order.seller?.sellerProfile?.shopName ?? 'Shop'}</p>
                 <p className="flex flex-wrap gap-x-1.5 font-mono text-[13px] text-ink-3">
                   <span className="whitespace-nowrap">{orderNumber(order._id)}</span>
+                  <span aria-hidden="true">·</span>
                   <span className="whitespace-nowrap">{itemCount(order)}</span>
                 </p>
               </div>
@@ -55,7 +61,8 @@ export default function OrderConfirmedPage() {
       </div>
       {data?.some((o) => o.discountCents > 0) && (
         <p className="mt-4 text-sm text-ok">
-          {data[0].couponCode} saved you {formatMoney(data.reduce((sum, o) => sum + (o.discountCents ?? 0), 0))}.
+          {data[0].couponCode} saved you{' '}
+          {formatMoney(data.reduce((sum, o) => sum + (o.discountCents ?? 0), 0))}.
         </p>
       )}
       <div className="mt-8 flex flex-wrap gap-3">
