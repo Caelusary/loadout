@@ -18,6 +18,13 @@ export const ACTIVITY_ACTIONS = [
   'order.cancel',
   'review.delete',
   'return.decide',
+  'order.delivery-issue',
+  'rider.hold',
+  'rider.clear',
+  'rider.feedback',
+  'rider.profile',
+  'rider.vehicle-approve',
+  'rider.vehicle-reject',
   'coupon.create',
   'coupon.update',
 ];
