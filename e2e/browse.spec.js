@@ -17,9 +17,7 @@ test.describe('guest browsing', () => {
     await cards.first().click();
     await expect(page).toHaveURL(/\/p\//);
     await expect(page.getByRole('button', { name: 'Add to cart' })).toBeVisible();
-    await expect(
-      page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Mice' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'More mice' })).toBeVisible();
   });
 
   test('sends a guest to sign in before the cart', async ({ page }) => {
@@ -37,7 +35,8 @@ test.describe('guest browsing', () => {
     test(`has no serious accessibility problems on ${path}`, async ({ page }) => {
       await page.goto(path);
       await page.getByRole('main').waitFor();
-      await page.waitForLoadState('load');
+      // Wait for the data too (reviews, products), or the scan only covers skeletons and misses what loads after.
+      await page.waitForLoadState('networkidle');
       await expectAccessible(page);
     });
   }
