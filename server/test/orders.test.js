@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { Order, Product, User } from '../src/models/index.js';
+import { users } from '../src/seed/data.js';
 import { address, productId, signIn, useSeededDb } from './helpers.js';
 
 useSeededDb();
@@ -269,6 +270,30 @@ describe('after the orders commit', () => {
       warn.mockRestore();
       await Order.deleteMany({ _id: { $in: placed } });
       await Product.updateOne({ _id: id }, { stock: before });
+    }
+  });
+});
+
+describe('order history tabs', () => {
+  it('keeps a partly refunded order under Delivered and moves a fully refunded one to Refunded', async () => {
+    const order = await Order.findOne({ status: 'delivered', refundedCents: { $gt: 0 } }).lean();
+    const owner = await User.findById(order.user).lean();
+    const buyer = await signIn(Object.keys(users).find((k) => String(users[k]._id) === String(owner._id)));
+    const ids = async (group) => (await buyer.get(`/api/orders/mine?group=${group}&limit=50`)).body.items.map((o) => o._id);
+    const full = order.subtotalCents - (order.discountCents ?? 0);
+    try {
+      await Order.updateOne({ _id: order._id }, { refundedCents: full - 100 });
+      expect(await ids('delivered')).toContain(String(order._id));
+      expect(await ids('refunded')).not.toContain(String(order._id));
+
+      await Order.updateOne({ _id: order._id }, { refundedCents: full });
+      expect(await ids('refunded')).toContain(String(order._id));
+      expect(await ids('delivered')).not.toContain(String(order._id));
+      const { counts } = (await buyer.get('/api/orders/mine')).body;
+      const tabs = ['to-ship', 'on-the-way', 'delivered', 'refunded', 'cancelled'];
+      expect(tabs.reduce((sum, k) => sum + counts[k], 0)).toBe(counts.all);
+    } finally {
+      await Order.updateOne({ _id: order._id }, { refundedCents: order.refundedCents });
     }
   });
 });
