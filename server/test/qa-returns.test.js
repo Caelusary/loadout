@@ -1,10 +1,21 @@
+import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { Coupon, Order, Product, ReturnRequest } from '../src/models/index.js';
 import { autoCompleteShipped } from '../src/features/orders/service.js';
+import { refundFor } from '../src/features/returns/service.js';
 import { checkouts, products, users } from '../src/seed/data.js';
-import { address, productId, signIn, useSeededDb } from './helpers.js';
+import { address, app, productId, signIn, useSeededDb } from './helpers.js';
 
 useSeededDb();
+
+describe('refund shares of a discount', () => {
+  it('add up to exactly what was paid, in any split, and never more along the way', () => {
+    const order = { subtotalCents: 200, discountCents: 25 }; // two lines of 100, paid 175
+    const a = { priceCents: 100 };
+    expect(refundFor(order, a, 1, 0) + refundFor(order, a, 1, 100)).toBe(175);
+    expect(refundFor(order, a, 1, 0)).toBeLessThanOrEqual(87); // the first half never takes more than its share
+  });
+});
 
 const id = (key) => users[key]._id.toString();
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -47,7 +58,7 @@ describe('qa: return requests', () => {
     expect(await ReturnRequest.countDocuments({ order: order._id })).toBe(1);
   });
 
-  it('never refunds more than was paid across several partial returns of one discounted line', async () => {
+  it('refunds exactly what was paid across several partial returns of one discounted line', async () => {
     const mika = await signIn('mika');
     const seller = await signIn(sellerKeyOf(1));
     const order = await deliveredOrder('mika', 1, 3, 1001);
@@ -66,8 +77,7 @@ describe('qa: return requests', () => {
     const refunded = (await Order.findById(order._id)).refundedCents;
     const sum = (await ReturnRequest.find({ order: order._id })).reduce((s, r) => s + r.refundCents, 0);
     expect(refunded).toBe(sum);
-    expect(refunded).toBeLessThanOrEqual(paidForGoods);
-    expect(paidForGoods - refunded).toBeLessThanOrEqual(3); // at most a centavo lost per return
+    expect(refunded).toBe(paidForGoods); // not a centavo short, however the returns were split
     expect(await stock(1)).toBe(before + 3);
 
     // Every unit is back, so nothing more can be asked for.
@@ -230,14 +240,25 @@ describe('returns: the window, codes and reviews', () => {
     expect(coupon.usedCount).toBe(0);
   });
 
-  it('keeps a refunded buyer’s review but tags it', async () => {
+  it('keeps a refunded buyer’s review, and tags it only for the shop and admins', async () => {
     const paolo = await signIn('paolo');
     const order = await deliveredOrder('paolo', 13, 1, 0);
     await paolo.post(`/api/products/${productId(13)}/reviews`).send({ rating: 2, title: 'Arrived broken', body: 'The scroll wheel was cracked out of the box.' });
     await refundAll('paolo', order, 1);
-    const { body } = await paolo.get(`/api/products/${productId(13)}/reviews?limit=50`);
-    const mine = body.items.find((r) => r.user?._id === id('paolo'));
-    expect(mine.returned).toBe(true);
-    expect(body.items.filter((r) => r.user?._id !== id('paolo')).every((r) => r.returned === false)).toBe(true);
+    const reviewsOf = async (agent) => (await agent.get(`/api/products/${productId(13)}/reviews?limit=50`)).body.items;
+    const isPaolo = (r) => r.user?._id === id('paolo');
+
+    // The shop sees who was refunded, and so does an admin who moderates products.
+    const shopId = String((await Product.findById(productId(13))).seller);
+    const shopKey = Object.keys(users).find((k) => String(users[k]._id) === shopId);
+    for (const viewer of [shopKey, 'owner']) {
+      const items = await reviewsOf(await signIn(viewer));
+      expect(items.find(isPaolo).returned).toBe(true);
+      expect(items.filter((r) => !isPaolo(r)).every((r) => r.returned === false)).toBe(true);
+    }
+    // The buyer, other shoppers and guests don't get the flag at all.
+    for (const agent of [paolo, await signIn('mika'), request(app)]) {
+      expect((await reviewsOf(agent)).every((r) => !('returned' in r))).toBe(true);
+    }
   });
 });
