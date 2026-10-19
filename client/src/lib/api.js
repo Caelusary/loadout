@@ -3,7 +3,7 @@ const API_ORIGIN = /^https?:\/\//.test(BASE) ? new URL(BASE).origin : '';
 
 export class ApiError extends Error {
   constructor(status, body) {
-    super(body?.error?.message ?? (status === 0 ? "Can't reach the server. Check your connection." : 'Something went wrong.'));
+    super(body?.error?.message ?? (status === 0 ? "Can't reach the server. Check your connection." : "That didn't work. Try again in a moment."));
     this.status = status;
     this.code = body?.error?.code;
     this.fields = body?.error?.fields;
