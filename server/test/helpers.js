@@ -34,3 +34,18 @@ export const address = {
   postalCode: '1101',
   phone: '09171234567',
 };
+
+// A 1x1 PNG, for uploads in tests.
+export const tinyPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+// A rider's step on an order. Marking it delivered takes a photo first, the way the app does.
+export async function riderStep(agent, orderId, status) {
+  if (status !== 'delivered') return agent.patch(`/api/deliveries/${orderId}`).send({ status });
+  const photo = await agent.post('/api/deliveries/proof').attach('file', tinyPng, 'door.png');
+  return agent
+    .patch(`/api/deliveries/${orderId}`)
+    .send({ status, proof: { url: photo.body.url, location: { lat: 14.6, lng: 121.03, accuracy: 12 } } });
+}
