@@ -1,4 +1,5 @@
 import { Notification } from '../../models/index.js';
+import { orderNumber as shortId } from '../../lib/format.js';
 
 export async function notify(entries) {
   const list = (Array.isArray(entries) ? entries : [entries]).filter((e) => e?.user);
@@ -10,11 +11,10 @@ export async function notify(entries) {
   }
 }
 
-const shortId = (id) => `#${String(id).slice(-6).toUpperCase()}`;
 
 const STATUS_COPY = {
   processing: 'is being prepared',
-  shipped: 'has shipped',
+  shipped: 'is waiting for rider pickup',
   'out-for-delivery': 'is out for delivery',
   delivered: 'was delivered',
   cancelled: 'was cancelled',
@@ -32,7 +32,11 @@ export const orderNotices = {
     user: order.user,
     type: 'order',
     title: `Order ${shortId(order._id)} ${STATUS_COPY[order.status]}`,
-    body: order.items.map((i) => i.name).join(', ').slice(0, 290),
+    // A delivered order asks the question instead of listing items: answering is what unlocks rating.
+    body:
+      order.status === 'delivered'
+        ? 'Did it arrive? Let us know, then you can review your items.'
+        : order.items.map((i) => i.name).join(', ').slice(0, 290),
     link: `/orders/${order._id}`,
   }),
   // The rider hears about a new delivery; the shop hears when its order is delivered.
