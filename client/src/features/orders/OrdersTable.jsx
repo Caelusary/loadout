@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
-import { OrderStatus, Price } from '../../components/ui/chips.jsx';
+import { OrderStatus, Price, Tag } from '../../components/ui/chips.jsx';
 import { EmptyState } from '../../components/ui/feedback.jsx';
-import { Cell, Table } from '../../components/ui/Table.jsx';
+import { Cell, Table, TableSkeleton } from '../../components/ui/Table.jsx';
 import { ORDER_STATUSES, STATUS_LABELS } from '../../lib/constants.js';
 import { formatDate, orderNumber } from '../../lib/format.js';
 import { itemSummary } from './OrderRow.jsx';
@@ -28,17 +28,26 @@ export function StatusTabs({ value, onChange, counts }) {
 }
 
 // Seller and admin order lists. `showShop` adds the shop column for admins; `action` renders a per-row control.
-export function OrdersTable({ orders, showShop = false, action }) {
+// `loading` draws the same columns with placeholders while the orders load.
+export function OrdersTable({ orders, showShop = false, action, loading = false }) {
   const columns = [
-    { label: 'Order' },
-    { label: 'Customer' },
+    { label: 'Order', skeleton: 'two' },
+    { label: 'Status', skeleton: 'tag' },
+    { label: 'Customer', skeleton: 'two' },
     ...(showShop ? [{ label: 'Shop' }] : []),
-    { label: 'Total', align: 'right' },
-    { label: 'Status' },
-    ...(action ? [{ label: '', align: 'right' }] : []),
+    { label: 'Total', skeleton: 'short' },
+    ...(action ? [{ label: '', align: 'right', skeleton: 'button' }] : []),
   ];
+  if (loading) return <TableSkeleton columns={columns} />;
   return (
-    <Table columns={columns} empty={orders.length === 0 && <EmptyState title="No orders here">Orders with this status will show up here.</EmptyState>}>
+    <Table
+      columns={columns}
+      empty={
+        orders.length === 0 && (
+          <EmptyState title="No orders here">Orders with this status will show up here.</EmptyState>
+        )
+      }
+    >
       {orders.map((o) => (
         <tr key={o._id}>
           <Cell>
@@ -49,13 +58,19 @@ export function OrdersTable({ orders, showShop = false, action }) {
               </span>
             </Link>
           </Cell>
-          <Cell className="text-ink-2">{o.user?.name ?? 'Deleted account'}</Cell>
-          {showShop && <Cell className="text-ink-2">{o.seller?.sellerProfile?.shopName ?? 'Deleted account'}</Cell>}
-          <Cell align="right">
-            <Price cents={o.totalCents} />
-          </Cell>
+          {/* Status sits next to the order number: it's what people scan the list for. */}
           <Cell>
-            <OrderStatus order={o} />
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              <OrderStatus order={o} />
+              {o.deliveryIssue?.status === 'open' && <Tag tone="bad">Not received</Tag>}
+            </span>
+          </Cell>
+          <Cell className="text-ink-2">{o.user?.name ?? 'Deleted account'}</Cell>
+          {showShop && (
+            <Cell className="text-ink-2">{o.seller?.sellerProfile?.shopName ?? 'Deleted account'}</Cell>
+          )}
+          <Cell>
+            <Price cents={o.totalCents} />
           </Cell>
           {action && <Cell align="right">{action(o)}</Cell>}
         </tr>
