@@ -1,4 +1,4 @@
-import { Link as LinkIcon, X } from '@phosphor-icons/react';
+import { Link as LinkIcon, Plus, X } from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Page } from '../../components/layout/Page.jsx';
@@ -7,14 +7,22 @@ import { Price, SwitchChip } from '../../components/ui/chips.jsx';
 import { RatingDisplay } from '../../components/ui/controls.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { ProductImage } from '../../components/ui/ProductImage.jsx';
-import { CATEGORY_LABELS, SPEC_FIELDS } from '../../lib/constants.js';
+import { CATEGORY_LABELS, MAX_COMPARE, SPEC_FIELDS } from '../../lib/constants.js';
 import { formatSpec, SPEC_NAMES } from '../../lib/format.js';
 import { useCompare } from '../../providers/CompareProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { useProducts } from '../catalog/queries.js';
 
 // Which way is better for each numeric row; rows not listed aren't ranked.
-const BETTER = { priceCents: 'low', ratingAvg: 'high', weightGrams: 'low', pollingRateHz: 'high', dpiMax: 'high', batteryMah: 'high', fps: 'high' };
+const BETTER = {
+  priceCents: 'low',
+  ratingAvg: 'high',
+  weightGrams: 'low',
+  pollingRateHz: 'high',
+  dpiMax: 'high',
+  batteryMah: 'high',
+  fps: 'high',
+};
 
 function bestIndexes(values, direction) {
   const nums = values.map((v) => (typeof v === 'number' ? v : null));
@@ -24,22 +32,36 @@ function bestIndexes(values, direction) {
   return new Set(nums.flatMap((v, i) => (v === target ? [i] : [])));
 }
 
-function Row({ label, values, render, direction }) {
+// The table fills the page: a fixed label column, and the products (plus the "add another" slot) share the rest
+// evenly, each centred in its column with the photo capped, so the space is balanced rather than left on one side.
+// On a narrow screen each column keeps at least MIN_COLUMN_W and the table scrolls sideways.
+const LABEL_W = 152;
+const MIN_COLUMN_W = 220;
+
+function Row({ label, values, render, direction, slot }) {
   const best = bestIndexes(values, direction);
   const same = values.length > 1 && values.every((v) => JSON.stringify(v) === JSON.stringify(values[0]));
   return (
     <tr className="border-t border-seam">
-      <th scope="row" className="sticky left-0 z-10 bg-bg py-3 pr-4 text-left text-[13px] font-medium text-ink-3">
+      <th
+        scope="row"
+        className="sticky left-0 z-10 bg-bg py-3 pr-4 pl-5 text-left text-[13px] font-medium text-ink-3"
+      >
         {label}
       </th>
       {values.map((v, i) => (
-        <td key={i} className={`px-3 py-3 text-[14px] ${same ? 'text-ink-3' : 'text-ink'}`}>
+        <td key={i} className={`px-3 py-3 text-center text-[14px] ${same ? 'text-ink-3' : 'text-ink'}`}>
           <span className="inline-flex items-center gap-2">
             {v === undefined || v === null ? <span className="text-ink-3">—</span> : render(v)}
-            {best.has(i) && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent-ink">Best</span>}
+            {best.has(i) && (
+              <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent-ink">
+                Best
+              </span>
+            )}
           </span>
         </td>
       ))}
+      {slot && <td aria-hidden="true" />}
     </tr>
   );
 }
@@ -49,10 +71,18 @@ export default function ComparePage() {
   const compare = useCompare();
   const toast = useToast();
   // A shared link carries its own ids; otherwise compare what's in the tray.
-  const ids = (params.get('ids') ?? compare.items.map((p) => p._id).join(',')).split(',').filter(Boolean).slice(0, 4);
-  const { data, isPending, isError, error, refetch } = useProducts({ ids: ids.join(','), limit: 4 }, { enabled: ids.length > 0 });
+  const ids = (params.get('ids') ?? compare.items.map((p) => p._id).join(','))
+    .split(',')
+    .filter(Boolean)
+    .slice(0, MAX_COMPARE);
+  const { data, isPending, isError, error, refetch } = useProducts(
+    { ids: ids.join(','), limit: MAX_COMPARE },
+    { enabled: ids.length > 0 },
+  );
   // Unlisted products come back as stubs; leave them out.
-  const products = ids.map((id) => data?.items.find((p) => p._id === id)).filter((p) => p && p.isActive !== false);
+  const products = ids
+    .map((id) => data?.items.find((p) => p._id === id))
+    .filter((p) => p && p.isActive !== false);
 
   // Keep the URL in step with the tray, so the address bar is always a shareable link.
   useEffect(() => {
@@ -68,21 +98,38 @@ export default function ComparePage() {
   if (ids.length === 0) {
     return (
       <Page title="Compare">
-        <EmptyState title="Pick products to compare" action={<ButtonLink to="/shop">Browse products</ButtonLink>}>
-          Use the compare button on any product. You can line up to four from the same category.
+        <EmptyState
+          title="Pick products to compare"
+          action={<ButtonLink to="/shop">Browse products</ButtonLink>}
+        >
+          Use the compare button on any product. You can line up to three from the same category.
         </EmptyState>
       </Page>
     );
   }
-  if (isError) return <Page title="Compare"><ErrorState error={error} onRetry={refetch} /></Page>;
+  if (isError)
+    return (
+      <Page title="Compare">
+        <ErrorState error={error} onRetry={refetch} />
+      </Page>
+    );
 
   const category = products[0]?.category;
-  const specKeys = (SPEC_FIELDS[category] ?? []).filter((k) => products.some((p) => p.specs?.[k] !== undefined));
+  const specKeys = (SPEC_FIELDS[category] ?? []).filter((k) =>
+    products.some((p) => p.specs?.[k] !== undefined),
+  );
+  // One "add another" column while there's room, linking to the category; it replaces a line of text under the table.
+  const slot = !isPending && products.length < MAX_COMPARE && Boolean(category);
+  const minWidth = LABEL_W + ((isPending ? ids.length : products.length) + (slot ? 1 : 0)) * MIN_COLUMN_W;
+  // The category key is already the singular name (mousepad, accessory).
+  const one = category;
 
   return (
     <Page title={category ? `Compare ${CATEGORY_LABELS[category].toLowerCase()}` : 'Compare'}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-2">Differences are in full colour; rows where every product matches are dimmed.</p>
+        <p className="text-sm text-ink-2">
+          Differences are in full colour; rows where every product matches are dimmed.
+        </p>
         <Button
           variant="secondary"
           size="sm"
@@ -99,18 +146,23 @@ export default function ComparePage() {
 
       <div className="overflow-x-auto rounded-panel border border-seam bg-bg">
         {/* Fixed layout gives every product column the same width, so the images line up. */}
-        <table className="w-full min-w-[640px] table-fixed border-collapse">
+        <table className="w-full table-fixed border-collapse" style={{ minWidth }}>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 w-36 bg-bg" />
+              <th className="sticky left-0 z-10 bg-bg" style={{ width: LABEL_W }} />
               {(isPending ? ids : products).map((p, i) => (
-                <th key={p._id ?? i} scope="col" className="px-3 pt-4 pb-3 text-left align-top font-normal">
+                <th key={p._id ?? i} scope="col" className="px-3 pt-4 pb-3 text-center align-top font-normal">
                   {isPending ? (
-                    <Skeleton className="aspect-square w-full" />
+                    <Skeleton className="mx-auto aspect-square w-full max-w-[280px]" />
                   ) : (
-                    <div className="flex flex-col gap-2">
-                      <div className="relative">
-                        <ProductImage src={p.images?.[0]?.url} alt="" className="aspect-square rounded-control" size={320} />
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="relative w-full max-w-[280px]">
+                        <ProductImage
+                          src={p.images?.[0]?.url}
+                          alt=""
+                          className="aspect-square rounded-control"
+                          size={320}
+                        />
                         <button
                           type="button"
                           onClick={() => removeAt(p._id)}
@@ -121,27 +173,59 @@ export default function ComparePage() {
                         </button>
                       </div>
                       <p className="text-[12px] text-ink-3">{p.seller?.sellerProfile?.shopName}</p>
-                      <Link to={`/p/${p.slug}`} className="text-[15px] font-medium text-ink hover:text-accent-ink">
+                      <Link
+                        to={`/p/${p.slug}`}
+                        className="text-[15px] font-medium text-ink hover:text-accent-ink"
+                      >
                         {p.name}
                       </Link>
                     </div>
                   )}
                 </th>
               ))}
+              {slot && (
+                <th scope="col" className="px-3 pt-4 pb-3 align-top font-normal">
+                  {/* Opens the shop in picking mode: tapping a product adds it here and comes straight back. */}
+                  <Link
+                    to={`/shop?category=${category}&pick=compare`}
+                    onClick={() => compare.replace(products)}
+                    className="mx-auto grid aspect-square w-full max-w-[280px] place-items-center rounded-control border-2 border-dashed border-seam text-ink-3 transition-colors hover:border-accent-ink hover:text-accent-ink"
+                  >
+                    <span className="flex flex-col items-center gap-2 text-[13px]">
+                      <Plus size={22} />
+                      Add another {one}
+                    </span>
+                  </Link>
+                  <p className="mt-2 text-[12px] text-ink-3">Up to {MAX_COMPARE - products.length} more</p>
+                </th>
+              )}
             </tr>
           </thead>
           {!isPending && (
             <tbody>
-              <Row label="Price" values={products.map((p) => p.priceCents)} direction={BETTER.priceCents} render={(v) => <Price cents={v} className="font-mono" />} />
               <Row
+                slot={slot}
+                label="Price"
+                values={products.map((p) => p.priceCents)}
+                direction={BETTER.priceCents}
+                render={(v) => <Price cents={v} className="font-mono" />}
+              />
+              <Row
+                slot={slot}
                 label="Rating"
                 values={products.map((p) => (p.ratingCount ? p.ratingAvg : null))}
                 direction={BETTER.ratingAvg}
                 render={(v) => <RatingDisplay value={v} />}
               />
-              <Row label="Stock" values={products.map((p) => p.stock)} render={(v) => (v === 0 ? <span className="text-bad">Sold out</span> : `${v} left`)} />
+              <Row
+                slot={slot}
+                label="Stock"
+                values={products.map((p) => p.stock)}
+                render={(v) => (v === 0 ? <span className="text-bad">Sold out</span> : `${v} left`)}
+              />
               {specKeys.map((key) => (
                 <Row
+                  slot={slot}
                   key={key}
                   label={SPEC_NAMES[key] ?? key}
                   values={products.map((p) => p.specs?.[key])}
@@ -153,15 +237,6 @@ export default function ComparePage() {
           )}
         </table>
       </div>
-      {!isPending && products.length < 4 && (
-        <p className="mt-4 text-[13px] text-ink-3">
-          Add up to {4 - products.length} more from{' '}
-          <Link to={`/shop?category=${category}`} className="text-accent-ink underline underline-offset-2">
-            {CATEGORY_LABELS[category]?.toLowerCase() ?? 'the shop'}
-          </Link>
-          .
-        </p>
-      )}
     </Page>
   );
 }
