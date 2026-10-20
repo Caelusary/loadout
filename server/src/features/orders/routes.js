@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireApprovedSeller, requireArea, requireAuth } from '../../middleware/auth.js';
+import { requireApprovedSeller, requireArea, requireAuth, requireRole } from '../../middleware/auth.js';
 import { perUserFailures } from '../../middleware/limits.js';
 import * as orders from './controller.js';
 import * as receipt from './receipt.js';
@@ -19,6 +19,7 @@ router.get('/orders/:id', requireAuth, orders.getOrder);
 router.patch('/orders/:id/cancel', requireAuth, orders.cancelOrder);
 router.patch('/orders/:id/received', requireAuth, receipt.confirmReceived);
 router.post('/orders/:id/delivery-issue', requireAuth, receipt.reportNotReceived);
+router.post('/orders/:id/delivery-issue/reply', requireAuth, requireRole('rider'), receipt.replyToDeliveryIssue);
 router.patch('/admin/orders/:id/delivery-issue', requireAuth, requireArea('orders'), receipt.settleDeliveryIssue);
 router.patch('/orders/:id/status', requireAuth, requireApprovedSeller, orders.advanceOrder);
 
