@@ -13,14 +13,15 @@ import { MenuButton } from './MobileMenu.jsx';
 import { SearchOverlay } from './SearchOverlay.jsx';
 import { NavTip } from './NavTip.jsx';
 import { NotificationBell } from './NotificationBell.jsx';
+import { useSignOut } from './useSignOut.jsx';
 import { accountSections, sectionLabel } from './accountLinks.js';
 
 function AccountMenu() {
   const auth = useAuth();
-  const { user, logout } = auth;
+  const { user } = auth;
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const navigate = useNavigate();
+  const signOut = useSignOut();
 
   useEffect(() => {
     if (!open) return;
@@ -100,10 +101,9 @@ function AccountMenu() {
           <button
             type="button"
             role="menuitem"
-            onClick={async () => {
+            onClick={() => {
               setOpen(false);
-              await logout();
-              navigate('/');
+              signOut.ask();
             }}
             className="flex h-10 w-full items-center gap-2.5 rounded-control px-3 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
           >
@@ -112,6 +112,7 @@ function AccountMenu() {
           </button>
         </div>
       )}
+      {signOut.dialog}
     </div>
   );
 }
@@ -181,7 +182,7 @@ const RIDER_NAV = [
 ];
 
 export function Navbar() {
-  const { user, status, canShop, isRider } = useAuth();
+  const { user, status, canShop, isRider, isSeller, isAdmin } = useAuth();
   const { count } = useCart();
   const { pathname } = useLocation();
   // The homepage has its own spec search in the hero.
@@ -227,6 +228,28 @@ export function Navbar() {
             >
               Build
             </NavLink>
+            {/* A seller's or admin's workplace, one click away like the rider's Deliveries (it was only in the account menu).
+                Wide screens only: below that it would squeeze the search box, and the account menu still has it. */}
+            {isSeller && (
+              <NavLink
+                to="/seller"
+                className={({ isActive }) =>
+                  `flex h-10 items-center rounded-control px-3 text-sm whitespace-nowrap transition-colors hover:text-ink max-xl:hidden ${isActive ? 'text-ink' : 'text-ink-2'}`
+                }
+              >
+                Seller Center
+              </NavLink>
+            )}
+            {isAdmin && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  `flex h-10 items-center rounded-control px-3 text-sm whitespace-nowrap transition-colors hover:text-ink max-xl:hidden ${isActive ? 'text-ink' : 'text-ink-2'}`
+                }
+              >
+                Admin panel
+              </NavLink>
+            )}
           </nav>
         )}
         <div className="ml-auto flex flex-1 items-center justify-end gap-2">
