@@ -10,7 +10,7 @@ import { TabRow } from '../../components/ui/TabRow.jsx';
 import { api } from '../../lib/api.js';
 import { formatDate, orderNumber } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
-import { FeedbackItem } from './riderParts.jsx';
+import { FeedbackItem, RiderSide } from './riderParts.jsx';
 
 // An order its buyer says never arrived. Settling it (refund, or found it was delivered) happens on the order itself.
 function DeliveryReport({ order }) {
@@ -18,9 +18,8 @@ function DeliveryReport({ order }) {
   return (
     <li className="flex flex-col gap-2 rounded-panel border border-bad/50 bg-bad/5 p-4 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link to={`/orders/${order._id}`} className="font-mono font-medium hover:text-accent-ink">
-          {orderNumber(order._id)}
-        </Link>
+        {/* The button below opens the order; the number is just the reference. */}
+        <span className="font-mono font-medium">{orderNumber(order._id)}</span>
         <Tag tone="bad">Not received</Tag>
         <span className="text-[13px] text-ink-3">
           {order.user?.name ?? 'A buyer'}
@@ -29,6 +28,7 @@ function DeliveryReport({ order }) {
         </span>
       </div>
       {issue.note && <p className="text-ink">&ldquo;{issue.note}&rdquo;</p>}
+      <RiderSide reply={issue.riderReply} waiting={issue.status === 'open'} />
       <ButtonLink to={`/orders/${order._id}`} variant="secondary" size="sm" className="self-start">
         Open the order to settle it
       </ButtonLink>
