@@ -3,6 +3,15 @@ import { ON_THE_WAY } from '../../models/Order.js';
 import { canManage } from '../../middleware/auth.js';
 import { notify, orderNotices } from '../notifications/service.js';
 import { orderNumber as shortId } from '../../lib/format.js';
+import { invalid } from '../../lib/AppError.js';
+
+// The rider's side of a report: a few sentences, once. Shared with "not received" reports (orders/receipt.js).
+export function replyText(body) {
+  const text = typeof body?.text === 'string' ? body.text.trim() : '';
+  if (text.length < 10) throw invalid({ text: 'Tell us what happened in at least 10 characters.' });
+  if (text.length > 500) throw invalid({ text: 'Keep it under 500 characters.' });
+  return text;
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -110,7 +119,7 @@ export async function assignWaiting() {
 }
 
 // Pauses a rider from new deliveries: orders they haven't picked up go to others, ones already out carry on.
-export async function holdRider(riderId, reason) {
+export async function holdRider(riderId, reason, body) {
   const rider = await User.findOneAndUpdate(
     { _id: riderId, role: 'rider', 'riderProfile.heldAt': null },
     { 'riderProfile.heldAt': new Date(), 'riderProfile.heldReason': reason },
@@ -123,7 +132,7 @@ export async function holdRider(riderId, reason) {
     user: riderId,
     type: 'account',
     title: "You're paused from new deliveries",
-    body: 'An admin is looking at a report about one of your deliveries. Orders already out with you carry on as normal.',
+    body: body ?? 'An admin is looking at a report about one of your deliveries. Orders already out with you carry on as normal.',
     link: '/account/rider',
   });
   return rider;
