@@ -17,6 +17,10 @@ import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { TabRow } from '../../components/ui/TabRow.jsx';
 
+// A rider's or shop's name: data-cursor-skip swaps the cursor's brackets (they crowded the email under it) for
+// the name lighting up on hover (index.css).
+const NAME_LINK = 'w-fit font-medium';
+
 const ROLE_LABELS = { customer: 'Customer', seller: 'Seller', rider: 'Rider', admin: 'Admin' };
 // The role filter, as chips with a count each (for the search in use).
 const ROLE_TABS = [
@@ -147,10 +151,18 @@ const areaSummary = (areas) =>
 // What matters about an account for its role, under its join date: a customer's orders, a seller's shop and listings,
 // a rider's vehicle and rating (and a vehicle change waiting), an admin's areas. Paused or suspended shows in Status.
 function Details({ u }) {
+  const { can } = useAuth();
   const p = u.riderProfile ?? {};
   const line =
     u.role === 'customer' ? (
-      plural(u.orderCount ?? 0, 'order')
+      // The count opens that customer's orders, for an admin who manages orders.
+      u.orderCount > 0 && can('orders') ? (
+        <Link to={`/admin/orders?user=${u._id}`} data-cursor-skip>
+          {plural(u.orderCount, 'order')}
+        </Link>
+      ) : (
+        plural(u.orderCount ?? 0, 'order')
+      )
     ) : u.role === 'seller' ? (
       [u.sellerProfile?.shopName, SHOP_STATUS[u.sellerProfile?.status], plural(u.listedCount ?? 0, 'listing')]
         .filter(Boolean)
@@ -323,13 +335,13 @@ export default function AdminUsers() {
                   <div className="flex flex-col">
                     {/* A rider opens their record; a shop opens its storefront. */}
                     {u.role === 'rider' ? (
-                      <Link to={`/admin/riders/${u._id}`} className="font-medium hover:text-accent-ink">
+                      <Link to={`/admin/riders/${u._id}`} data-cursor-skip className={NAME_LINK}>
                         {u.name}
                       </Link>
                     ) : u.role === 'seller' &&
                       u.sellerProfile?.slug &&
                       u.sellerProfile.status === 'approved' ? (
-                      <Link to={`/s/${u.sellerProfile.slug}`} className="font-medium hover:text-accent-ink">
+                      <Link to={`/s/${u.sellerProfile.slug}`} data-cursor-skip className={NAME_LINK}>
                         {u.name}
                       </Link>
                     ) : (
