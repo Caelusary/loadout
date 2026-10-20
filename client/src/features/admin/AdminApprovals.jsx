@@ -84,7 +84,7 @@ function ShopApplications() {
         onConfirm={() => update.mutate({ id: declining._id, next: 'suspended' })}
         onClose={() => setDeclining(null)}
       >
-        They will not be able to apply again with this account.
+        They can apply again in 7 days. The notice they get says when.
       </ConfirmDialog>
     </>
   );
@@ -113,9 +113,12 @@ function VehicleChanges() {
         <li key={r._id}>
           <Link
             to={`/admin/riders/${r._id}`}
+            data-cursor-skip
             className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-panel border border-accent-ink/40 bg-accent/5 px-4 py-3 text-sm transition-colors hover:bg-accent/10"
           >
-            <span className="font-medium">{r.name}</span>
+            <span data-glow className="font-medium">
+              {r.name}
+            </span>
             <span className="font-mono text-ink-2">
               {vehicleText(r.riderProfile)} →{' '}
               <span className="text-ink">{vehicleText(r.riderProfile.vehicleRequest)}</span>
