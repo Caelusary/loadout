@@ -3,7 +3,7 @@ import { CalendarBlank, MapPin, Phone, WarningCircle } from '@phosphor-icons/rea
 import { Link, useSearchParams } from 'react-router';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { Button } from '../../components/ui/Button.jsx';
-import { OrderStatus } from '../../components/ui/chips.jsx';
+import { OrderStatus, Tag } from '../../components/ui/chips.jsx';
 import { ProductImage } from '../../components/ui/ProductImage.jsx';
 import { Pagination } from '../../components/ui/controls.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
@@ -17,6 +17,7 @@ import {
 import { formatDate, formatMoney, orderNumber, plural } from '../../lib/format.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { DeclineDelivery } from './DeclineDelivery.jsx';
+import { mapsLink, needsReply, retryLater, shortDay } from './delivery.js';
 import { MarkDelivered } from './MarkDelivered.jsx';
 import { MissedDelivery } from './MissedDelivery.jsx';
 import { HoldNotice } from './RiderProfilePage.jsx';
@@ -26,14 +27,7 @@ const VIEWS = [
   ['active', 'To deliver'],
   ['done', 'Done'],
 ];
-const shortDay = new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' });
-// A search link opens the address in the phone's maps app (or Google Maps in a browser).
-const mapsLink = (to) =>
-  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${to.line1}, ${to.city}, ${to.province} ${to.postalCode}`)}`;
 const lastAt = (o, status) => [...(o.statusHistory ?? [])].reverse().find((h) => h.status === status)?.at;
-
-// The buyer is away and picked a later day for the next try.
-const retryLater = (o) => Boolean(o.retryOn) && new Date(o.retryOn) > new Date();
 
 // How the money went, said the way it reads once the order is done.
 function paymentLine(o) {
@@ -137,7 +131,12 @@ export default function DeliveriesPage() {
                     >
                       {orderNumber(o._id)}
                     </Link>
-                    <OrderStatus order={o} refunds={false} />
+                    {/* A buyer's "never arrived" report waits on the rider's side, so it's flagged on the list too, not
+                        only in the notification. */}
+                    <span className="flex flex-wrap items-center gap-2">
+                      {needsReply(o) && <Tag tone="warn">Reply needed</Tag>}
+                      <OrderStatus order={o} refunds={false} />
+                    </span>
                   </div>
                   <div className="flex items-start gap-4">
                     <Parcel items={o.items} />
@@ -213,7 +212,7 @@ export default function DeliveriesPage() {
                           onClick={() => advance.mutate({ id: o._id, next })}
                         >
                           {retryLater(o)
-                            ? `Out for delivery on ${shortDay.format(new Date(o.retryOn))}`
+                            ? `Start delivery on ${shortDay.format(new Date(o.retryOn))}`
                             : NEXT_LABEL[next]}
                         </Button>
                       )}
