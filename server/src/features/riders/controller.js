@@ -8,6 +8,7 @@ import { notify } from '../notifications/service.js';
 import { windowOpen } from '../orders/receipt.js';
 import {
   adminsFor,
+  replyText,
   checkRatingAlert,
   DECLINE_ALERT,
   DECLINE_WINDOW_DAYS,
@@ -24,11 +25,52 @@ const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, 
 
 export async function myProfile(req, res) {
   const rider = await User.findById(req.user._id, 'name email riderProfile');
+  const reports = await RiderFeedback.find({ rider: rider._id, report: { $exists: true } })
+    .sort({ 'report.at': -1 })
+    .limit(20);
   res.json({
     profile: rider.riderProfile ?? {},
     held: Boolean(rider.riderProfile?.heldAt),
     stats: await riderStats(rider._id),
+    reports: reports.map(riderReportView),
   });
+}
+
+// A report as the rider sees it: the reason and when, never the buyer's words or which order, so someone reporting
+// harassment isn't handed back to the person they reported.
+const riderReportView = (f) => ({
+  _id: f._id,
+  reason: f.report.reason,
+  at: f.report.at,
+  reply: f.riderReply ?? null,
+  reviewed: Boolean(f.reviewedAt),
+});
+
+// The rider tells their side of a report about them, once, while no admin has decided yet.
+export async function replyToReport(req, res) {
+  if (!isId(req.params.id)) throw notFound('That report');
+  const text = replyText(req.body);
+  const mine = { _id: req.params.id, rider: req.user._id, report: { $exists: true } };
+  const feedback = await RiderFeedback.findOneAndUpdate(
+    { ...mine, reviewedAt: null, riderReply: { $exists: false } },
+    { riderReply: { text, at: new Date() } },
+    { new: true },
+  );
+  if (!feedback) {
+    if (!(await RiderFeedback.exists(mine))) throw notFound('That report');
+    throw new AppError(409, 'CONFLICT', 'You already replied, or an admin has already looked at it.');
+  }
+  const admins = await adminsFor('users');
+  await notify(
+    admins.map((user) => ({
+      user,
+      type: 'account',
+      title: `${req.user.name} replied to a report`,
+      body: "Their side is on the report, next to the buyer's.",
+      link: `/admin/riders/${req.user._id}`,
+    })),
+  );
+  res.json({ report: riderReportView(feedback) });
 }
 
 const VEHICLE_NAMES = { motorcycle: 'Motorcycle', bicycle: 'Bicycle', car: 'Car', van: 'Van' };
@@ -260,7 +302,11 @@ export async function reportRider(req, res) {
   feedback.report = { reason, note, at: new Date() };
   await saveOnce(feedback);
 
-  await holdRider(order.rider, `Reported on ${orderLabel(order)}`);
+  await holdRider(
+    order.rider,
+    `Reported on ${orderLabel(order)}`,
+    'A buyer reported one of your deliveries. Tell us your side on your delivery profile: an admin reads both before deciding. Orders already out with you carry on.',
+  );
   const rider = await User.findById(order.rider, 'name');
   const admins = await adminsFor('users');
   await notify(
