@@ -33,7 +33,7 @@ function CartLine({ line }) {
       />
       <div className={`flex min-w-0 flex-col gap-1 ${line.checked ? '' : 'opacity-70'}`}>
         {line.available ? (
-          <Link to={`/p/${product.slug}`} className="line-clamp-2 font-medium text-ink hover:text-accent-ink">
+          <Link to={`/p/${product.slug}`} data-cursor-skip className="line-clamp-2 font-medium text-ink">
             {product.name}
           </Link>
         ) : (
@@ -177,7 +177,16 @@ export default function CartPage() {
                 <section key={g.sellerId} aria-label={g.shopName}>
                   {/* Phones: the shipping note always sits under the shop name; wider screens put it on the right. */}
                   <div className="flex flex-col gap-1 border-b border-seam pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
-                    <h2 className="font-medium">{g.shopName}</h2>
+                    {/* The shop name opens its storefront: where "add more from this shop" sends you. */}
+                    <h2 className="font-medium">
+                      {g.slug ? (
+                        <Link to={`/s/${g.slug}`} data-cursor-skip>
+                          {g.shopName}
+                        </Link>
+                      ) : (
+                        g.shopName
+                      )}
+                    </h2>
                     {g.subtotalCents > 0 && (
                       <p className="text-[13px] text-ink-3">
                         {toFree > 0
