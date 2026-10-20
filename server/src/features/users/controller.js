@@ -31,6 +31,21 @@ export async function updateMe(req, res) {
   res.json({ user: req.user });
 }
 
+// An approved shop edits how it presents itself: its name and bio. The slug stays as it was, so storefront links
+// people already have (and the ones in past notices) keep working after a rename.
+export async function updateShop(req, res) {
+  const shopName = String(req.body.shopName ?? '').trim();
+  const bio = String(req.body.bio ?? '').trim();
+  const errors = {};
+  if (shopName.length < 3 || shopName.length > 40) errors.shopName = 'Shop name must be 3 to 40 characters.';
+  if (bio.length > 500) errors.bio = 'Bio must be at most 500 characters.';
+  if (Object.keys(errors).length) throw invalid(errors);
+  req.user.sellerProfile.shopName = shopName;
+  req.user.sellerProfile.bio = bio;
+  await req.user.save();
+  res.json({ user: req.user });
+}
+
 async function checkPassword(userId, password, field) {
   const user = await User.findById(userId).select('+password');
   if (!password || !(await user.comparePassword(String(password)))) {
