@@ -4,6 +4,7 @@ import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { api } from '../../lib/api.js';
 import { formatMoney, plural } from '../../lib/format.js';
+import { useAuth } from '../../providers/AuthProvider.jsx';
 import { StatsView } from '../stats/StatsView.jsx';
 
 // Everything waiting on an admin, in the menu's order. Only the areas this admin manages come back in the counts.
@@ -16,6 +17,9 @@ const WAITING = [
 
 export default function AdminDashboard() {
   useTitle('Admin');
+  // Order lists are for admins who manage orders; for the others the figures are just figures, not dead links.
+  const { can } = useAuth();
+  const orders = can('orders');
   const query = useQuery({
     queryKey: ['stats', 'admin'],
     queryFn: ({ signal }) => api('/admin/stats', { signal }),
@@ -56,7 +60,7 @@ export default function AdminDashboard() {
       )}
       <StatsView
         query={query}
-        statusLink={(st) => `/admin/orders?status=${st}`}
+        statusLink={orders ? (st) => `/admin/orders?status=${st}` : undefined}
         figures={(d) => [
           ['Listed products', String(d.activeProducts)],
           ['Accounts', String(d.userCount)],
@@ -67,17 +71,29 @@ export default function AdminDashboard() {
             {d.topSellers.length === 0 ? (
               <p className="text-sm text-ink-3">No sales in the last 30 days.</p>
             ) : (
-              <ol className="flex flex-col gap-2.5 text-sm md:max-w-md">
+              // Same rows and columns as Top products above: name, count, then money, numbers right-aligned.
+              <ol className="flex flex-col text-sm md:max-w-md">
                 {d.topSellers.map((s) => (
-                  <li key={s.sellerId} className="flex items-baseline justify-between gap-4">
-                    <Link
-                      to={`/admin/orders?seller=${s.sellerId}`}
-                      className="truncate text-ink-2 hover:text-accent-ink"
-                    >
-                      {s.shopName}
-                    </Link>
-                    <span className="font-mono text-ink tabular-nums">
-                      {formatMoney(s.salesCents)}, {s.orders} {s.orders === 1 ? 'order' : 'orders'}
+                  <li
+                    key={s.sellerId}
+                    className="grid h-10 grid-cols-[minmax(0,1fr)_4.5rem_6rem] items-center gap-4"
+                  >
+                    {orders ? (
+                      <Link
+                        to={`/admin/orders?seller=${s.sellerId}`}
+                        data-cursor-skip
+                        className="truncate text-ink-2"
+                      >
+                        {s.shopName}
+                      </Link>
+                    ) : (
+                      <span className="truncate text-ink-2">{s.shopName}</span>
+                    )}
+                    <span className="text-right font-mono text-ink-2 tabular-nums">
+                      {s.orders} {s.orders === 1 ? 'order' : 'orders'}
+                    </span>
+                    <span className="text-right font-mono text-ink tabular-nums">
+                      {formatMoney(s.salesCents)}
                     </span>
                   </li>
                 ))}
