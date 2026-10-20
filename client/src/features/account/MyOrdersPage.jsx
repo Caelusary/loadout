@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { ButtonLink } from '../../components/ui/Button.jsx';
@@ -28,8 +28,20 @@ const EMPTY = {
 
 export default function MyOrdersPage() {
   useTitle('My orders');
-  const [group, setGroup] = useState('');
-  const [page, setPage] = useState(1);
+  // The tab and page live in the address, so opening an order and coming Back lands on the same list.
+  const [params, setParams] = useSearchParams();
+  const group = params.get('group') ?? '';
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  const show = (nextGroup, nextPage) =>
+    setParams(
+      Object.fromEntries(
+        [
+          ['group', nextGroup],
+          ['page', nextPage > 1 ? String(nextPage) : ''],
+        ].filter(([, v]) => v),
+      ),
+      { replace: true },
+    );
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['orders', 'mine', group, page],
     queryFn: ({ signal }) =>
@@ -53,8 +65,7 @@ export default function MyOrdersPage() {
               role="tab"
               aria-selected={group === key}
               onClick={() => {
-                setGroup(key);
-                setPage(1);
+                show(key, 1);
               }}
               className="h-9 shrink-0 rounded-control px-3 text-[13px] text-ink-2 transition-colors hover:text-ink aria-selected:bg-raised aria-selected:text-ink"
             >
@@ -89,7 +100,7 @@ export default function MyOrdersPage() {
               <OrderRow key={order._id} order={order} />
             ))}
           </div>
-          <Pagination page={data.page} pages={data.pages} onPage={setPage} />
+          <Pagination page={data.page} pages={data.pages} onPage={(n) => show(group, n)} />
         </>
       )}
     </>
