@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
@@ -40,14 +41,31 @@ const schema = z
 
 const describe = (c) => (c.type === 'percent' ? `${c.value}% off` : `${formatMoney(c.value)} off`);
 
+// Expiry comes first: an expired code can't be used whether it's on or off, so "Off" would hide why.
 function status(c) {
-  if (!c.isActive) return ['Off', 'neutral'];
   if (c.expiresAt && new Date(c.expiresAt) < new Date()) return ['Expired', 'bad'];
+  if (!c.isActive) return ['Off', 'neutral'];
   if (c.maxUses && c.usedCount >= c.maxUses) return ['Used up', 'bad'];
   return ['Active', 'ok'];
 }
 
-function CreateCoupon() {
+// The form's fields for an existing code, so editing starts from what it is now.
+const pesos = (cents) => (cents ? String(cents / 100) : '');
+const manilaDay = (iso) =>
+  iso ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(iso)) : '';
+const valuesOf = (c) => ({
+  code: c.code,
+  type: c.type,
+  value: c.type === 'percent' ? String(c.value) : pesos(c.value),
+  minSubtotal: pesos(c.minSubtotalCents),
+  maxUses: c.maxUses ? String(c.maxUses) : '',
+  expiresAt: manilaDay(c.expiresAt),
+});
+const EMPTY = { code: '', type: 'percent', value: '', minSubtotal: '', maxUses: '', expiresAt: '' };
+
+// Creates a code, or edits one (`editing`). The code and its type stay fixed once made, as customers may have used
+// it; the amount, minimum, uses and expiry can change, so an expired or used-up code can be extended.
+function CouponForm({ editing, onDone }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const {
@@ -60,26 +78,34 @@ function CreateCoupon() {
   } = useForm({
     resolver: zodResolver(schema),
     mode: 'onBlur',
-    defaultValues: { code: '', type: 'percent', value: '', minSubtotal: '', maxUses: '', expiresAt: '' },
+    defaultValues: editing ? valuesOf(editing) : EMPTY,
   });
   const type = useWatch({ control, name: 'type' });
 
   const onSubmit = handleSubmit(async (v) => {
+    // Disabled fields aren't submitted, so an edit takes the type from the code being edited.
+    const kind = editing?.type ?? v.type;
+    const terms = {
+      value: kind === 'percent' ? Number(v.value) : parsePesos(v.value),
+      minSubtotalCents: v.minSubtotal ? parsePesos(v.minSubtotal) : 0,
+      ...(v.maxUses && { maxUses: Number(v.maxUses) }),
+      // End of the chosen day, Manila time.
+      ...(v.expiresAt && { expiresAt: new Date(`${v.expiresAt}T23:59:59+08:00`).toISOString() }),
+    };
     try {
-      await api('/admin/coupons', {
-        method: 'POST',
-        body: {
-          code: v.code,
-          type: v.type,
-          value: v.type === 'percent' ? Number(v.value) : parsePesos(v.value),
-          minSubtotalCents: v.minSubtotal ? parsePesos(v.minSubtotal) : 0,
-          ...(v.maxUses && { maxUses: Number(v.maxUses) }),
-          // End of the chosen day, Manila time.
-          ...(v.expiresAt && { expiresAt: new Date(`${v.expiresAt}T23:59:59+08:00`).toISOString() }),
-        },
-      });
-      toast.show(`${v.code} created`);
-      reset();
+      if (editing) {
+        // Blank fields on an edit mean "no limit" / "never", so they're sent as cleared, not left out.
+        await api(`/admin/coupons/${editing._id}`, {
+          method: 'PATCH',
+          body: { maxUses: null, expiresAt: null, ...terms },
+        });
+        toast.show(`${editing.code} updated`);
+        onDone();
+      } else {
+        await api('/admin/coupons', { method: 'POST', body: { code: v.code, type: v.type, ...terms } });
+        toast.show(`${v.code} created`);
+        reset(EMPTY);
+      }
       queryClient.invalidateQueries({ queryKey: KEY });
     } catch (err) {
       if (!applyServerErrors(err, setError, { minSubtotalCents: 'minSubtotal' })) toast.error(err.message);
@@ -88,13 +114,24 @@ function CreateCoupon() {
 
   return (
     <form
+      id="coupon-form"
       onSubmit={onSubmit}
       noValidate
-      className="grid gap-4 rounded-panel border border-seam bg-plate p-5 sm:grid-cols-2 lg:grid-cols-3"
+      className={`grid scroll-mt-24 gap-4 rounded-panel border bg-plate p-5 sm:grid-cols-2 lg:grid-cols-3 ${editing ? 'border-accent-ink/50' : 'border-seam'}`}
     >
-      <h2 className="wide text-lg font-bold sm:col-span-2 lg:col-span-3">New code</h2>
-      <TextField label="Code" placeholder="SUMMER15" error={errors.code?.message} {...register('code')} />
+      <h2 className="wide text-lg font-bold sm:col-span-2 lg:col-span-3">
+        {editing ? `Edit ${editing.code}` : 'New code'}
+      </h2>
+      <TextField
+        label="Code"
+        placeholder="SUMMER15"
+        disabled={Boolean(editing)}
+        hint={editing ? 'A code keeps its name once made' : undefined}
+        error={errors.code?.message}
+        {...register('code')}
+      />
       <SelectField
+        disabled={Boolean(editing)}
         label="Type"
         options={[
           { value: 'percent', label: 'Percent off' },
@@ -133,10 +170,15 @@ function CreateCoupon() {
         error={errors.expiresAt?.message}
         {...register('expiresAt')}
       />
-      <div className="sm:col-span-2 lg:col-span-3">
+      <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
         <Button type="submit" loading={isSubmitting}>
-          Create code
+          {editing ? 'Save changes' : 'Create code'}
         </Button>
+        {editing && (
+          <Button variant="ghost" onClick={onDone}>
+            Cancel
+          </Button>
+        )}
       </div>
     </form>
   );
@@ -157,6 +199,13 @@ export default function AdminCoupons() {
   useTitle('Discount codes');
   const toast = useToast();
   const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(null);
+  const edit = (c) => {
+    setEditing(c);
+    requestAnimationFrame(() =>
+      document.getElementById('coupon-form')?.scrollIntoView({ behavior: 'smooth' }),
+    );
+  };
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: KEY,
     queryFn: ({ signal }) => api('/admin/coupons', { signal }).then((r) => r.items),
@@ -203,24 +252,31 @@ export default function AdminCoupons() {
                   <Tag tone={tone}>{label}</Tag>
                 </Cell>
                 <Cell align="right">
-                  {/* An expired code can't be used either way, so turning it off or on would do nothing. */}
-                  {label === 'Expired' ? null : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggle.mutate(c)}
-                      loading={toggle.isPending && toggle.variables?._id === c._id}
-                    >
-                      {c.isActive ? 'Turn off' : 'Turn on'}
+                  {/* Edit sits last so it lines up down the column, with or without the on/off button. */}
+                  <span className="inline-flex gap-1">
+                    {/* An expired code can't be used either way, so turning it off or on would do nothing; Edit is how
+                        it's extended. */}
+                    {label !== 'Expired' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggle.mutate(c)}
+                        loading={toggle.isPending && toggle.variables?._id === c._id}
+                      >
+                        {c.isActive ? 'Turn off' : 'Turn on'}
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => edit(c)}>
+                      Edit
                     </Button>
-                  )}
+                  </span>
                 </Cell>
               </tr>
             );
           })}
         </Table>
       )}
-      <CreateCoupon />
+      <CouponForm key={editing?._id ?? 'new'} editing={editing} onDone={() => setEditing(null)} />
     </div>
   );
 }
