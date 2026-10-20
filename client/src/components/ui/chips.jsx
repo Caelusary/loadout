@@ -96,14 +96,17 @@ export function Price({ cents, was, className = '', tag = true }) {
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1">
       <span className={`font-mono tabular-nums ${className}`}>{formatMoney(cents)}</span>
-      <s className="font-mono text-[0.8em] text-ink-3 tabular-nums" aria-label={`was ${formatMoney(was)}`}>
-        {formatMoney(was)}
-      </s>
-      {tag && (
-        <span className="self-center rounded-full bg-bad px-2 py-0.5 text-[11px] leading-none font-semibold whitespace-nowrap text-bg">
-          Sale −{off}%
-        </span>
-      )}
+      {/* The old price and the tag stay together, so a narrow cell wraps to two lines, not three. */}
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        <s className="font-mono text-[0.8em] text-ink-3 tabular-nums" aria-label={`was ${formatMoney(was)}`}>
+          {formatMoney(was)}
+        </s>
+        {tag && (
+          <span className="rounded-full bg-bad px-2 py-0.5 text-[11px] leading-none font-semibold text-bg">
+            Sale −{off}%
+          </span>
+        )}
+      </span>
     </span>
   );
 }
