@@ -1,9 +1,39 @@
 import { useTitle } from '../../components/layout/Page.jsx';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
-import { ButtonLink } from '../../components/ui/Button.jsx';
+import { Button, ButtonLink } from '../../components/ui/Button.jsx';
 import { EmptyState, ErrorState } from '../../components/ui/feedback.jsx';
 import { ProductGrid } from '../catalog/ProductTile.jsx';
+import { useAuth } from '../../providers/AuthProvider.jsx';
+import { useCart } from '../../providers/CartProvider.jsx';
+import { useToast } from '../../providers/ToastProvider.jsx';
 import { useWishlist } from './useWishlist.js';
+
+// Saved for later usually means "buy this soon": each saved product can go straight into the cart from here.
+// Sold-out ones already say so on the card, so they get no button.
+function QuickAdd({ product }) {
+  const { user } = useAuth();
+  const cart = useCart();
+  const toast = useToast();
+  if (product.stock === 0 || product.seller?._id === user?._id) return null;
+  if (cart.items.some((i) => i.productId === product._id))
+    return (
+      <ButtonLink to="/cart" variant="secondary" size="sm" className="w-full">
+        In your cart
+      </ButtonLink>
+    );
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      className="w-full"
+      onClick={() =>
+        cart.add(product._id, 1).then((ok) => ok && toast.show(`${product.name} added to your cart`))
+      }
+    >
+      Add to cart
+    </Button>
+  );
+}
 
 export default function WishlistPage() {
   useTitle('Wishlist');
@@ -22,7 +52,11 @@ export default function WishlistPage() {
           Tap the heart on any product to keep it here.
         </EmptyState>
       ) : (
-        <ProductGrid products={wishlist.items} loading={wishlist.isPending} />
+        <ProductGrid
+          products={wishlist.items}
+          loading={wishlist.isPending}
+          footer={(p) => <QuickAdd product={p} />}
+        />
       )}
     </section>
   );
