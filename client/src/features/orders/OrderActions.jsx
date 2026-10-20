@@ -12,6 +12,7 @@ import {
 } from '../../lib/constants.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { MarkDelivered } from '../rider/MarkDelivered.jsx';
+import { retryLater, shortDay } from '../rider/delivery.js';
 
 
 // The buttons that move an order along: the shop's next step, the rider's next step, and cancelling.
@@ -70,8 +71,16 @@ export function OrderActions({ order, isSellerOfOrder, isRiderOfOrder, canCancel
       )}
       {riderNext === 'delivered' && <MarkDelivered order={order} />}
       {riderNext && riderNext !== 'delivered' && (
-        <Button onClick={() => deliver.mutate(riderNext)} loading={deliver.isPending}>
-          {RIDER_LABEL[riderNext]}
+        // Same rule as the run sheet: a buyer who asked for a later day can't be set off before it. (Missed and
+        // Decline stay on the run sheet, the rider's one place for handling a run.)
+        <Button
+          onClick={() => deliver.mutate(riderNext)}
+          loading={deliver.isPending}
+          disabled={retryLater(order)}
+        >
+          {retryLater(order)
+            ? `Start delivery on ${shortDay.format(new Date(order.retryOn))}`
+            : RIDER_LABEL[riderNext]}
         </Button>
       )}
       {canCancel && (
