@@ -22,7 +22,16 @@ const LABELS = {
 
 // A list of returns for the Seller Center or the admin panel. Each one opens on its order, where the
 // history and the approve / decline / received actions are.
-export function ReturnsList({ title, description, endpoint, statuses, showShop }) {
+// `actionable` is the statuses this viewer can act on (a shop answers requests and confirms receipt; an admin also
+// settles escalations), so "Review" is only promised where there's something to do.
+export function ReturnsList({
+  title,
+  description,
+  endpoint,
+  statuses,
+  showShop,
+  actionable = ['requested', 'approved', 'escalated'],
+}) {
   useTitle(title);
   const [chosen, setStatus] = useState(null);
   const [page, setPage] = useState(1);
@@ -93,8 +102,9 @@ export function ReturnsList({ title, description, endpoint, statuses, showShop }
                 <Cell className="text-ink-2">{formatDate(r.createdAt)}</Cell>
                 <Cell className="font-mono tabular-nums">{formatMoney(r.refundCents)}</Cell>
                 <Cell align="right">
+                  {/* "Review" only while someone still has to act on it; a finished return is just looked at. */}
                   <ButtonLink to={`/orders/${r.order}`} variant="ghost" size="sm">
-                    Review
+                    {actionable.includes(r.status) ? 'Review' : 'View'}
                   </ButtonLink>
                 </Cell>
               </tr>
