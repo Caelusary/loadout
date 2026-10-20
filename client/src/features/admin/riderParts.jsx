@@ -9,6 +9,7 @@ import { Tag } from '../../components/ui/chips.jsx';
 import { api } from '../../lib/api.js';
 import { RIDER_REPORT_LABELS } from '../../lib/constants.js';
 import { formatDate, orderNumber } from '../../lib/format.js';
+import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 
 function Stars({ value }) {
@@ -38,11 +39,23 @@ export function FeedbackItem({ item, showRider = false }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [note, setNote] = useState('');
+  const { can } = useAuth();
+  // A report pauses the rider, and closing it doesn't lift the pause on its own. Once it's off the queue nothing
+  // points at the rider any more, so the choice is made here: keep them paused, or clear the report and resume them.
+  const paused = Boolean(item.report && item.rider?.riderProfile?.heldAt);
   const review = useMutation({
-    mutationFn: () => api(`/admin/rider-feedback/${item._id}`, { method: 'PATCH', body: { note } }),
-    onSuccess: () => {
-      toast.show('Marked as reviewed');
-      queryClient.invalidateQueries({ queryKey: ['admin'] }); // the list, the queue and the menu count
+    mutationFn: async ({ resume }) => {
+      await api(`/admin/rider-feedback/${item._id}`, { method: 'PATCH', body: { note } });
+      if (resume) {
+        await api(`/admin/riders/${item.rider._id}/hold`, {
+          method: 'PATCH',
+          body: { action: 'clear', note: note.trim().length >= 3 ? note : 'Report reviewed' },
+        });
+      }
+    },
+    onSuccess: (_res, { resume }) => {
+      toast.show(resume ? `Reviewed. ${item.rider.name} is back on deliveries` : 'Marked as reviewed');
+      queryClient.invalidateQueries({ queryKey: ['admin'] }); // the list, the queue, the menu count and the rider
     },
     onError: (err) => toast.error(err.message),
   });
@@ -57,7 +70,7 @@ export function FeedbackItem({ item, showRider = false }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {showRider &&
           (item.rider ? (
-            <Link to={`/admin/riders/${item.rider._id}`} className="font-medium hover:text-accent-ink">
+            <Link to={`/admin/riders/${item.rider._id}`} data-cursor-skip className="font-medium">
               {item.rider.name}
             </Link>
           ) : (
@@ -67,13 +80,19 @@ export function FeedbackItem({ item, showRider = false }) {
         {item.report && <Tag tone="bad">Report: {RIDER_REPORT_LABELS[item.report.reason]}</Tag>}
         <span className="text-[13px] text-ink-3">
           {item.user?.name ?? 'A buyer'} ·{' '}
-          <Link to={`/orders/${item.order}`} className="font-mono hover:text-accent-ink">
-            {orderNumber(item.order)}
-          </Link>{' '}
+          {/* Orders open only for admins who manage them; for the rest the number is a reference. */}
+          {can('orders') ? (
+            <Link to={`/orders/${item.order}`} data-cursor-skip className="font-mono">
+              {orderNumber(item.order)}
+            </Link>
+          ) : (
+            <span className="font-mono">{orderNumber(item.order)}</span>
+          )}{' '}
           · {formatDate(item.createdAt)}
         </span>
       </div>
       {item.report && <p className="text-ink">&ldquo;{item.report.note}&rdquo;</p>}
+      {item.report && <RiderSide reply={item.riderReply} waiting={!item.reviewedAt} />}
       {item.comment && <p className="text-ink-2">&ldquo;{item.comment}&rdquo;</p>}
       {item.reviewedAt ? (
         <p className="text-[13px] text-ink-3">
@@ -94,12 +113,54 @@ export function FeedbackItem({ item, showRider = false }) {
                 className="h-10 rounded-control border border-seam bg-plate px-3 text-sm text-ink"
               />
             </label>
-            <Button size="sm" variant="secondary" loading={review.isPending} onClick={() => review.mutate()}>
-              Mark reviewed
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={review.isPending && !review.variables?.resume}
+              disabled={review.isPending}
+              onClick={() => review.mutate({ resume: false })}
+            >
+              {paused ? 'Reviewed, keep paused' : 'Mark reviewed'}
             </Button>
+            {paused && (
+              <Button
+                size="sm"
+                loading={review.isPending && review.variables?.resume}
+                disabled={review.isPending}
+                onClick={() => review.mutate({ resume: true })}
+              >
+                Reviewed, resume rider
+              </Button>
+            )}
+            {paused && (
+              <p className="w-full text-[12px] text-ink-3">
+                {item.rider.name} is paused while this report is open.
+              </p>
+            )}
           </div>
         )
       )}
     </li>
+  );
+}
+
+// The rider's side of a report. Until they've written it, admins see that it's missing but can decide without it, so
+// a rider can't hold a case open by staying quiet.
+export function RiderSide({ reply, waiting, mine = false }) {
+  if (reply) {
+    return (
+      <div className="rounded-control border border-seam bg-raised/60 px-3 py-2">
+        <p className="text-[12px] text-ink-3">
+          {mine ? 'Your side' : "Rider's side"} · {formatDate(reply.at)}
+        </p>
+        <p className="text-ink">{reply.text}</p>
+      </div>
+    );
+  }
+  if (!waiting) return null;
+  return (
+    <p className="text-[13px] text-ink-3">
+      Waiting for the rider&apos;s side. You can still decide without it.
+    </p>
   );
 }
