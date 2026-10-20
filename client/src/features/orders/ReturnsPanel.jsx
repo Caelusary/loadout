@@ -92,6 +92,22 @@ export function ReturnsPanel({ order, isCustomer, isSellerOfOrder }) {
   const busy = act.isPending;
 
   if (!returns.length && !(isCustomer && order.status === 'delivered')) return null;
+  // Before any return exists, the buyer gets one quiet line, not a Returns section: nothing while they haven't said it
+  // arrived (a parcel that never came is a "not received" report, not a return), and nothing once they can't ask.
+  const quiet = isCustomer && !returns.length;
+  if (quiet && (order.awaitingReceipt || order.deliveryIssue?.status === 'open' || !canAsk)) return null;
+  if (quiet && !asking) {
+    return (
+      <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-seam pt-4 text-sm">
+        <p className="text-ink-2">
+          Something wrong with an item? You can ask for a return until {formatDate(closesAt)}.
+        </p>
+        <Button variant="ghost" size="sm" onClick={() => setAsking(true)}>
+          Request a return
+        </Button>
+      </div>
+    );
+  }
 
   const dialog = {
     decline: {
