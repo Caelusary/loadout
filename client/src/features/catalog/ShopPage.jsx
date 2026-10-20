@@ -80,8 +80,13 @@ export default function ShopPage() {
       setTimeout(run, 300);
     } else setParams(next);
   };
-  const activeFilters = FILTER_KEYS.filter((k) => k !== 'q' && params.get(k)).length;
-  const clearAll = () => setParams(q ? { q } : {});
+  // The search, the category being browsed and compare-picking are where you are, not filters on top: they don't
+  // count toward Clear, and Clear keeps them (it used to drop "Shop keyboards" back to every product).
+  const KEEP = ['q', 'category', 'pick'];
+  const activeFilters = FILTER_KEYS.filter((k) => !KEEP.includes(k) && params.get(k)).length;
+  const clearAll = () =>
+    setParams(Object.fromEntries(KEEP.filter((k) => params.get(k)).map((k) => [k, params.get(k)])));
+  const clearSearch = () => update({ q: '' });
 
   const filters = <Filters params={params} brands={data?.brands} onChange={update} />;
 
@@ -173,6 +178,18 @@ export default function ShopPage() {
                 {data.suggestion}
               </button>
               ?
+            </EmptyState>
+          ) : !isPending && data.items.length === 0 && q && !activeFilters ? (
+            // Only a search is narrowing this, so "Clear filters" would do nothing: offer to drop the search.
+            <EmptyState
+              title={`No results for "${q}"`}
+              action={
+                <Button variant="secondary" onClick={clearSearch}>
+                  Clear search
+                </Button>
+              }
+            >
+              Try another name or brand, or browse {category ? 'the whole category' : 'everything'} instead.
             </EmptyState>
           ) : !isPending && data.items.length === 0 ? (
             <EmptyState
