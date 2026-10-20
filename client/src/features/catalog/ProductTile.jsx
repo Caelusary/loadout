@@ -26,7 +26,8 @@ export function tileSpecs(product) {
     .map((key) => formatSpec(key, product.specs[key]));
 }
 
-export function ProductTile({ product }) {
+// `footer` sits under the card, outside its link (a list's own action, like the wishlist's Add to cart).
+export function ProductTile({ product, footer }) {
   const image = product.images?.[0];
   // Picking for an open comparison (the shop with ?pick=compare): a tap adds the product and goes back to it,
   // instead of opening the product page. Ones already in it are marked and can't be picked twice.
@@ -42,7 +43,7 @@ export function ProductTile({ product }) {
   const action =
     'size-9 rounded-full border border-seam bg-plate/85 backdrop-blur-sm opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 aria-pressed:opacity-100 transition-opacity';
   return (
-    <div className="group relative h-full">
+    <div className="group relative flex h-full flex-col">
       <Link
         to={`/p/${product.slug}`}
         aria-disabled={picked || undefined}
@@ -51,7 +52,7 @@ export function ProductTile({ product }) {
           e.preventDefault();
           if (!picked && compare.add(product)) navigate('/compare');
         }}
-        className={`flex h-full flex-col gap-3 rounded-panel ${picked ? 'pointer-events-none' : ''}`}
+        className={`flex flex-1 flex-col gap-3 rounded-panel ${picked ? 'pointer-events-none' : ''}`}
       >
         {picked && (
           <span className="absolute top-1/3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-accent px-2.5 py-1.5 text-[12px] leading-none font-semibold whitespace-nowrap text-on-accent">
@@ -97,6 +98,7 @@ export function ProductTile({ product }) {
           </div>
         </div>
       </Link>
+      {footer && <div className="mt-3">{footer}</div>}
       {onSale && (
         // The countdown sits on the photo beside the sale pill (below it only if a narrow tile has no room), so it
         // never shifts the price line.
@@ -134,7 +136,7 @@ function rowFill(i, count) {
     .join(' ');
 }
 
-export function ProductGrid({ products, loading, skeletonCount = 8, fullRows = false }) {
+export function ProductGrid({ products, loading, skeletonCount = 8, fullRows = false, footer }) {
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 xl:grid-cols-4">
       {loading
@@ -149,10 +151,10 @@ export function ProductGrid({ products, loading, skeletonCount = 8, fullRows = f
         : products.map((p, i) =>
             fullRows && rowFill(i, products.length) ? (
               <div key={p._id} className={rowFill(i, products.length)}>
-                <ProductTile product={p} />
+                <ProductTile product={p} footer={footer?.(p)} />
               </div>
             ) : (
-              <ProductTile key={p._id} product={p} />
+              <ProductTile key={p._id} product={p} footer={footer?.(p)} />
             ),
           )}
     </div>
