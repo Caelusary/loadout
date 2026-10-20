@@ -1,5 +1,6 @@
 import { createContext, use, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { ConfirmDialog } from '../components/ui/Dialog.jsx';
 import { CATEGORY_LABELS, MAX_COMPARE } from '../lib/constants.js';
 import { useToast } from './ToastProvider.jsx';
 
@@ -29,6 +30,7 @@ const summary = (p) => ({
 // page (a product page, the wishlist, search) takes you there, so the alternatives are already in front of you.
 export function CompareProvider({ children }) {
   const [items, setItems] = useState(read);
+  const [switching, setSwitching] = useState(null); // a product from another category, waiting on a yes
   const toast = useToast();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
@@ -58,11 +60,10 @@ export function CompareProvider({ children }) {
           setItems((list) => list.filter((p) => p._id !== product._id));
           return;
         }
+        // Specs only line up within one category, so another category means starting over: ask first, since
+        // the comparison being built would be thrown away.
         if (items.length && items[0].category !== product.category) {
-          setItems([summary(product)]);
-          const label = CATEGORY_LABELS[product.category]?.toLowerCase() ?? 'these';
-          showAlternatives(product, 1);
-          toast.show(`Comparing ${label} now. Comparisons stay within one category.`);
+          setSwitching(product);
           return;
         }
         if (items.length >= MAX_COMPARE) {
@@ -103,7 +104,30 @@ export function CompareProvider({ children }) {
     [items, toast, pathname, search],
   );
 
-  return <CompareContext value={value}>{children}</CompareContext>;
+  const from = CATEGORY_LABELS[items[0]?.category]?.toLowerCase() ?? 'products';
+  const to = CATEGORY_LABELS[switching?.category]?.toLowerCase() ?? 'products';
+  return (
+    <CompareContext value={value}>
+      {children}
+      <ConfirmDialog
+        open={Boolean(switching)}
+        title={`Compare ${to} instead?`}
+        confirmLabel="Start a new comparison"
+        cancelLabel={`Keep my ${from}`}
+        tone="primary"
+        onConfirm={() => {
+          const product = switching;
+          setSwitching(null);
+          setItems([summary(product)]);
+          if (showAlternatives(product, 1))
+            toast.show(`Comparing ${to} now. Pick more to line up against it.`);
+        }}
+        onClose={() => setSwitching(null)}
+      >
+        Comparisons stay within one category, so this clears the {items.length} {from} you picked.
+      </ConfirmDialog>
+    </CompareContext>
+  );
 }
 
 export const useCompare = () => use(CompareContext);
