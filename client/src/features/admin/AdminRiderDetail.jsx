@@ -10,6 +10,7 @@ import { TextAreaField } from '../../components/ui/fields.jsx';
 import { api } from '../../lib/api.js';
 import { DECLINE_REASON_LABELS, VEHICLE_LABELS } from '../../lib/constants.js';
 import { formatDate, orderNumber, vehicleText } from '../../lib/format.js';
+import { useAuth } from '../../providers/AuthProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { FeedbackItem, RiderStatus } from './riderParts.jsx';
 
@@ -41,7 +42,7 @@ function HoldControl({ rider }) {
       }),
     onSuccess: () => {
       toast.show(held ? `${rider.name} is back on deliveries` : `${rider.name} is paused`);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'riders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin'] }); // this page, the Users list and the menu counts
       close();
     },
     onError: (err) => toast.error(err.fields?.note ?? err.message),
@@ -171,6 +172,7 @@ function VehicleRequest({ rider, onTheWay }) {
 
 export default function AdminRiderDetail() {
   const { id } = useParams();
+  const { can } = useAuth(); // orders open only for admins who manage them
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'riders', id],
     queryFn: ({ signal }) => api(`/admin/riders/${id}`, { signal }),
@@ -262,9 +264,13 @@ export default function AdminRiderDetail() {
                 key={`${d.order}-${d.at}`}
                 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3"
               >
-                <Link to={`/orders/${d.order}`} className="font-mono hover:text-accent-ink">
-                  {orderNumber(d.order)}
-                </Link>
+                {can('orders') ? (
+                  <Link to={`/orders/${d.order}`} data-cursor-skip className="font-mono">
+                    {orderNumber(d.order)}
+                  </Link>
+                ) : (
+                  <span className="font-mono">{orderNumber(d.order)}</span>
+                )}
                 <span>{DECLINE_REASON_LABELS[d.reason]}</span>
                 {d.note && <span className="text-ink-2">&ldquo;{d.note}&rdquo;</span>}
                 <span className="ml-auto text-[13px] text-ink-3">{formatDate(d.at)}</span>
