@@ -7,6 +7,7 @@ import { canManage } from '../../middleware/auth.js';
 import { orderLabel, record } from '../activity/service.js';
 import { notify } from '../notifications/service.js';
 import { returnWindowStart, WINDOW_MS } from '../returns/service.js';
+import { replyText } from '../riders/service.js';
 
 // "Did it arrive?" The rider marks an order delivered, but only the customer can say whether it did. Answering is
 // never required: a delivered order nobody answers for counts as received once the return window has passed.
@@ -64,9 +65,38 @@ export async function reportNotReceived(req, res) {
   await notify([
     ...admins.map((a) => heard(a._id, 'The buyer says it never arrived. Open it to settle the report.')),
     heard(updated.seller, 'The buyer says it never arrived. An admin will look into it.'),
-    ...(updated.rider ? [heard(updated.rider, 'The buyer says it never arrived. An admin will look into it.')] : []),
+    ...(updated.rider
+      ? [heard(updated.rider, 'The buyer says it never arrived. Tell us your side on the order: an admin reads both.')]
+      : []),
   ]);
   res.json({ order: updated });
+}
+
+// The rider's side of a "not received" report, written once while it's open. Admins see it on the order.
+export async function replyToDeliveryIssue(req, res) {
+  if (!isId(req.params.id)) throw notFound('That order');
+  const text = replyText(req.body);
+  const theirs = { _id: req.params.id, rider: req.user._id, 'deliveryIssue.status': 'open' };
+  const order = await Order.findOneAndUpdate(
+    { ...theirs, 'deliveryIssue.riderReply': { $exists: false } },
+    { 'deliveryIssue.riderReply': { text, at: new Date() } },
+    { new: true },
+  );
+  if (!order) {
+    if (!(await Order.exists(theirs))) throw notFound('That report');
+    throw new AppError(409, 'CONFLICT', 'You already told us your side of this one.');
+  }
+  const admins = (await User.find({ role: 'admin', isActive: true })).filter((a) => canManage(a, 'orders'));
+  await notify(
+    admins.map((a) => ({
+      user: a._id,
+      type: 'order',
+      title: `${orderLabel(order)}: the rider replied`,
+      body: 'Their side of the "not received" report is on the order.',
+      link: `/orders/${order._id}`,
+    })),
+  );
+  res.json({ ok: true });
 }
 
 // An admin with the Orders area closes the report with a note everyone involved can read. "Resolve" means the buyer
