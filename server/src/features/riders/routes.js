@@ -7,6 +7,7 @@ const admin = [requireAuth, requireArea('users')];
 const router = Router();
 router.get('/rider/profile', ...rider, riders.myProfile);
 router.patch('/rider/profile', ...rider, riders.updateMyProfile);
+router.post('/rider/reports/:id/reply', ...rider, riders.replyToReport);
 router.post('/deliveries/:id/decline', ...rider, riders.declineDelivery);
 router.post('/orders/:id/rider-rating', requireAuth, riders.rateRider);
 router.post('/orders/:id/rider-report', requireAuth, riders.reportRider);
