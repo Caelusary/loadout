@@ -41,7 +41,9 @@
   /* Height of the phone tab bar; bottom-fixed UI sits above it. Zero from the sm breakpoint up. */
   --dock: 0px;
   /* Light mode: a crisp lit edge rather than a bloom, which only reads as blur on a pale page. */
-  --glow: 0 0 0 1px color-mix(in oklab, var(--color-accent-ink) 35%, transparent), 0 2px 10px -3px color-mix(in oklab, var(--color-accent-ink) 45%, transparent);
+  --glow:
+    0 0 0 1px color-mix(in oklab, var(--color-accent-ink) 35%, transparent),
+    0 2px 10px -3px color-mix(in oklab, var(--color-accent-ink) 45%, transparent);
 }
 
 :root {
@@ -72,7 +74,10 @@
   --color-warn: #fcee0a;
   --color-bad: #ff4f6d;
   --color-info: #4da3ff;
-  --glow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 55%, transparent), 0 0 22px -2px color-mix(in oklab, var(--color-accent) 60%, transparent), 0 0 44px -10px color-mix(in oklab, var(--color-neon) 55%, transparent);
+  --glow:
+    0 0 0 1px color-mix(in oklab, var(--color-accent) 55%, transparent),
+    0 0 22px -2px color-mix(in oklab, var(--color-accent) 60%, transparent),
+    0 0 44px -10px color-mix(in oklab, var(--color-neon) 55%, transparent);
 }
 
 @media (max-width: 639px) {
@@ -121,7 +126,9 @@
   border-radius: 4px;
   background: var(--color-raised) center / 80% no-repeat;
   cursor: pointer;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  transition:
+    background-color 150ms ease-out,
+    border-color 150ms ease-out;
   &:hover {
     border-color: var(--color-ink-3);
   }
@@ -236,12 +243,28 @@
   }
 }
 
+/* A name link the reticle's brackets skip (data-cursor-skip) marks itself instead: its text lights up in the
+   accent with a soft glow. Applies with or without the reticle, so touch and reduced-motion users get it too. */
+[data-cursor-skip],
+[data-glow] {
+  transition:
+    color 150ms,
+    text-shadow 150ms;
+}
+/* A link holding more than a name (a card row) marks the name with data-glow, and only that lights up. */
+[data-cursor-skip]:not(:has([data-glow])):is(:hover, :focus-visible),
+[data-cursor-skip]:is(:hover, :focus-visible) [data-glow] {
+  color: var(--color-accent-ink);
+  text-shadow: 0 0 8px var(--color-accent);
+}
+
 /* Reticle cursor (NeonCursor): hide the native pointer once it runs, but keep the text caret in fields. */
 .neon-cursor,
 .neon-cursor * {
   cursor: none !important;
 }
-.neon-cursor :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, [contenteditable='true']) {
+.neon-cursor
+  :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, [contenteditable='true']) {
   cursor: text !important;
 }
 /* A modal <dialog> sits in the browser's top layer, above any z-index, so the reticle would be hidden
@@ -252,7 +275,8 @@ html.neon-cursor:has(dialog:modal) * {
 html.neon-cursor:has(dialog:modal) :is(a, button, [role='button'], summary, select, label) {
   cursor: pointer !important;
 }
-html.neon-cursor:has(dialog:modal) :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, [contenteditable='true']) {
+html.neon-cursor:has(dialog:modal)
+  :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, [contenteditable='true']) {
   cursor: text !important;
 }
 html:has(dialog:modal) .neon-layer {
@@ -270,7 +294,9 @@ html[data-performance] .neon-layer * {
   margin: -4px 0 0 -4px;
   border-radius: 9999px;
   border: 1.5px solid var(--color-accent);
-  box-shadow: 0 0 12px var(--color-accent), inset 0 0 8px color-mix(in oklab, var(--color-neon) 60%, transparent);
+  box-shadow:
+    0 0 12px var(--color-accent),
+    inset 0 0 8px color-mix(in oklab, var(--color-neon) 60%, transparent);
   animation: neon-pulse 520ms var(--ease-out) forwards;
 }
 @keyframes neon-pulse {
