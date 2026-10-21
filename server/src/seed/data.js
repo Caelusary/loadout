@@ -71,7 +71,7 @@ export const users = {
   },
   coilworks: {
     _id: id('a1', 5),
-    name: 'Carlo Dizon',
+    name: 'Paulo Ramirez',
     email: 'coilworks@loadout.test',
     role: 'customer',
     sellerProfile: {

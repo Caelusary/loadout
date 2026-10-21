@@ -5,7 +5,9 @@ import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { Price, Tag } from '../../components/ui/chips.jsx';
 import { Pagination } from '../../components/ui/controls.jsx';
+import { ConfirmDialog } from '../../components/ui/Dialog.jsx';
 import { ErrorState, EmptyState } from '../../components/ui/feedback.jsx';
+import { TextAreaField } from '../../components/ui/fields.jsx';
 import { RowMenu } from '../../components/ui/RowMenu.jsx';
 import { TabRow } from '../../components/ui/TabRow.jsx';
 import { Cell, Table, TableSkeleton } from '../../components/ui/Table.jsx';
@@ -13,12 +15,14 @@ import { api, sizedImageUrl, toQuery } from '../../lib/api.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
 
 // The table's columns, shared with its loading placeholder so the two always match.
+// Widths fit the table to the panel (see Table): the fixed columns keep theirs and the product name takes the rest,
+// truncating, so Manage never gets pushed out of view on a laptop-width screen.
 const PRODUCT_COLUMNS = [
   { label: 'Product', skeleton: 'thumb' },
-  { label: 'Shop' },
-  { label: 'Price', skeleton: 'short' },
-  { label: 'Status', skeleton: 'tag' },
-  { label: '', skeleton: 'button', align: 'right' },
+  { label: 'Shop', width: 130 },
+  { label: 'Price', skeleton: 'short', width: 150 },
+  { label: 'Status', skeleton: 'tag', width: 112 },
+  { label: '', skeleton: 'button', align: 'right', width: 124 },
 ];
 
 export default function AdminProducts() {
@@ -28,6 +32,9 @@ export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
+  // Unlisting takes a product away from buyers and tells its shop, so it asks first, with an optional reason.
+  const [unlisting, setUnlisting] = useState(null);
+  const [reason, setReason] = useState('');
   const params = { includeInactive: '1', q: search, status, page, limit: 20 };
   const { data, isPending, isError, error, refetch, isPlaceholderData } = useQuery({
     queryKey: ['admin', 'products', params],
@@ -50,6 +57,8 @@ export default function AdminProducts() {
       );
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      setUnlisting(null);
+      setReason('');
     },
     onError: (err) => toast.error(err.message),
   });
@@ -74,7 +83,8 @@ export default function AdminProducts() {
           ? [
               {
                 label: p.isActive ? 'Unlist' : 'Relist',
-                onSelect: () => moderate.mutate({ id: p._id, changes: { isActive: !p.isActive } }),
+                onSelect: () =>
+                  p.isActive ? setUnlisting(p) : moderate.mutate({ id: p._id, changes: { isActive: true } }),
               },
             ]
           : [],
@@ -147,6 +157,7 @@ export default function AdminProducts() {
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <Link
                         to={`/p/${p.slug}`}
+                        data-cursor-skip
                         className="truncate text-sm font-medium hover:text-accent-ink"
                       >
                         {p.name}
@@ -191,7 +202,7 @@ export default function AdminProducts() {
                   {data.items.map((p) => (
                     <tr key={p._id}>
                       <Cell>
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
                           <div className="size-12 shrink-0 overflow-hidden rounded-control border border-seam bg-raised">
                             {p.images[0] && (
                               <img
@@ -203,13 +214,15 @@ export default function AdminProducts() {
                           </div>
                           <Link
                             to={`/p/${p.slug}`}
-                            className="max-w-56 truncate font-medium hover:text-accent-ink"
+                            data-cursor-skip
+                            title={p.name}
+                            className="line-clamp-2 min-w-0 font-medium"
                           >
                             {p.name}
                           </Link>
                         </div>
                       </Cell>
-                      <Cell className="whitespace-nowrap text-ink-2">
+                      <Cell className="truncate text-ink-2">
                         {p.seller?.sellerProfile?.shopName ?? 'Deleted account'}
                       </Cell>
                       <Cell>
@@ -241,6 +254,35 @@ export default function AdminProducts() {
           <Pagination page={data.page} pages={data.pages} onPage={setPage} />
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(unlisting)}
+        title={`Unlist ${unlisting?.name ?? 'this product'}?`}
+        confirmLabel="Unlist"
+        cancelLabel="Keep it listed"
+        pending={moderate.isPending}
+        onConfirm={() =>
+          moderate.mutate({
+            id: unlisting._id,
+            changes: { isActive: false, ...(reason.trim() && { reason }) },
+          })
+        }
+        onClose={() => {
+          setUnlisting(null);
+          setReason('');
+        }}
+      >
+        <div className="flex flex-col gap-3">
+          <p>Buyers stop seeing it, and the shop gets a notice. You can relist it later.</p>
+          <TextAreaField
+            label="Reason for the shop"
+            optional
+            rows={3}
+            maxLength={300}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </div>
+      </ConfirmDialog>
     </>
   );
 }

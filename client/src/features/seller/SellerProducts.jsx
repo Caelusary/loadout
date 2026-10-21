@@ -125,7 +125,7 @@ export default function SellerProducts() {
                   )}
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <Link to={`/p/${p.slug}`} className="truncate text-sm font-medium hover:text-accent-ink">
+                  <Link to={`/p/${p.slug}`} data-cursor-skip className="truncate text-sm font-medium">
                     {p.name}
                   </Link>
                   <p className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-ink-3">
@@ -171,8 +171,9 @@ export default function SellerProducts() {
                       <div className="flex min-w-0 flex-col">
                         <Link
                           to={`/p/${p.slug}`}
+                          data-cursor-skip
                           title={p.name}
-                          className="truncate font-medium hover:text-accent-ink"
+                          className="line-clamp-2 font-medium"
                         >
                           {p.name}
                         </Link>

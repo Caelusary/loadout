@@ -9,7 +9,7 @@ import { PageSpinner } from '../../components/layout/guards.jsx';
 import { NotFound } from '../../components/layout/NotFound.jsx';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
-import { Button } from '../../components/ui/Button.jsx';
+import { Button, ButtonLink } from '../../components/ui/Button.jsx';
 import { ErrorState, FormError } from '../../components/ui/feedback.jsx';
 import { Checkbox, SelectField, TextAreaField, TextField } from '../../components/ui/fields.jsx';
 import { api, applyServerErrors, assetUrl } from '../../lib/api.js';
@@ -578,7 +578,18 @@ export default function ProductFormPage() {
   if (!product) return <NotFound />;
   return (
     <>
-      <PanelHeader title="Edit product" description={product.name} />
+      <PanelHeader
+        title="Edit product"
+        description={product.name}
+        // How the listing reads to buyers right now (an unlisted one has no public page).
+        action={
+          product.isActive && (
+            <ButtonLink to={`/p/${product.slug}`} variant="secondary" size="sm">
+              View listing
+            </ButtonLink>
+          )
+        }
+      />
       <ProductForm key={product._id} product={product} />
     </>
   );

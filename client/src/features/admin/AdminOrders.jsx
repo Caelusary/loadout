@@ -18,8 +18,9 @@ export default function AdminOrders() {
   const [search, setSearch] = useSearchParams();
   const status = search.get('status') ?? '';
   const seller = search.get('seller') ?? '';
+  const user = search.get('user') ?? '';
   const page = Number(search.get('page')) || 1;
-  const params = { status, seller, page };
+  const params = { status, seller, user, page };
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'orders', params],
     queryFn: ({ signal }) => api(`/admin/orders${toQuery(params)}`, { signal }),
@@ -35,6 +36,7 @@ export default function AdminOrders() {
       { replace: true },
     );
   const shopName = seller && data?.items[0]?.seller?.sellerProfile?.shopName;
+  const buyerName = user && data?.items[0]?.user?.name;
 
   return (
     <>
@@ -42,6 +44,18 @@ export default function AdminOrders() {
         title="Orders"
         description="Every order on the platform. Open one to cancel it before delivery."
       />
+      {user && (
+        <p className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
+          Showing {buyerName ? `${buyerName}'s` : "one customer's"} orders.
+          <button
+            type="button"
+            onClick={() => go({ user: '', page: '' })}
+            className="text-accent-ink hover:underline"
+          >
+            Show every customer
+          </button>
+        </p>
+      )}
       {seller && (
         <p className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
           Showing {shopName ? `${shopName}'s` : "one shop's"} orders.

@@ -123,9 +123,8 @@ function AccountLayout() {
           { to: '/account/wishlist', label: 'Wishlist' },
         ]
       : []),
-    ...(user?.role === 'customer' || user?.sellerProfile
-      ? [{ to: '/account/sell', label: 'Sell on Loadout' }]
-      : []),
+    // Applying (or checking an application) is for customers; an approved seller's shop is the Seller Center.
+    ...(user?.role === 'customer' ? [{ to: '/account/sell', label: 'Sell on Loadout' }] : []),
   ];
   return <PanelLayout title="Account" links={links} />;
 }
@@ -138,16 +137,31 @@ const SELLER_LINKS = [
   { to: '/seller/reviews', label: 'Reviews' },
 ];
 
-// The Reviews link shows how many reviews are still waiting on a reply, like the admin menu's counts.
+// Each link shows how much is waiting on the shop, like the admin menu's counts: orders still to process or hand
+// over, return requests to answer and reviews without a reply.
 function SellerPanel() {
+  const poll = { refetchInterval: 60_000 };
   const { data } = useQuery({
     queryKey: ['reviews', 'shop', 'reply', 1],
     queryFn: ({ signal }) => api('/seller/reviews?needs=reply', { signal }),
-    refetchInterval: 60_000,
+    ...poll,
   });
-  const links = SELLER_LINKS.map((l) =>
-    l.to === '/seller/reviews' ? { ...l, count: data?.counts?.needsReply } : l,
-  );
+  const { data: orders } = useQuery({
+    queryKey: ['orders', 'sold', 'counts'],
+    queryFn: ({ signal }) => api('/orders/sold?limit=1', { signal }),
+    ...poll,
+  });
+  const { data: returns } = useQuery({
+    queryKey: ['returns', 'sold', 'counts'],
+    queryFn: ({ signal }) => api('/returns/sold?limit=1', { signal }),
+    ...poll,
+  });
+  const counts = {
+    '/seller/orders': orders && (orders.counts?.placed ?? 0) + (orders.counts?.processing ?? 0),
+    '/seller/returns': returns?.counts?.requested,
+    '/seller/reviews': data?.counts?.needsReply,
+  };
+  const links = SELLER_LINKS.map((l) => (l.to in counts ? { ...l, count: counts[l.to] } : l));
   return <PanelLayout title="Seller Center" links={links} />;
 }
 

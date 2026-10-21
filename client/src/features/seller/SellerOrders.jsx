@@ -1,5 +1,4 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
@@ -22,11 +21,17 @@ export default function SellerOrders() {
   useTitle('Shop orders');
   const toast = useToast();
   const queryClient = useQueryClient();
-  // The dashboard links here with ?status= to open on that tab.
-  const [searchParams] = useSearchParams();
+  // The tab and page live in the address (the dashboard links here with ?status=), so opening an order and coming
+  // Back lands on the same list. No status opens on Placed, the orders waiting on the shop; ?status=all is All.
+  const [searchParams, setSearchParams] = useSearchParams();
   const linked = searchParams.get('status');
-  const [status, setStatus] = useState(ORDER_STATUSES.includes(linked) ? linked : 'placed');
-  const [page, setPage] = useState(1);
+  const status = linked === 'all' ? '' : ORDER_STATUSES.includes(linked) ? linked : 'placed';
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const show = (nextStatus, nextPage) =>
+    setSearchParams(
+      { status: nextStatus || 'all', ...(nextPage > 1 ? { page: String(nextPage) } : {}) },
+      { replace: true },
+    );
   const params = { status, page };
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['orders', 'sold', params],
@@ -54,8 +59,7 @@ export default function SellerOrders() {
         counts={data?.counts}
         value={status}
         onChange={(s) => {
-          setStatus(s);
-          setPage(1);
+          show(s, 1);
         }}
       />
       {isError ? (
@@ -79,7 +83,7 @@ export default function SellerOrders() {
               )
             }
           />
-          <Pagination page={data.page} pages={data.pages} onPage={setPage} />
+          <Pagination page={data.page} pages={data.pages} onPage={(n) => show(status, n)} />
         </>
       )}
     </>

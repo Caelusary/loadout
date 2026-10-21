@@ -19,6 +19,17 @@ const TABS = [
 
 // Every review on the shop's products in one place, unanswered first, so a shop doesn't have to open each
 // product to find new ones. Replying works the same as on the product page.
+function ProductHead({ to, children }) {
+  const className = 'flex max-w-full items-center gap-3 self-start';
+  return to ? (
+    <Link to={to} data-cursor-skip className={className}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
+  );
+}
+
 export default function SellerReviews() {
   useTitle('Reviews');
   const { user } = useAuth();
@@ -75,11 +86,10 @@ export default function SellerReviews() {
           <ul className="flex flex-col gap-3">
             {data.items.map((r) => (
               <li key={r._id} className="flex flex-col gap-2.5 rounded-panel border border-seam p-4">
-                {/* Opens the product page scrolled to this review, which glows briefly. */}
-                <Link
-                  to={`/p/${r.product?.slug}#review-${r._id}`}
-                  className="flex items-center gap-3 hover:text-accent-ink"
-                >
+                {/* Opens the product page scrolled to this review, which glows briefly. Only as wide as the
+                    product itself, and the name lights up on hover instead of the cursor's brackets. */}
+                {/* A removed product has no page to open, so its name is plain text. */}
+                <ProductHead to={r.product?.slug ? `/p/${r.product.slug}#review-${r._id}` : null}>
                   <span className="size-10 shrink-0 overflow-hidden rounded-control border border-seam bg-raised">
                     {r.product?.images?.[0] && (
                       <img
@@ -90,7 +100,7 @@ export default function SellerReviews() {
                     )}
                   </span>
                   <span className="truncate text-sm font-medium">{r.product?.name ?? 'Removed product'}</span>
-                </Link>
+                </ProductHead>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <RatingDisplay value={r.rating} />
                   <h2 className="font-medium text-ink">{r.title}</h2>

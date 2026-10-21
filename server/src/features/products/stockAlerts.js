@@ -20,8 +20,9 @@ export async function checkStock() {
       user: product.seller,
       type: 'order',
       title: product.stock === 0 ? `${product.name} is sold out` : `${product.name} is running low`,
-      body: product.stock === 0 ? 'Shoppers can ask to be told when it is back. Restock it from your products.' : `${product.stock} left. Restock it before it sells out.`,
-      link: '/seller/products',
+      body: product.stock === 0 ? 'Shoppers can ask to be told when it is back. Open it here to restock.' : `${product.stock} left. Restock it before it sells out.`,
+      // Straight to that product's edit page, where the stock is changed.
+      link: `/seller/products/${product._id}/edit`,
     });
   }
   await Product.updateMany({ stock: { $gt: LOW_STOCK }, lowStockAlertAt: { $ne: null } }, { $unset: { lowStockAlertAt: 1 } });

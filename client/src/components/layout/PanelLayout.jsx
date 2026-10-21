@@ -28,7 +28,11 @@ export function PanelLayout({ title, links, phoneNav = true }) {
               end={end}
               className={({ isActive }) =>
                 `flex h-10 shrink-0 items-center gap-2 rounded-control px-3 text-sm whitespace-nowrap transition-colors lg:justify-between ${
-                  isActive ? 'bg-raised text-ink' : 'text-ink-2 hover:bg-raised/60 hover:text-ink'
+                  isActive
+                    ? // The current page: accent text on a faint tint, with an accent bar (under it in the phone tab row, beside it in
+                      // the desktop column), not a block that reads like hover.
+                      'relative bg-accent/10 font-medium text-accent-ink before:absolute before:inset-x-3 before:bottom-0 before:h-0.5 before:rounded-full before:bg-accent-ink lg:before:inset-x-auto lg:before:inset-y-2 lg:before:left-0 lg:before:h-auto lg:before:w-0.5'
+                    : 'text-ink-2 hover:bg-raised/60 hover:text-ink'
                 }`
               }
             >

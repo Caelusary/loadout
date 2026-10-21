@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { PanelHeader } from '../../components/layout/PanelLayout.jsx';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { Button } from '../../components/ui/Button.jsx';
@@ -29,13 +30,24 @@ const ACTIVITY_COLUMNS = [
   { label: 'When', skeleton: 'two' },
   { label: 'Who', skeleton: 'line' },
   { label: 'What', skeleton: 'line' },
-  { label: 'Undo', skeleton: 'button', align: 'right' },
+  // No label: on phones the button speaks for itself instead of sitting beside the word "Undo".
+  { label: '', skeleton: 'button', align: 'right' },
 ];
 
 // Every admin can read what every admin did; only the owner can undo it.
 export default function AdminActivity() {
   useTitle('Activity');
-  const { isOwner } = useAuth();
+  const { isOwner, can } = useAuth();
+  // Where an entry's target can be opened, for an admin who manages that area. Other kinds (a review, a return, an
+  // account) have no page of their own here, so they stay text.
+  const targetLink = ({ kind, id } = {}) =>
+    kind === 'order' && can('orders')
+      ? `/orders/${id}`
+      : kind === 'coupon' && can('coupons')
+        ? '/admin/coupons'
+        : kind === 'seller' && can('users')
+          ? '/admin/users?role=seller'
+          : null;
   const toast = useToast();
   const queryClient = useQueryClient();
   const [kind, setKind] = useState('');
@@ -109,17 +121,27 @@ export default function AdminActivity() {
                 </Cell>
                 <Cell className="font-medium">{entry.actorName}</Cell>
                 <Cell>
-                  <span className={entry.undoneAt ? 'text-ink-3 line-through' : 'text-ink-2'}>
-                    {entry.summary.charAt(0).toUpperCase() + entry.summary.slice(1)}
-                  </span>
+                  {targetLink(entry.target) ? (
+                    <Link
+                      to={targetLink(entry.target)}
+                      data-cursor-skip
+                      className={entry.undoneAt ? 'text-ink-3 line-through' : 'text-ink-2'}
+                    >
+                      {entry.summary.charAt(0).toUpperCase() + entry.summary.slice(1)}
+                    </Link>
+                  ) : (
+                    <span className={entry.undoneAt ? 'text-ink-3 line-through' : 'text-ink-2'}>
+                      {entry.summary.charAt(0).toUpperCase() + entry.summary.slice(1)}
+                    </span>
+                  )}
                 </Cell>
-                <Cell align="right">
+                <Cell align="right" className="max-sm:justify-end max-sm:pt-2">
                   {entry.undoneAt ? (
                     <Tag>Undone by {entry.undoneByName}</Tag>
                   ) : !entry.undoable ? (
                     <span className="text-[13px] text-ink-3">Can&apos;t be undone</span>
                   ) : isOwner ? (
-                    <Button variant="ghost" size="sm" onClick={() => setUndoing(entry)}>
+                    <Button variant="secondary" size="sm" onClick={() => setUndoing(entry)}>
                       Undo
                     </Button>
                   ) : (

@@ -14,12 +14,19 @@ export function PageSpinner() {
 
 function Forbidden() {
   useTitle('No access');
+  const { isAdmin } = useAuth();
+  // An admin who lands here is missing that area's permission, not using the wrong kind of account, and can't shop:
+  // say so and send them back to their own panel.
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-24 text-center">
       <h1 className="wide text-2xl font-bold">You don&apos;t have access to this page</h1>
-      <p className="text-sm text-ink-2">It belongs to a different kind of account.</p>
-      <ButtonLink to="/" variant="secondary" className="mt-2">
-        Back to the shop
+      <p className="text-sm text-ink-2">
+        {isAdmin
+          ? "Your admin account doesn't manage this area. The owner can give you access."
+          : 'It belongs to a different kind of account.'}
+      </p>
+      <ButtonLink to={isAdmin ? '/admin' : '/'} variant="secondary" className="mt-2">
+        {isAdmin ? 'Back to the admin panel' : 'Back to the shop'}
       </ButtonLink>
     </div>
   );

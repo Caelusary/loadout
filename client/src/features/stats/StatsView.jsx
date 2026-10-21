@@ -203,7 +203,7 @@ export function StatsView({ query, figures = () => [], aside, statusLink, produc
         <SalesChart data={data.salesByDay} />
       </section>
 
-      {/* Both lists use the same 40px rows, so side by side their rows line up; numbers start at a common left edge. */}
+      {/* Both lists use the same 40px rows, so side by side their rows line up; numbers are right-aligned so digits line up. */}
       <div className="grid gap-10 md:grid-cols-2">
         <section>
           <h2 className="mb-4 font-medium">Orders by status</h2>
@@ -216,12 +216,12 @@ export function StatsView({ query, figures = () => [], aside, statusLink, produc
                     className="-mx-2 flex h-10 items-center justify-between rounded-control px-2 hover:bg-raised"
                   >
                     <StatusPill status={s} />
-                    <span className="w-12 font-mono text-sm tabular-nums">{data.ordersByStatus[s]}</span>
+                    <span className="w-12 text-right font-mono text-sm tabular-nums">{data.ordersByStatus[s]}</span>
                   </Link>
                 ) : (
                   <div className="flex h-10 items-center justify-between">
                     <StatusPill status={s} />
-                    <span className="w-12 font-mono text-sm tabular-nums">{data.ordersByStatus[s]}</span>
+                    <span className="w-12 text-right font-mono text-sm tabular-nums">{data.ordersByStatus[s]}</span>
                   </div>
                 )}
               </li>
@@ -246,8 +246,8 @@ export function StatsView({ query, figures = () => [], aside, statusLink, produc
                   ) : (
                     <span className="truncate text-ink-2">{p.name}</span>
                   )}
-                  <span className="font-mono text-ink-2 tabular-nums">{p.units} sold</span>
-                  <span className="font-mono text-ink tabular-nums">{formatMoney(p.salesCents)}</span>
+                  <span className="text-right font-mono text-ink-2 tabular-nums">{p.units} sold</span>
+                  <span className="text-right font-mono text-ink tabular-nums">{formatMoney(p.salesCents)}</span>
                 </li>
               ))}
             </ol>

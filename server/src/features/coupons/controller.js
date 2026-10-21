@@ -44,6 +44,8 @@ export async function updateCoupon(req, res) {
   if (!coupon) throw notFound('That code');
   // The code itself and its type stay fixed once customers may have used it.
   const changes = pick(req.body, ['value', 'minSubtotalCents', 'maxUses', 'expiresAt', 'isActive']);
+  // null clears a limit (unlimited uses, never expires); undefined unsets the field instead of failing validation.
+  for (const k of ['maxUses', 'expiresAt']) if (changes[k] === null) changes[k] = undefined;
   const before = Object.fromEntries(Object.keys(changes).map((k) => [k, coupon[k] ?? null]));
   Object.assign(coupon, changes);
   const changed = Object.keys(changes).filter((k) => JSON.stringify(coupon[k] ?? null) !== JSON.stringify(before[k]));

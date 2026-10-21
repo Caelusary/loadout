@@ -22,9 +22,15 @@ export default function SellerDashboard() {
         title={user.sellerProfile.shopName}
         description="Sales and orders for your shop."
         action={
-          <ButtonLink to="/seller/products/new" size="sm">
-            Add product
-          </ButtonLink>
+          // The storefront is how buyers see the shop, and where its name and bio are edited.
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink to={`/s/${user.sellerProfile.slug}`} variant="secondary" size="sm">
+              View shop
+            </ButtonLink>
+            <ButtonLink to="/seller/products/new" size="sm">
+              Add product
+            </ButtonLink>
+          </div>
         }
       />
       <StatsView
@@ -33,8 +39,6 @@ export default function SellerDashboard() {
         statusLink={(s) => `/seller/orders?status=${s}`}
         productLink={(p) => `/seller/products/${p.productId}/edit`}
         figures={(d) => [
-          ['Waiting to process', String(d.ordersByStatus.placed), '/seller/orders?status=placed'],
-          ['Low on stock', String(d.lowStock.length)],
           ['Held until buyers confirm', formatMoney(d.payouts.heldCents)],
           ['Released, last 30 days', formatMoney(d.payouts.releasedCents30d)],
         ]}
