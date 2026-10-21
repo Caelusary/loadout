@@ -59,6 +59,17 @@ const deliveryIssueSchema = new mongoose.Schema(
     status: { type: String, enum: DELIVERY_ISSUE_STATUSES, default: 'open' },
     resolvedAt: Date,
     resolution: { type: String, trim: true, maxlength: [300, 'Keep the note under 300 characters'] },
+    // The rider's side, written once while the report is open. Only the rider and admins see it.
+    riderReply: {
+      type: new mongoose.Schema(
+        {
+          text: { type: String, trim: true, required: true, maxlength: [500, 'Keep it under 500 characters'] },
+          at: { type: Date, default: Date.now },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   { _id: false }
 );

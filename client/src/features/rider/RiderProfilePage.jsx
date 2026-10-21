@@ -7,9 +7,11 @@ import { Button } from '../../components/ui/Button.jsx';
 import { ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { TextField } from '../../components/ui/fields.jsx';
 import { api } from '../../lib/api.js';
-import { VEHICLE_LABELS } from '../../lib/constants.js';
-import { vehicleText } from '../../lib/format.js';
+import { RIDER_REPORT_LABELS, VEHICLE_LABELS } from '../../lib/constants.js';
+import { formatDate, vehicleText } from '../../lib/format.js';
 import { useToast } from '../../providers/ToastProvider.jsx';
+import { RiderSide } from '../admin/riderParts.jsx';
+import { ReplyToReport } from './ReplyToReport.jsx';
 import { useRiderProfile } from './useRiderProfile.js';
 
 // Shown on the profile and the deliveries page while an admin looks into a report.
@@ -126,9 +128,54 @@ export default function RiderProfilePage() {
             confirm an order arrived; you see the average, not who said what.
           </p>
         </section>
+        <ReportsAboutYou reports={data.reports ?? []} />
         <DetailsForm profile={data.profile} onTheWay={stats.onTheWay} />
       </div>
     </>
+  );
+}
+
+// Reports buyers made about the rider, each with room for their side. The rider sees why and when, not who or the
+// buyer's words (see riderReportView on the server). Hidden when there are none.
+function ReportsAboutYou({ reports }) {
+  const queryClient = useQueryClient();
+  if (!reports.length) return null;
+  return (
+    <section aria-labelledby="reports-heading" className="flex flex-col gap-3">
+      <div>
+        <h2 id="reports-heading" className="font-medium">
+          Reports about you
+        </h2>
+        <p className="text-[13px] text-ink-3">
+          We don&apos;t show who reported you, what they wrote or which order it was. Tell us how your
+          deliveries went around that date; an admin reads both sides before deciding.
+        </p>
+      </div>
+      <ul className="flex flex-col gap-3">
+        {reports.map((r) => (
+          <li
+            key={r._id}
+            className="flex flex-col gap-2 rounded-panel border border-seam bg-plate p-4 text-sm"
+          >
+            <p>
+              <span className="font-medium">{RIDER_REPORT_LABELS[r.reason]}</span>
+              <span className="text-ink-3"> · {formatDate(r.at)}</span>
+            </p>
+            <RiderSide reply={r.reply} mine />
+            {r.reviewed ? (
+              <p className="text-[13px] text-ink-3">An admin has looked into this one.</p>
+            ) : r.reply ? (
+              <p className="text-[13px] text-ink-3">An admin is looking into it.</p>
+            ) : (
+              <ReplyToReport
+                path={`/rider/reports/${r._id}/reply`}
+                onSent={() => queryClient.invalidateQueries({ queryKey: ['rider-profile'] })}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

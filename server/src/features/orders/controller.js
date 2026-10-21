@@ -206,6 +206,8 @@ export async function allOrders(req, res) {
   // An aggregate doesn't cast ids the way find does, so the seller filter is an ObjectId from the start.
   const base = {};
   if (isId(req.query.seller)) base.seller = new mongoose.Types.ObjectId(req.query.seller);
+  // One customer's orders, opened from their order count on the Users page.
+  if (isId(req.query.user)) base.user = new mongoose.Types.ObjectId(req.query.user);
   // "reports" is its own tab: orders with an open "not received" report, whatever their status.
   const reported = { ...base, 'deliveryIssue.status': 'open' };
   const filter = req.query.status === 'reports' || req.query.issue === 'open' ? { ...reported } : { ...base };
@@ -239,8 +241,16 @@ export async function getOrder(req, res) {
   // Who turned it down is for admins (and the decliner's own record), not the buyer or shop. (Where the rider stood
   // for the delivery photo is admin-only too; the query above only asks for it for admins.)
   if (!isAdmin) delete json.declines;
+  // Each line links to its product while it's still listed (to buy again or check it); the order only stores the id.
+  if (!riderOnly && json.items?.length) {
+    const listed = await Product.find({ _id: { $in: json.items.map((i) => i.product) }, isActive: true }, 'slug').lean();
+    const slugs = new Map(listed.map((p) => [String(p._id), p.slug]));
+    for (const item of json.items) item.slug = slugs.get(String(item.product)) ?? null;
+  }
   // Where the buyer's money is (simulated): the buyer, the shop and admins see it; the rider has no stake in it.
   if (!riderOnly) json.payment = paymentState(order);
+  // The rider's side of a "not received" report is for admins to weigh, not for the buyer or shop to argue with.
+  if (!isAdmin && !riderOnly) delete json.deliveryIssue?.riderReply;
   // What the buyer has said about this rider, and what they still can: rate once they've confirmed it arrived, report
   // while it's on the way and up to the end of the return window.
   if (isCustomer && order.rider) {

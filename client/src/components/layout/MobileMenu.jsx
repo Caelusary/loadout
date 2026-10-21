@@ -1,11 +1,12 @@
 import { CaretRight, Lightning, List, Moon, SignOut, Sun, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { initials } from '../../lib/format.js';
 import { ButtonLink } from '../ui/Button.jsx';
 import { accountSections, sectionLabel as headingFor } from './accountLinks.js';
 import { useAdminLinks } from './adminLinks.js';
+import { useSignOut } from './useSignOut.jsx';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { useTheme } from '../../providers/ThemeProvider.jsx';
@@ -54,9 +55,8 @@ function PerformanceSwitch() {
 
 // Phones: the account, its pages, the theme, Lite mode and signing in or out, in a panel that drops down from the
 // top bar and is only as tall as what's in it. The header stays visible above it; the page dims below.
-function MenuPanel({ onClose }) {
+function MenuPanel({ onClose, onSignOut }) {
   const auth = useAuth();
-  const navigate = useNavigate();
   const adminLinks = useAdminLinks();
   // Nothing the tab bar already holds (MobileTabBar): a rider's two pages, an admin's main three, a seller's Seller
   // Center, a shopper's orders. An admin's menu lists the rest of the admin pages.
@@ -155,10 +155,9 @@ function MenuPanel({ onClose }) {
           {auth.user && (
             <button
               type="button"
-              onClick={async () => {
+              onClick={() => {
                 onClose();
-                await auth.logout();
-                navigate('/');
+                onSignOut();
               }}
               className={`${rowBase} text-bad`}
             >
@@ -176,6 +175,8 @@ function MenuPanel({ onClose }) {
 // The phone top bar's menu button; it turns into a close button while the menu is open.
 export function MenuButton() {
   const [open, setOpen] = useState(false);
+  // Owned here, not by the panel: the panel unmounts when it closes, and the question outlives it.
+  const signOut = useSignOut();
   const { pathname } = useLocation();
   // Following a link closes it; so does any other navigation (back button, a tab).
   const [openedOn, setOpenedOn] = useState(pathname);
@@ -195,7 +196,8 @@ export function MenuButton() {
       >
         {open ? <X size={22} /> : <List size={22} />}
       </button>
-      {open && <MenuPanel onClose={() => setOpen(false)} />}
+      {open && <MenuPanel onClose={() => setOpen(false)} onSignOut={signOut.ask} />}
+      {signOut.dialog}
     </>
   );
 }

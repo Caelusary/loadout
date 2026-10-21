@@ -1,5 +1,6 @@
+import { MapPin, Phone } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { NotFound } from '../../components/layout/NotFound.jsx';
 import { OrderStatus } from '../../components/ui/chips.jsx';
@@ -16,6 +17,7 @@ import { OrderTimeline } from './OrderTimeline.jsx';
 import { RiderCard } from './RiderCard.jsx';
 import { DeliveryProof, PaymentNote } from './OrderExtras.jsx';
 import { ReturnsPanel } from './ReturnsPanel.jsx';
+import { mapsLink } from '../rider/delivery.js';
 
 // One order, seen by its customer, its shop, its rider or an admin. Each section decides what its viewer may see;
 // the sections live in their own files next to this one.
@@ -67,9 +69,35 @@ export default function OrderDetailPage() {
           </div>
           <p className="text-sm text-ink-2">
             Placed {formatDateTime(order.createdAt)}
-            {isCustomer
-              ? ` with ${order.seller?.sellerProfile?.shopName ?? 'a shop'}`
-              : ` by ${order.user?.name ?? 'a deleted account'}`}
+            {isCustomer ? (
+              <>
+                {' with '}
+                {order.seller?.sellerProfile?.slug ? (
+                  <Link to={`/s/${order.seller.sellerProfile.slug}`} data-cursor-skip className="text-ink">
+                    {order.seller.sellerProfile.shopName}
+                  </Link>
+                ) : (
+                  (order.seller?.sellerProfile?.shopName ?? 'a shop')
+                )}
+              </>
+            ) : (
+              <>
+                {` by ${order.user?.name ?? 'a deleted account'}`}
+                {/* Admins also need which shop it's from; the name opens that shop's orders. */}
+                {isOrdersAdmin && !isSellerOfOrder && order.seller?.sellerProfile?.shopName && (
+                  <>
+                    {' from '}
+                    <Link
+                      to={`/admin/orders?seller=${order.seller._id}`}
+                      data-cursor-skip
+                      className="text-ink"
+                    >
+                      {order.seller.sellerProfile.shopName}
+                    </Link>
+                  </>
+                )}
+              </>
+            )}
           </p>
           {order.status === 'cancelled' && (
             <p className="text-sm text-bad">
@@ -91,7 +119,12 @@ export default function OrderDetailPage() {
         />
       </div>
 
-      <DeliveryCheck order={order} isCustomer={isCustomer} canSettle={isOrdersAdmin} />
+      <DeliveryCheck
+        order={order}
+        isCustomer={isCustomer}
+        isRider={isRiderOfOrder}
+        canSettle={isOrdersAdmin}
+      />
       <MissedAttempts order={order} isCustomer={isCustomer} />
 
       <OrderTimeline order={order} />
@@ -102,12 +135,38 @@ export default function OrderDetailPage() {
           <div className="flex flex-col gap-1">
             <h2 className="text-[13px] font-medium text-ink-3">Ship to</h2>
             {order.shippingAddress.fullName && <p>{order.shippingAddress.fullName}</p>}
-            {order.shippingAddress.line1 && <p className="text-ink-2">{order.shippingAddress.line1}</p>}
-            <p className="text-ink-2">
-              {order.shippingAddress.city}, {order.shippingAddress.province}{' '}
-              {order.shippingAddress.postalCode}
-            </p>
-            {order.shippingAddress.phone ? (
+            {/* The rider gets the run sheet's maps and call links here too; everyone else reads plain text. */}
+            {isRiderOfOrder && order.shippingAddress.line1 ? (
+              <a
+                href={mapsLink(order.shippingAddress)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-2 text-ink-2 underline-offset-2 hover:text-accent-ink hover:underline"
+              >
+                <MapPin size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  {order.shippingAddress.line1}, {order.shippingAddress.city},{' '}
+                  {order.shippingAddress.province} {order.shippingAddress.postalCode}
+                </span>
+              </a>
+            ) : (
+              <>
+                {order.shippingAddress.line1 && <p className="text-ink-2">{order.shippingAddress.line1}</p>}
+                <p className="text-ink-2">
+                  {order.shippingAddress.city}, {order.shippingAddress.province}{' '}
+                  {order.shippingAddress.postalCode}
+                </p>
+              </>
+            )}
+            {order.shippingAddress.phone && isRiderOfOrder ? (
+              <a
+                href={`tel:${order.shippingAddress.phone}`}
+                className="flex items-center gap-2 self-start font-mono text-ink-2 underline-offset-2 hover:text-accent-ink hover:underline"
+              >
+                <Phone size={16} className="shrink-0" aria-hidden="true" />
+                {order.shippingAddress.phone}
+              </a>
+            ) : order.shippingAddress.phone ? (
               <p className="font-mono text-ink-2">{order.shippingAddress.phone}</p>
             ) : (
               <p className="text-[13px] text-ink-3">
@@ -122,14 +181,9 @@ export default function OrderDetailPage() {
             <p>{PAYMENT_LABELS[order.paymentMethod]}</p>
           </div>
           <PaymentNote order={order} isCustomer={isCustomer} />
-          <RiderCard
-            order={order}
-            isCustomer={isCustomer}
-            isRiderOfOrder={isRiderOfOrder}
-            isAdmin={canManageRiders}
-          />
+          {!isRiderOfOrder && <RiderCard order={order} isCustomer={isCustomer} isAdmin={canManageRiders} />}
           <DeliveryProof order={order} />
-          {!isCustomer && order.user && (
+          {!isCustomer && !isRiderOfOrder && order.user && (
             <div className="flex flex-col gap-1">
               <h2 className="text-[13px] font-medium text-ink-3">Customer</h2>
               <p>{order.user.name}</p>

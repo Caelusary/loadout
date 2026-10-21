@@ -38,10 +38,11 @@ export function DeliveryPrompt() {
 
   const waiting = data?.filter((o) => !later.includes(o._id)) ?? [];
   const order = waiting[0];
-  // Not over the order it's about (that page asks for itself), the sign-in forms, or while paying.
+  // Not on an order page (it asks about its own order, and a question about another one would compete with it), the
+  // sign-in forms, or while paying.
   if ((!order && !thanks) || /^\/(login|register|checkout|forgot-password|reset-password)/.test(pathname))
     return null;
-  if (!thanks && pathname === `/orders/${order._id}`) return null;
+  if (!thanks && pathname.startsWith('/orders/')) return null;
 
   const putOff = (id) => {
     const next = [...new Set([...later, id])];

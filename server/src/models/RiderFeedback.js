@@ -37,6 +37,18 @@ const riderFeedbackSchema = new mongoose.Schema(
       ),
       default: undefined,
     },
+    // The rider's side of a report, written once before an admin decides. Admins read it next to the buyer's; the
+    // buyer never sees it.
+    riderReply: {
+      type: new mongoose.Schema(
+        {
+          text: { type: String, trim: true, required: true, maxlength: [500, 'Keep it under 500 characters'] },
+          at: { type: Date, default: Date.now },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     // Ratings of 2 stars or less and every report go to the admins' review queue until someone marks them reviewed.
     flagged: { type: Boolean, default: false },
     reviewedAt: Date,

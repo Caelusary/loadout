@@ -24,8 +24,8 @@ function useFeedback(order, path, onDone) {
   });
 }
 
-// Stars for the rider, offered once the buyer has said the order arrived.
-function RateRider({ order }) {
+// Stars for the rider, offered once the buyer has said the order arrived (in the order page's "How did it go?" box).
+export function RateRider({ order }) {
   const toast = useToast();
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
@@ -118,8 +118,8 @@ function ReportRider({ order }) {
 }
 
 // The order page's rider block. Buyers see a first name, plus the vehicle and plate while it's on the way, and can
-// rate the rider after confirming it arrived or report them while it's on the way and up to 7 days after delivery.
-export function RiderCard({ order, isCustomer, isRiderOfOrder, isAdmin }) {
+// see their rating of the rider (given in the box at the top of the order page) or report them while it's on the way and up to 7 days after delivery.
+export function RiderCard({ order, isCustomer, isAdmin }) {
   const rider = order.rider;
   if (!rider) return null;
   const p = rider.riderProfile ?? {};
@@ -131,10 +131,8 @@ export function RiderCard({ order, isCustomer, isRiderOfOrder, isAdmin }) {
     <div className="flex flex-col gap-1">
       <h2 className="text-[13px] font-medium text-ink-3">Rider</h2>
       <p>
-        {isRiderOfOrder ? (
-          'You'
-        ) : isAdmin ? (
-          <Link to={`/admin/riders/${rider._id}`} className="hover:text-accent-ink">
+        {isAdmin ? (
+          <Link to={`/admin/riders/${rider._id}`} data-cursor-skip>
             {rider.name}
           </Link>
         ) : (
@@ -156,7 +154,6 @@ export function RiderCard({ order, isCustomer, isRiderOfOrder, isAdmin }) {
       {isCustomer && feedback?.reported && (
         <p className="text-ink-2">You reported this rider. An admin is looking into it.</p>
       )}
-      {feedback?.canRate && <RateRider order={order} />}
       {feedback?.canReport && <ReportRider order={order} />}
     </div>
   );

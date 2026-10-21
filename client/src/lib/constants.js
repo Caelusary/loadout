@@ -101,7 +101,8 @@ export const RIDER_REPORT_LABELS = {
 export const SHOP_NEXT = { placed: 'processing', processing: 'shipped' };
 export const SHOP_NEXT_LABEL = { processing: 'Start processing', shipped: 'Ready for pickup' };
 export const RIDER_NEXT = { shipped: 'out-for-delivery', 'out-for-delivery': 'delivered' };
-export const RIDER_NEXT_LABEL = { 'out-for-delivery': 'Out for delivery', delivered: 'Mark delivered' };
+// Actions, not statuses: what the rider is doing when they tap it.
+export const RIDER_NEXT_LABEL = { 'out-for-delivery': 'Start delivery', delivered: 'Mark delivered' };
 
 // Photos on one review.
 export const MAX_REVIEW_PHOTOS = 3;

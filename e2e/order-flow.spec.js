@@ -41,7 +41,7 @@ async function deliverNewOrder(page) {
     // Wait for the list (or its empty state) to load before counting, or a rider who has it looks empty.
     await expect(
       page
-        .getByRole('button', { name: /^(Out for delivery|Mark delivered)$/ })
+        .getByRole('button', { name: /^(Start delivery|Mark delivered)$/ })
         .first()
         .or(page.getByText('Nothing to deliver')),
     ).toBeVisible();
@@ -49,7 +49,7 @@ async function deliverNewOrder(page) {
     if (await card.count()) break;
   }
   await expect(card).toHaveCount(1);
-  await card.getByRole('button', { name: 'Out for delivery' }).click();
+  await card.getByRole('button', { name: 'Start delivery' }).click();
   // Delivering takes a photo of the parcel first.
   await card.getByRole('button', { name: 'Mark delivered' }).click();
   const dialog = page.getByRole('dialog', { name: /^Deliver / });
@@ -95,7 +95,7 @@ test('a buyer can report a delivery that never arrived, and an admin settles it'
   await page.getByRole('tab', { name: /^Not received/ }).click();
   const report = page.getByRole('listitem').filter({ hasText: orderNumber });
   await expect(report).toContainText('Not received');
-  await report.getByRole('link', { name: orderNumber }).click();
+  await report.getByRole('link', { name: 'Open the order to settle it' }).click();
   await page.getByRole('button', { name: 'Resolve…' }).click();
   await page.getByRole('dialog').getByRole('textbox', { name: 'Note' }).fill('Courier log shows a failed attempt. Re-sent.');
   await page.getByRole('dialog').getByRole('button', { name: 'Resolve' }).click();
