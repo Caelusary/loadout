@@ -13,21 +13,8 @@ import { Filters } from './Filters.jsx';
 import { ProductGrid } from './ProductTile.jsx';
 import { PriceSlider } from './PriceSlider.jsx';
 import { SortMenu } from './SortMenu.jsx';
-import { useProducts } from './queries.js';
+import { SHOP_FILTER_KEYS as FILTER_KEYS, shopParams, useProducts } from './queries.js';
 
-const FILTER_KEYS = [
-  'q',
-  'category',
-  'brand',
-  'switchType',
-  'connectivity',
-  'layout',
-  'resolution',
-  'minPrice',
-  'maxPrice',
-  'inStock',
-  'onSale',
-];
 const SORTS = [
   ['newest', 'Newest'],
   ['price-asc', 'Price: low to high'],
@@ -47,9 +34,7 @@ export default function ShopPage() {
   const title = q ? `Results for "${q}"` : (CATEGORY_LABELS[category] ?? 'All products');
   useTitle(title);
 
-  const query = Object.fromEntries(
-    [...FILTER_KEYS, 'sort', 'page'].map((k) => [k, params.get(k) ?? undefined]),
-  );
+  const query = shopParams(params);
   const { data, isPending, isError, error, refetch, isPlaceholderData } = useProducts(query);
   // Switching category fades the new products in. The key changes only once they've arrived, so the previous
   // category's list (shown dimmed while loading) doesn't fade in first.
