@@ -8,6 +8,7 @@ import { Pagination } from '../../components/ui/controls.jsx';
 import { ConfirmDialog } from '../../components/ui/Dialog.jsx';
 import { ErrorState, EmptyState } from '../../components/ui/feedback.jsx';
 import { TextAreaField } from '../../components/ui/fields.jsx';
+import { ProductImage } from '../../components/ui/ProductImage.jsx';
 import { RowMenu } from '../../components/ui/RowMenu.jsx';
 import { TabRow } from '../../components/ui/TabRow.jsx';
 import { Cell, Table, TableSkeleton } from '../../components/ui/Table.jsx';
@@ -19,9 +20,8 @@ import { useToast } from '../../providers/ToastProvider.jsx';
 // truncating, so Manage never gets pushed out of view on a laptop-width screen.
 const PRODUCT_COLUMNS = [
   { label: 'Product', skeleton: 'thumb' },
-  { label: 'Shop', width: 130 },
   { label: 'Price', skeleton: 'short', width: 150 },
-  { label: 'Status', skeleton: 'tag', width: 112 },
+  { label: 'Status', skeleton: 'tag', width: 152 }, // fits "Unlisted by seller" on one line
   { label: '', skeleton: 'button', align: 'right', width: 124 },
 ];
 
@@ -203,27 +203,27 @@ export default function AdminProducts() {
                     <tr key={p._id}>
                       <Cell>
                         <div className="flex min-w-0 items-center gap-3">
-                          <div className="size-12 shrink-0 overflow-hidden rounded-control border border-seam bg-raised">
-                            {p.images[0] && (
-                              <img
-                                src={sizedImageUrl(p.images[0].url, 120)}
-                                alt=""
-                                className="size-full object-contain p-0.5"
-                              />
-                            )}
+                          {/* ProductImage shows a placeholder when the photo is missing or won't load. */}
+                          <ProductImage
+                            src={p.images[0]?.url}
+                            size={120}
+                            className="size-12 shrink-0 rounded-control border border-seam"
+                          />
+                          {/* The shop sits under the name rather than in its own column, so long names have room. */}
+                          <div className="flex min-w-0 flex-col">
+                            <Link
+                              to={`/p/${p.slug}`}
+                              data-cursor-skip
+                              title={p.name}
+                              className="line-clamp-2 font-medium"
+                            >
+                              {p.name}
+                            </Link>
+                            <span className="truncate text-[12px] text-ink-3">
+                              {p.seller?.sellerProfile?.shopName ?? 'Deleted account'}
+                            </span>
                           </div>
-                          <Link
-                            to={`/p/${p.slug}`}
-                            data-cursor-skip
-                            title={p.name}
-                            className="line-clamp-2 min-w-0 font-medium"
-                          >
-                            {p.name}
-                          </Link>
                         </div>
-                      </Cell>
-                      <Cell className="truncate text-ink-2">
-                        {p.seller?.sellerProfile?.shopName ?? 'Deleted account'}
                       </Cell>
                       <Cell>
                         <Price cents={p.priceCents} was={p.compareAtCents} />

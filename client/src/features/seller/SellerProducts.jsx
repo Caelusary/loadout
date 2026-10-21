@@ -42,7 +42,7 @@ const PRODUCT_COLUMNS = [
   { label: 'Product', skeleton: 'thumb' },
   { label: 'Price', skeleton: 'short', width: 150 },
   { label: 'Stock', skeleton: 'short', width: 76 },
-  { label: 'Status', skeleton: 'tag', width: 116 },
+  { label: 'Status', skeleton: 'tag', width: 148 }, // fits "Unlisted by admin" on one line
   { label: 'Actions', skeleton: 'button', align: 'right', width: 168 },
 ];
 

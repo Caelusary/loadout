@@ -80,7 +80,7 @@ export function Tag({ children, tone = 'neutral' }) {
   };
   return (
     <span
-      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[12px] font-medium ${tones[tone]}`}
+      className={`inline-flex h-6 items-center whitespace-nowrap rounded-full border px-2.5 text-[12px] font-medium ${tones[tone]}`}
     >
       {children}
     </span>

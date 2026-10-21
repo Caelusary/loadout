@@ -1,6 +1,6 @@
 import { Shadow, OrbitControls } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useReducedMotion } from './capabilities.js';
 import { onCanvasCreated } from './models/glSetup.js';
 import { BrightnessProbe, needsRim } from './models/brightness.js';
@@ -9,7 +9,8 @@ import { StudioLighting } from './models/StudioLighting.jsx';
 import { Warmup } from './models/Warmup.jsx';
 
 // Product page "3D view": one model the shopper can turn around.
-export default function ModelViewer({ product }) {
+// `onReady` fires once the model is loaded and drawing, so whatever stood in for it (the product photo) can go.
+export default function ModelViewer({ product, onReady }) {
   const reducedMotion = useReducedMotion();
   // Hold frames until shaders have compiled off the main thread, so opening the 3D view doesn't stall.
   const [warm, setWarm] = useState(false);
@@ -21,6 +22,9 @@ export default function ModelViewer({ product }) {
   const [loaded, setLoaded] = useState(false);
   const markLoaded = useCallback(() => setLoaded(true), []);
   const measured = useCallback((brightness) => setRim(needsRim(brightness)), []);
+  useEffect(() => {
+    if (loaded && warm) onReady?.();
+  }, [loaded, warm, onReady]);
   return (
     <Canvas
       onCreated={onCanvasCreated}

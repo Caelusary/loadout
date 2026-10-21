@@ -5,7 +5,6 @@ import { useTitle } from '../../components/layout/Page.jsx';
 import { NotFound } from '../../components/layout/NotFound.jsx';
 import { OrderStatus } from '../../components/ui/chips.jsx';
 import { ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
-import { api } from '../../lib/api.js';
 import { PAYMENT_LABELS } from '../../lib/constants.js';
 import { formatDateTime, orderNumber } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
@@ -13,6 +12,7 @@ import { DeliveryCheck } from './DeliveryCheck.jsx';
 import { MissedAttempts } from './MissedAttempts.jsx';
 import { OrderActions } from './OrderActions.jsx';
 import { OrderItems } from './OrderItems.jsx';
+import { orderQuery } from './queries.js';
 import { OrderTimeline } from './OrderTimeline.jsx';
 import { RiderCard } from './RiderCard.jsx';
 import { DeliveryProof, PaymentNote } from './OrderExtras.jsx';
@@ -24,18 +24,7 @@ import { mapsLink } from '../rider/delivery.js';
 export default function OrderDetailPage() {
   const { id } = useParams();
   const { user, can } = useAuth();
-  const {
-    data: order,
-    isPending,
-    isError,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ['order', id],
-    // `reviewed` lists the products on this order the customer has already rated.
-    queryFn: ({ signal }) =>
-      api(`/orders/${id}`, { signal }).then((r) => ({ ...r.order, reviewedProducts: r.reviewed ?? [] })),
-  });
+  const { data: order, isPending, isError, error, refetch } = useQuery(orderQuery(id));
   useTitle(order ? `Order ${orderNumber(order._id)}` : 'Order');
   if (isError) return error.status === 404 ? <NotFound /> : <ErrorState error={error} onRetry={refetch} />;
   if (isPending) {

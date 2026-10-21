@@ -20,6 +20,7 @@ import { useAdminLinks } from './components/layout/adminLinks.js';
 import { BackToTop, ScrollProgress } from './components/layout/ScrollExtras.jsx';
 import { NeonBackdrop } from './components/layout/NeonBackdrop.jsx';
 import { NeonCursor } from './components/layout/NeonCursor.jsx';
+import { LinkPrefetch } from './components/layout/LinkPrefetch.jsx';
 import { PerformanceSuggestion } from './components/layout/PerformanceSuggestion.jsx';
 import { DeliveryPrompt } from './features/orders/DeliveryPrompt.jsx';
 import { usePerformance } from './providers/PerformanceProvider.jsx';
@@ -87,6 +88,7 @@ function Layout() {
       {!perf.on && <NeonBackdrop />}
       <ScrollProgress />
       <NeonCursor />
+      <LinkPrefetch />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-control focus:bg-accent focus:px-3 focus:py-2 focus:text-on-accent"

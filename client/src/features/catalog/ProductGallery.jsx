@@ -1,11 +1,23 @@
 import { ArrowsIn, Cube, ImageSquare, Minus, Plus } from '@phosphor-icons/react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Skeleton } from '../../components/ui/feedback.jsx';
 import { ProductImage } from '../../components/ui/ProductImage.jsx';
+import { assetUrl } from '../../lib/api.js';
 import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { canRender3D } from '../home/capabilities.js';
 
-const ModelViewer = lazy(() => import('../home/ModelViewer.jsx'));
+const loadViewer = () => import('../home/ModelViewer.jsx');
+const ModelViewer = lazy(loadViewer);
+
+// Fetches the 3D viewer's code and this product's model ahead of the switch, so opening 3D only has to draw it.
+// Download only, once per model; the browser cache hands the file to the viewer.
+const warmed = new Set();
+function warm3D(product) {
+  loadViewer().catch(() => {});
+  const url = product.modelUrl && assetUrl(product.modelUrl);
+  if (!url || warmed.has(url)) return;
+  warmed.add(url);
+  fetch(url, { priority: 'low' }).catch(() => warmed.delete(url));
+}
 
 // The product's photos with click-to-zoom and pan, and its 3D model when the device can show one.
 const ZOOM_STEPS = [1, 2, 3];
@@ -204,6 +216,17 @@ export function Gallery({ product }) {
   const performanceMode = usePerformance().on;
   const threeD = canRender3D() && !performanceMode;
   const showing3D = threeD && mode === '3d';
+  // The photo stays up under the 3D view until the model is drawn, then fades out: no blank frame in between.
+  const [modelReady, setModelReady] = useState(false);
+  // With a mouse and room to spare (not data saver), the 3D view gets ready once the page has settled. Phones wait
+  // for a touch on the 3D button instead, so a shopper who only looks at photos doesn't pay for the model.
+  useEffect(() => {
+    if (!threeD || navigator.connection?.saveData || !matchMedia('(pointer: fine)').matches) return;
+    const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1500));
+    const cancel = window.cancelIdleCallback ?? clearTimeout;
+    const id = idle(() => warm3D(product), { timeout: 4000 });
+    return () => cancel(id);
+  }, [threeD, product]);
 
   const hinted = used[showing3D ? '3d' : 'photo'];
   // Switching view isn't using it, so the Photo / 3D buttons don't count.
@@ -231,9 +254,17 @@ export function Gallery({ product }) {
         onWheel={() => showing3D && !used['3d'] && setUsed((u) => ({ ...u, '3d': true }))}
       >
         {showing3D ? (
-          <Suspense fallback={<Skeleton className="size-full rounded-none" />}>
-            <ModelViewer product={product} />
-          </Suspense>
+          <>
+            <ProductImage
+              src={current?.url}
+              alt=""
+              eager
+              className={`pointer-events-none absolute inset-0 size-full transition-opacity duration-300 ${modelReady ? 'opacity-0' : 'opacity-100'}`}
+            />
+            <Suspense fallback={null}>
+              <ModelViewer product={product} onReady={() => setModelReady(true)} />
+            </Suspense>
+          </>
         ) : (
           <ZoomablePhoto
             key={current?.url}
@@ -255,7 +286,14 @@ export function Gallery({ product }) {
                 key={value}
                 type="button"
                 aria-pressed={mode === value}
-                onClick={() => setMode(value)}
+                onClick={() => {
+                  if (value === '3d' && mode !== '3d') setModelReady(false); // a fresh viewer draws again
+                  setMode(value);
+                }}
+                // Intent to open 3D (resting on it, touching it, tabbing to it) starts loading it.
+                onPointerEnter={value === '3d' ? () => warm3D(product) : undefined}
+                onTouchStart={value === '3d' ? () => warm3D(product) : undefined}
+                onFocus={value === '3d' ? () => warm3D(product) : undefined}
                 className="flex h-9 items-center gap-1.5 rounded-[4px] px-3 text-[13px] text-ink-2 transition-colors aria-pressed:bg-raised aria-pressed:text-ink"
               >
                 <Icon size={15} /> {label}
