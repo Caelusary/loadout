@@ -1,10 +1,15 @@
+import { PencilSimple } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useTitle } from '../../components/layout/Page.jsx';
 import { NotFound } from '../../components/layout/NotFound.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
 import { api, assetUrl } from '../../lib/api.js';
 import { formatDate, initials } from '../../lib/format.js';
+import { useAuth } from '../../providers/AuthProvider.jsx';
+import { EditShopDialog } from '../seller/EditShopDialog.jsx';
 import { ProductGrid } from './ProductTile.jsx';
 
 export default function StorefrontPage() {
@@ -14,6 +19,10 @@ export default function StorefrontPage() {
     queryFn: ({ signal }) => api(`/shops/${slug}`, { signal }),
   });
   useTitle(data?.shop.shopName ?? 'Shop');
+  const { user, isSeller } = useAuth();
+  // The shop's own seller edits its name and bio right here, seeing how they read to buyers.
+  const own = isSeller && user.sellerProfile?.slug === slug;
+  const [editing, setEditing] = useState(false);
 
   if (isError) return error.status === 404 ? <NotFound /> : <ErrorState error={error} onRetry={refetch} />;
 
@@ -29,7 +38,7 @@ export default function StorefrontPage() {
             {initials(data.shop.shopName)}
           </span>
         )}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           {isPending ? (
             <Skeleton className="h-9 w-56" />
           ) : (
@@ -42,7 +51,13 @@ export default function StorefrontPage() {
             </>
           )}
         </div>
+        {own && (
+          <Button variant="secondary" size="sm" className="self-start sm:self-center" onClick={() => setEditing(true)}>
+            <PencilSimple size={15} /> Edit shop
+          </Button>
+        )}
       </header>
+      {own && <EditShopDialog open={editing} onClose={() => setEditing(false)} />}
       {!isPending && data.products.length === 0 ? (
         <EmptyState title="No products listed yet">This shop hasn&apos;t listed anything. Check back soon.</EmptyState>
       ) : (

@@ -1,4 +1,4 @@
-import { ArrowRight, MagnifyingGlass } from '@phosphor-icons/react';
+import { MagnifyingGlass } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toQuery } from '../../lib/api.js';
@@ -131,15 +131,6 @@ export function HeroSearch({ category, picker }) {
             </Link>
           </li>
         ))}
-        <li className="shrink-0 transition-opacity duration-300 ease-out starting:opacity-0">
-          <Link
-            to={`/shop${toQuery({ category })}`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[14px] font-medium whitespace-nowrap text-accent-ink hover:underline"
-          >
-            All {label}
-            <ArrowRight size={14} />
-          </Link>
-        </li>
       </ScrollRow>
     </div>
   );

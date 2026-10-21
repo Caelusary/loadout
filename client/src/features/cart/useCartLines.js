@@ -37,7 +37,12 @@ export function useCartLines(items, { isChecked = () => true } = {}) {
     const sellerId = line.product?.seller?._id ?? 'unavailable';
     let group = groups.find((g) => g.sellerId === sellerId);
     if (!group) {
-      group = { sellerId, shopName: line.product?.seller?.sellerProfile?.shopName ?? 'No longer available', lines: [] };
+      group = {
+        sellerId,
+        shopName: line.product?.seller?.sellerProfile?.shopName ?? 'No longer available',
+        slug: line.product?.seller?.sellerProfile?.slug,
+        lines: [],
+      };
       groups.push(group);
     }
     group.lines.push(line);

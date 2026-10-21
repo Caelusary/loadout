@@ -63,9 +63,10 @@ export async function updateSeller(req, res) {
       status === 'approved'
         ? 'You can list products now from the Seller Center.'
         : wasPending
-          ? 'Your application was declined. Contact an admin if you think this is a mistake.'
+          ? 'Your application was declined. Your Sell page says when you can apply again.'
           : 'Your shop is suspended and its products are unlisted.',
-    link: status === 'approved' ? '/seller' : '/account',
+    // The Sell page is where a declined or suspended shop's state is explained (there's no admin inbox to write to).
+    link: status === 'approved' ? '/seller' : '/account/sell',
   });
   res.json({ user: target });
 }

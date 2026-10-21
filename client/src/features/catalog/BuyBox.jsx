@@ -1,7 +1,7 @@
 import { Check, Truck } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { Button } from '../../components/ui/Button.jsx';
+import { Button, ButtonLink } from '../../components/ui/Button.jsx';
 import { Price } from '../../components/ui/chips.jsx';
 import { QtyStepper } from '../../components/ui/controls.jsx';
 import { FREE_SHIPPING_MIN_CENTS, MAX_QTY, SHIPPING_FEE_CENTS } from '../../lib/constants.js';
@@ -58,12 +58,13 @@ export function BuyBox({ product }) {
     return () => clearTimeout(t);
   }, [added]);
 
+  // The shop's own product comes first: its seller needs the way to edit or restock it, whatever its state.
   let blocked = '';
-  if (!product.isActive) blocked = 'This product is no longer listed.';
+  if (ownProduct) blocked = 'This is your product.';
+  else if (!product.isActive) blocked = 'This product is no longer listed.';
   else if (product.stock === 0) blocked = 'Sold out for now.';
   else if (isAdmin) blocked = "Admin accounts can't buy products.";
   else if (isRider) blocked = "Rider accounts can't buy products.";
-  else if (ownProduct) blocked = 'This is your product.';
 
   const buyRow = useRef(null);
   const [buyRowVisible, setBuyRowVisible] = useState(true);
@@ -119,7 +120,17 @@ export function BuyBox({ product }) {
       </p>
       {blocked ? (
         <>
-          <p className="rounded-control border border-seam px-4 py-3 text-sm text-ink-2">{blocked}</p>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-seam px-4 py-3">
+            <p className="text-sm text-ink-2">
+              {blocked}
+              {ownProduct && product.stock === 0 ? ' It is sold out.' : ''}
+            </p>
+            {ownProduct && (
+              <ButtonLink to={`/seller/products/${product._id}/edit`} variant="secondary" size="sm">
+                {product.stock === 0 ? 'Restock' : 'Edit'}
+              </ButtonLink>
+            )}
+          </div>
           {product.isActive && product.stock === 0 && !ownProduct && <BackInStock product={product} />}
         </>
       ) : (

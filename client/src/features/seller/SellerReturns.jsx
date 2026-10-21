@@ -7,6 +7,8 @@ export default function SellerReturns() {
       description="Customers can return damaged, wrong or not-as-described items within 7 days of delivery. Approve or decline new ones; mark approved ones received when the item is back."
       endpoint="/returns/sold"
       statuses={['requested', 'approved', 'declined', 'escalated', 'refunded', 'closed']}
+      // An escalated return is the admin's to settle; the shop can only look.
+      actionable={['requested', 'approved']}
     />
   );
 }

@@ -13,14 +13,20 @@ import { formatDate } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 
 const schema = z.object({
-  shopName: z.string().trim().min(1, 'Shop name is required').min(3, 'Shop name must be at least 3 characters').max(40, 'Shop name must be at most 40 characters'),
+  shopName: z
+    .string()
+    .trim()
+    .min(1, 'Shop name is required')
+    .min(3, 'Shop name must be at least 3 characters')
+    .max(40, 'Shop name must be at most 40 characters'),
   bio: z.string().trim().max(500, 'Bio must be at most 500 characters'),
 });
 
 const STATUS_COPY = {
   pending: {
     title: 'Application under review',
-    body: (p) => `You applied as ${p.shopName} on ${formatDate(p.appliedAt)}. An admin will approve or decline it.`,
+    body: (p) =>
+      `You applied as ${p.shopName} on ${formatDate(p.appliedAt)}. An admin will approve or decline it.`,
   },
   approved: {
     title: 'You can sell on Loadout',
@@ -28,14 +34,14 @@ const STATUS_COPY = {
   },
   suspended: {
     title: 'Your shop is suspended',
-    body: () => 'An admin suspended this shop, so its products are unlisted. Contact support if you think this is a mistake.',
+    body: () => 'An admin suspended this shop, so its products are unlisted until an admin restores it.',
   },
   declined: {
     title: 'Your application was declined',
-    body: (p, again) => `An admin declined ${p.shopName} on ${formatDate(p.reviewedAt)}. You can apply again on ${formatDate(again)}.`,
+    body: (p, again) =>
+      `An admin declined ${p.shopName} on ${formatDate(p.reviewedAt)}. You can apply again on ${formatDate(again)}.`,
   },
 };
-
 
 export default function SellApplicationPage() {
   useTitle('Sell on Loadout');
@@ -46,12 +52,19 @@ export default function SellApplicationPage() {
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: zodResolver(schema), mode: 'onBlur', reValidateMode: 'onChange', defaultValues: { shopName: '', bio: '' } });
+  } = useForm({
+    resolver: zodResolver(schema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    defaultValues: { shopName: '', bio: '' },
+  });
 
   const [now] = useState(() => Date.now());
   const profile = user.sellerProfile;
   const declined = profile?.status === 'suspended' && user.role === 'customer';
-  const againAt = declined ? new Date(profile.reviewedAt ?? profile.appliedAt).getTime() + REAPPLY_WAIT_MS : 0;
+  const againAt = declined
+    ? new Date(profile.reviewedAt ?? profile.appliedAt).getTime() + REAPPLY_WAIT_MS
+    : 0;
   const canReapply = declined && againAt <= now;
   if (profile && !canReapply) {
     const copy = STATUS_COPY[declined ? 'declined' : profile.status];
@@ -96,8 +109,21 @@ export default function SellApplicationPage() {
         })}
       >
         <FormError message={formError} />
-        <TextField label="Shop name" placeholder="Enter your shop name" hint="Shown on your storefront and on every product." error={errors.shopName?.message} {...register('shopName')} />
-        <TextAreaField label="About your shop" optional rows={4} placeholder="What do you sell, and what makes your shop different?" error={errors.bio?.message} {...register('bio')} />
+        <TextField
+          label="Shop name"
+          placeholder="Enter your shop name"
+          hint="Shown on your storefront and on every product."
+          error={errors.shopName?.message}
+          {...register('shopName')}
+        />
+        <TextAreaField
+          label="About your shop"
+          optional
+          rows={4}
+          placeholder="What do you sell, and what makes your shop different?"
+          error={errors.bio?.message}
+          {...register('bio')}
+        />
         <div>
           <Button type="submit" loading={isSubmitting}>
             Send application

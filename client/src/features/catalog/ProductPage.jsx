@@ -48,7 +48,10 @@ function SimilarProducts({ product }) {
         <h2 id="similar-title" className="wide text-2xl font-bold">
           More {CATEGORY_LABELS[product.category].toLowerCase()}
         </h2>
-        <Link to={`/shop?category=${product.category}`} className="-my-2 py-2 text-base font-medium text-ink-2 hover:text-accent-ink">
+        <Link
+          to={`/shop?category=${product.category}`}
+          className="-my-2 py-2 text-base font-medium text-ink-2 hover:text-accent-ink"
+        >
           See all
         </Link>
       </div>
@@ -89,7 +92,6 @@ export default function ProductPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 pt-8 sm:px-6">
-
       {isPending ? (
         <div className="grid gap-10 md:grid-cols-[1.1fr_1fr] md:gap-8">
           <Skeleton className="aspect-square rounded-panel" />
@@ -109,6 +111,7 @@ export default function ProductPage() {
                 {product.seller?.sellerProfile && (
                   <Link
                     to={`/s/${product.seller.sellerProfile.slug}`}
+                    data-cursor-skip
                     className="w-fit text-sm text-ink-2 hover:text-accent-ink"
                   >
                     {product.seller.sellerProfile.shopName}

@@ -1,6 +1,6 @@
 import { MagnifyingGlass, Plus, X } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Page } from '../../components/layout/Page.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Price } from '../../components/ui/chips.jsx';
@@ -122,7 +122,12 @@ function Picker({ category, currentId, onPick, onClose }) {
                       {p.stock === 0 ? (
                         <span className="text-bad">Sold out</span>
                       ) : (
-                        <Price cents={p.priceCents} was={p.compareAtCents} tag={false} className="font-mono" />
+                        <Price
+                          cents={p.priceCents}
+                          was={p.compareAtCents}
+                          tag={false}
+                          className="font-mono"
+                        />
                       )}
                     </span>
                   </span>
@@ -162,7 +167,11 @@ function Slot({ category, product, loading, onChoose, onClear }) {
                 {product.name}
               </span>
               <span className="text-[12px] text-ink-3">{product.seller?.sellerProfile?.shopName}</span>
-              <Price cents={product.priceCents} was={product.compareAtCents} className="font-mono text-[14px]" />
+              <Price
+                cents={product.priceCents}
+                was={product.compareAtCents}
+                className="font-mono text-[14px]"
+              />
             </span>
           </Link>
           <div className="mt-auto flex gap-2">
@@ -192,6 +201,7 @@ function Slot({ category, product, loading, onChoose, onClear }) {
 export default function LoadoutPage() {
   const { user, isAdmin, canShop } = useAuth();
   const cart = useCart();
+  const [params, setParams] = useSearchParams();
   const toast = useToast();
   const navigate = useNavigate();
   const [picks, setPicks] = useState(readPicks);
@@ -218,16 +228,53 @@ export default function LoadoutPage() {
   const inCart = new Set(cart.items.map((i) => i.productId));
   // Already-in-cart picks are left alone, so pressing the button twice doesn't double them up.
   const buyable = chosen.filter((p) => p.stock > 0 && p.seller?._id !== user?._id && !inCart.has(p._id));
+  // Picks already in the cart are a success, not a problem: only sold-out and own-shop picks get the warning.
+  const added = chosen.filter((p) => inCart.has(p._id)).length;
+  const blocked = chosen.length - buyable.length - added;
+  // Once everything addable is in, the button turns into the way to the cart instead of going dead.
+  const doneAdding = user && buyable.length === 0 && added > 0;
+  const buttonLabel = (short) =>
+    !user
+      ? short
+        ? 'Sign in to add'
+        : 'Sign in to add to cart'
+      : buyable.length
+        ? `Add ${buyable.length} to cart`
+        : doneAdding
+          ? 'View cart'
+          : 'Add to cart';
   const subtotal = chosen.reduce((sum, p) => sum + p.priceCents, 0);
   const shops = new Set(chosen.map((p) => p.seller?._id)).size;
 
-  const addAll = () => {
-    if (!user) return navigate(`/login?next=${encodeURIComponent('/loadout')}`);
+  const addBuyable = () =>
     Promise.all(buyable.map((p) => cart.add(p._id, 1))).then((results) => {
       const n = results.filter(Boolean).length;
       if (n) toast.show(`${n} item${n === 1 ? '' : 's'} added to your cart`);
     });
+  const addAll = () => {
+    // A guest comes back from signing in with ?add=1, and the add then goes through (below).
+    if (!user) return navigate(`/login?next=${encodeURIComponent('/loadout?add=1')}`);
+    if (doneAdding) return navigate('/cart');
+    addBuyable();
   };
+  // Once they're signed in, their saved cart has loaded (so picks already in it are skipped) and the picks have
+  // loaded, add once and drop the flag.
+  const pendingAdd = params.get('add') === '1';
+  const addedPending = useRef(false);
+  const picksLoaded = ids.length === 0 || Boolean(data);
+  useEffect(() => {
+    if (!pendingAdd || addedPending.current || !user || !cart.enabled || !cart.ready || !picksLoaded) return;
+    addedPending.current = true;
+    if (canShop) addBuyable();
+    setParams(
+      (p) => {
+        p.delete('add');
+        return p;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- addBuyable reads the current picks
+  }, [pendingAdd, user, cart, picksLoaded, canShop, setParams]);
 
   return (
     <Page title="Build your loadout">
@@ -286,18 +333,27 @@ export default function LoadoutPage() {
           {!canShop ? (
             <p className="text-[13px] text-ink-3">{isAdmin ? 'Admin' : 'Rider'} accounts can&apos;t shop.</p>
           ) : (
-            <Button size="lg" className="w-full" disabled={user && buyable.length === 0} onClick={addAll}>
-              {!user
-                ? 'Sign in to add to cart'
-                : buyable.length
-                  ? `Add ${buyable.length} to cart`
-                  : 'Add to cart'}
+            <Button
+              size="lg"
+              className="w-full"
+              variant={doneAdding ? 'secondary' : undefined}
+              disabled={user && buyable.length === 0 && !doneAdding}
+              onClick={addAll}
+            >
+              {buttonLabel(false)}
             </Button>
           )}
-          {user && chosen.length > buyable.length && (
+          {user && canShop && added > 0 && (
+            <p className="text-[12px] text-ok">
+              {added === chosen.length
+                ? 'Your whole loadout is'
+                : `${added} pick${added === 1 ? ' is' : 's are'}`}{' '}
+              in your cart.
+            </p>
+          )}
+          {user && canShop && blocked > 0 && (
             <p className="text-[12px] text-warn">
-              {chosen.length - buyable.length} pick{chosen.length - buyable.length === 1 ? ' is' : 's are'}{' '}
-              skipped: already in your cart, sold out, or from your own shop.
+              {blocked} pick{blocked === 1 ? '' : 's'} can&apos;t be added: sold out or from your own shop.
             </p>
           )}
           {chosen.length > 0 && (
@@ -322,8 +378,12 @@ export default function LoadoutPage() {
             </span>
             <span className="font-mono font-medium text-ink tabular-nums">{formatMoney(subtotal)}</span>
           </a>
-          <Button disabled={user && buyable.length === 0} onClick={addAll}>
-            {!user ? 'Sign in to add' : buyable.length ? `Add ${buyable.length} to cart` : 'Add to cart'}
+          <Button
+            variant={doneAdding ? 'secondary' : undefined}
+            disabled={user && buyable.length === 0 && !doneAdding}
+            onClick={addAll}
+          >
+            {buttonLabel(true)}
           </Button>
         </div>
       )}

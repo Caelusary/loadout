@@ -1,6 +1,6 @@
 import { Link as LinkIcon, Plus, X } from '@phosphor-icons/react';
 import { useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Page } from '../../components/layout/Page.jsx';
 import { Button, ButtonLink } from '../../components/ui/Button.jsx';
 import { Price, SwitchChip } from '../../components/ui/chips.jsx';
@@ -9,6 +9,8 @@ import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.j
 import { ProductImage } from '../../components/ui/ProductImage.jsx';
 import { CATEGORY_LABELS, MAX_COMPARE, SPEC_FIELDS } from '../../lib/constants.js';
 import { formatSpec, SPEC_NAMES } from '../../lib/format.js';
+import { useAuth } from '../../providers/AuthProvider.jsx';
+import { useCart } from '../../providers/CartProvider.jsx';
 import { useCompare } from '../../providers/CompareProvider.jsx';
 import { useToast } from '../../providers/ToastProvider.jsx';
 import { useProducts } from '../catalog/queries.js';
@@ -63,6 +65,39 @@ function Row({ label, values, render, direction, slot }) {
       ))}
       {slot && <td aria-hidden="true" />}
     </tr>
+  );
+}
+
+// The end of a comparison is a decision, so each column ends with the way to act on it. Guests are sent to sign in
+// and come back; sold-out, own-shop and already-added products say why instead of offering a dead button.
+function BuyCell({ product }) {
+  const { user, canShop } = useAuth();
+  const cart = useCart();
+  const navigate = useNavigate();
+  const toast = useToast();
+  if (user && !canShop) return null;
+  const inCart = cart.items.some((i) => i.productId === product._id);
+  const note = (text) => <p className="py-2 text-[13px] text-ink-3">{text}</p>;
+  if (product.stock === 0) return note('Sold out');
+  if (user && product.seller?._id === user._id) return note('Your listing');
+  if (inCart)
+    return (
+      <ButtonLink to="/cart" variant="secondary" size="sm" className="w-full max-w-[200px]">
+        In your cart
+      </ButtonLink>
+    );
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      className="w-full max-w-[200px]"
+      onClick={() => {
+        if (!user) return navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+        cart.add(product._id, 1).then((ok) => ok && toast.show(`${product.name} added to your cart`));
+      }}
+    >
+      {user ? 'Add to cart' : 'Sign in to add'}
+    </Button>
   );
 }
 
@@ -175,6 +210,7 @@ export default function ComparePage() {
                       <p className="text-[12px] text-ink-3">{p.seller?.sellerProfile?.shopName}</p>
                       <Link
                         to={`/p/${p.slug}`}
+                        data-cursor-skip
                         className="text-[15px] font-medium text-ink hover:text-accent-ink"
                       >
                         {p.name}
@@ -233,6 +269,17 @@ export default function ComparePage() {
                   render={(v) => (key === 'switchType' ? <SwitchChip type={v} /> : formatSpec(key, v))}
                 />
               ))}
+              <tr className="border-t border-seam">
+                <th scope="row" className="sticky left-0 z-10 bg-bg py-4 pr-4 pl-5">
+                  <span className="sr-only">Buy</span>
+                </th>
+                {products.map((p) => (
+                  <td key={p._id} className="px-3 py-4 text-center">
+                    <BuyCell product={p} />
+                  </td>
+                ))}
+                {slot && <td aria-hidden="true" />}
+              </tr>
             </tbody>
           )}
         </table>
