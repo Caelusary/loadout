@@ -48,10 +48,12 @@ export function RequireAuth({ allow }) {
 }
 
 export function GuestOnly() {
-  const { status, user } = useAuth();
+  const { status, user, confirmed } = useAuth();
   const [params] = useSearchParams();
   if (status === 'loading') return <PageSpinner />;
-  if (user) return <Navigate to={safeNext(params.get('next'))} replace />;
+  // Only a session the server has confirmed sends someone away from sign-in: the account remembered on this device
+  // may have ended (an expired cookie), and the form stays usable while that's checked.
+  if (user && confirmed) return <Navigate to={safeNext(params.get('next'))} replace />;
   return <Outlet />;
 }
 
