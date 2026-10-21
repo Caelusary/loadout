@@ -6,18 +6,16 @@ import { useTitle } from '../../components/layout/Page.jsx';
 import { NotFound } from '../../components/layout/NotFound.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/feedback.jsx';
-import { api, assetUrl } from '../../lib/api.js';
+import { assetUrl } from '../../lib/api.js';
 import { formatDate, initials } from '../../lib/format.js';
 import { useAuth } from '../../providers/AuthProvider.jsx';
 import { EditShopDialog } from '../seller/EditShopDialog.jsx';
 import { ProductGrid } from './ProductTile.jsx';
+import { shopQuery } from './queries.js';
 
 export default function StorefrontPage() {
   const { slug } = useParams();
-  const { data, isPending, isError, error, refetch } = useQuery({
-    queryKey: ['shop', slug],
-    queryFn: ({ signal }) => api(`/shops/${slug}`, { signal }),
-  });
+  const { data, isPending, isError, error, refetch } = useQuery(shopQuery(slug));
   useTitle(data?.shop.shopName ?? 'Shop');
   const { user, isSeller } = useAuth();
   // The shop's own seller edits its name and bio right here, seeing how they read to buyers.
