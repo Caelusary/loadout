@@ -10,6 +10,8 @@ import { CATEGORY_MODELS, prefetchModel } from './categoryModels.js';
 import { HeroSearch } from './HeroSearch.jsx';
 import { ScrollRow } from '../../components/ui/ScrollRow.jsx';
 
+import { ThreeGuard } from './models/ThreeGuard.jsx';
+
 const CategoryScene = lazy(() => import('./CategoryScene.jsx'));
 
 const DRAG_TO_RADIANS = 0.01;
@@ -126,7 +128,10 @@ export function CategoryHero() {
   const canThreeD = useMemo(() => canRender3D(), []);
   // Performance mode shows the category photo instead, so the 3D engine and models never load.
   const performanceMode = usePerformance().on;
-  const threeD = canThreeD && !performanceMode;
+  // If the 3D stage breaks on this device (an error, or the GPU dropping the context), the category photos take over
+  // for this visit instead of the page crashing.
+  const [failed3D, setFailed3D] = useState(false);
+  const threeD = canThreeD && !performanceMode && !failed3D;
   const reducedMotion = useReducedMotion();
   const compact = useMediaQuery('(max-width: 1023px)');
   const stage = useRef(null);
@@ -252,16 +257,19 @@ export function CategoryHero() {
             <div
               className={`absolute inset-0 transition-opacity duration-500 ease-out ${sceneReady ? dim : 'opacity-0'}`}
             >
-              <Suspense fallback={null}>
-                <CategoryScene
-                  active={active}
-                  compact={compact}
-                  reducedMotion={reducedMotion}
-                  running={running}
-                  spinRef={spinRef}
-                  onReady={markShown}
-                />
-              </Suspense>
+              <ThreeGuard onFail={() => setFailed3D(true)}>
+                <Suspense fallback={null}>
+                  <CategoryScene
+                    active={active}
+                    compact={compact}
+                    reducedMotion={reducedMotion}
+                    running={running}
+                    spinRef={spinRef}
+                    onReady={markShown}
+                    onLost={() => setFailed3D(true)}
+                  />
+                </Suspense>
+              </ThreeGuard>
             </div>
           )}
 

@@ -52,7 +52,10 @@ export function AuthProvider({ children }) {
   const [signedOut, setSignedOut] = useState(false);
 
   const startSession = useCallback(
-    (user) => {
+    async (user) => {
+      // A /auth/me still in flight from before the sign-in would land after it and overwrite the new session with
+      // "signed out" (the form is usable while that check runs), so it's cancelled first.
+      await queryClient.cancelQueries({ queryKey: ['me'] });
       // Drop anything cached for the previous visitor before showing the new session.
       queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
       queryClient.setQueryData(['me'], user);

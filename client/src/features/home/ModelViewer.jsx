@@ -2,15 +2,16 @@ import { Shadow, OrbitControls } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useCallback, useEffect, useState } from 'react';
 import { useReducedMotion } from './capabilities.js';
-import { onCanvasCreated } from './models/glSetup.js';
+import { watchContext } from './models/glSetup.js';
 import { BrightnessProbe, needsRim } from './models/brightness.js';
 import { ProductModel } from './models/ProductModel.jsx';
 import { StudioLighting } from './models/StudioLighting.jsx';
 import { Warmup } from './models/Warmup.jsx';
 
 // Product page "3D view": one model the shopper can turn around.
-// `onReady` fires once the model is loaded and drawing, so whatever stood in for it (the product photo) can go.
-export default function ModelViewer({ product, onReady }) {
+// `onReady` fires once the model is loaded and drawing, so whatever stood in for it (the product photo) can go;
+// `onLost` if the GPU drops the 3D context, so the page can go back to the photo.
+export default function ModelViewer({ product, onReady, onLost }) {
   const reducedMotion = useReducedMotion();
   // Hold frames until shaders have compiled off the main thread, so opening the 3D view doesn't stall.
   const [warm, setWarm] = useState(false);
@@ -27,10 +28,11 @@ export default function ModelViewer({ product, onReady }) {
   }, [loaded, warm, onReady]);
   return (
     <Canvas
-      onCreated={onCanvasCreated}
+      onCreated={watchContext(onLost)}
       frameloop={warm ? 'always' : 'never'}
       className="cursor-grab active:cursor-grabbing"
-      dpr={[1, 2]}
+      // Capped at 1.5: on a high-DPI laptop 2x quadruples the GPU memory for little visible gain.
+      dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true }}
       camera={{ position: [0, 0.4, 5.2], fov: 30 }}
     >
