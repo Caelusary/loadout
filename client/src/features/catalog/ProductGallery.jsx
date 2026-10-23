@@ -2,6 +2,7 @@ import { ArrowsIn, Cube, ImageSquare, Minus, Plus } from '@phosphor-icons/react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ProductImage } from '../../components/ui/ProductImage.jsx';
 import { assetUrl } from '../../lib/api.js';
+import { ThreeGuard } from '../home/models/ThreeGuard.jsx';
 import { usePerformance } from '../../providers/PerformanceProvider.jsx';
 import { canRender3D } from '../home/capabilities.js';
 
@@ -214,7 +215,10 @@ export function Gallery({ product }) {
   const current = images[index] ?? images[0];
   // Performance mode keeps the product to photos: no 3D view button, and an open 3D view closes.
   const performanceMode = usePerformance().on;
-  const threeD = canRender3D() && !performanceMode;
+  // A 3D view that breaks on this device (an error, or the GPU dropping the context) goes back to the photo and the
+  // 3D button goes away for this visit, rather than the page crashing.
+  const [failed3D, setFailed3D] = useState(false);
+  const threeD = canRender3D() && !performanceMode && !failed3D;
   const showing3D = threeD && mode === '3d';
   // The photo stays up under the 3D view until the model is drawn, then fades out: no blank frame in between.
   const [modelReady, setModelReady] = useState(false);
@@ -261,9 +265,15 @@ export function Gallery({ product }) {
               eager
               className={`pointer-events-none absolute inset-0 size-full transition-opacity duration-300 ${modelReady ? 'opacity-0' : 'opacity-100'}`}
             />
-            <Suspense fallback={null}>
-              <ModelViewer product={product} onReady={() => setModelReady(true)} />
-            </Suspense>
+            <ThreeGuard onFail={() => setFailed3D(true)}>
+              <Suspense fallback={null}>
+                <ModelViewer
+                  product={product}
+                  onReady={() => setModelReady(true)}
+                  onLost={() => setFailed3D(true)}
+                />
+              </Suspense>
+            </ThreeGuard>
           </>
         ) : (
           <ZoomablePhoto
