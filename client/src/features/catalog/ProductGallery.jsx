@@ -286,9 +286,7 @@ export function Gallery({ product }) {
         )}
         {threeD && (
           <div
-            // No backdrop blur over the 3D view: on some Windows GPU drivers a blurred layer over a WebGL canvas stops
-            // the canvas being drawn (the model vanished on the first click, when the hint below faded). Solid there.
-            className={`absolute top-3 left-3 inline-flex rounded-control border border-seam p-0.5 ${showing3D ? 'bg-plate' : 'bg-plate/90 backdrop-blur-sm'}`}
+            className="absolute top-3 left-3 inline-flex rounded-control border border-seam bg-plate/90 p-0.5 backdrop-blur-sm"
             role="group"
             aria-label="View"
           >
@@ -317,7 +315,7 @@ export function Gallery({ product }) {
         )}
         <p
           aria-hidden={hinted}
-          className={`pointer-events-none absolute bottom-3 left-3 flex h-11 items-center rounded-control border border-seam px-3 text-[12px] text-ink-3 transition-opacity ${showing3D ? 'bg-plate' : 'bg-plate/90 backdrop-blur-sm'} duration-500 motion-reduce:transition-none ${hinted ? 'opacity-0' : 'opacity-100'}`}
+          className={`pointer-events-none absolute bottom-3 left-3 flex h-11 items-center rounded-control border border-seam bg-plate/90 px-3 text-[12px] text-ink-3 backdrop-blur-sm transition-opacity duration-500 motion-reduce:transition-none ${hinted ? 'opacity-0' : 'opacity-100'}`}
         >
           {hint}
         </p>
