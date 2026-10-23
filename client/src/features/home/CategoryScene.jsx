@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { easing } from 'maath';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { assetUrl } from '../../lib/api.js';
-import { onCanvasCreated } from './models/glSetup.js';
+import { watchContext } from './models/glSetup.js';
 import { ProductModel } from './models/ProductModel.jsx';
 import { StudioLighting } from './models/StudioLighting.jsx';
 import { CATEGORY_MODELS, categoryModel } from './categoryModels.js';
@@ -114,7 +114,7 @@ function ReadyAfterFrames({ category, onReady }) {
   return null;
 }
 
-export default function CategoryScene({ active, compact, reducedMotion, running, spinRef, onReady }) {
+export default function CategoryScene({ active, compact, reducedMotion, running, spinRef, onReady, onLost }) {
   const [loadedFor, setLoadedFor] = useState(null);
   // Models wait for the lighting, so they compile once against the finished environment.
   const [lit, setLit] = useState(false);
@@ -126,7 +126,7 @@ export default function CategoryScene({ active, compact, reducedMotion, running,
   }, [firstUrl]);
   return (
     <Canvas
-      onCreated={onCanvasCreated}
+      onCreated={watchContext(onLost)}
       className="!absolute inset-0"
       frameloop={running ? 'always' : 'never'}
       dpr={[1, 1.75]}
