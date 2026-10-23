@@ -32,3 +32,10 @@ export async function expectAccessible(page) {
   );
   expect(report, report.join('\n')).toEqual([]);
 }
+
+// Any error the page throws fails the test, even ones the UI recovers from.
+export function watchErrors(page) {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  return errors;
+}
