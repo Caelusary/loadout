@@ -259,12 +259,14 @@ export function Gallery({ product }) {
       >
         {showing3D ? (
           <>
-            <ProductImage
-              src={current?.url}
-              alt=""
-              eager
-              className={`pointer-events-none absolute inset-0 size-full transition-opacity duration-300 ${modelReady ? 'opacity-0' : 'opacity-100'}`}
-            />
+            {/* The wrapper does the positioning: ProductImage sets its own box to `relative`, which overrode
+                `absolute` here, so the photo took up the stage and pushed the 3D canvas down out of view. */}
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${modelReady ? 'opacity-0' : 'opacity-100'}`}
+            >
+              <ProductImage src={current?.url} alt="" eager className="size-full" />
+            </div>
             <ThreeGuard onFail={() => setFailed3D(true)}>
               <Suspense fallback={null}>
                 <ModelViewer
