@@ -325,8 +325,13 @@ export function Gallery({ product }) {
                   setMode(value);
                   // Building the viewer holds up the page for a moment (GPU context, shaders), so it starts only
                   // after the glow is on screen; the glow keeps pulsing meanwhile. Built straight away, the photo
-                  // stayed up and frozen until it was done.
-                  if (value === '3d' && !viewerOn) requestAnimationFrame(() => setTimeout(() => setViewerOn(true)));
+                  // stayed up and frozen until it was done. The timer is the fallback for a page that isn't getting
+                  // frames (power saving, a window not on screen), where waiting for one left 3D on the glow forever.
+                  if (value === '3d' && !viewerOn) {
+                    const build = () => setViewerOn(true);
+                    requestAnimationFrame(() => setTimeout(build));
+                    setTimeout(build, 150);
+                  }
                 }}
                 // Intent to open 3D (resting on it, touching it, tabbing to it) starts loading it.
                 onPointerEnter={value === '3d' ? () => warm3D(product) : undefined}
