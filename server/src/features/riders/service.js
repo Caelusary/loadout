@@ -16,9 +16,7 @@ export function replyText(body) {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Dispatch ranks riders by rating, smoothed toward 4 stars as if each had 10 extra 4-star ratings, so a new rider
-// isn't sunk (or crowned) by their first one. Score = smoothed rating x 2 - orders already on the way: a 4.8 rider
-// gets the next order until they have about three more on the way than a 3.2 rider, so low-rated riders still get
-// work, just less of it.
+// isn't sunk (or crowned) by their first one.
 const PRIOR_STARS = 4;
 const PRIOR_WEIGHT = 10;
 export const smoothedRating = ({ sum = 0, count = 0 } = {}) =>
@@ -44,8 +42,10 @@ export async function ratingTotals(riderIds) {
   return new Map(rows.map((r) => [String(r._id), { sum: r.sum, count: r.count }]));
 }
 
-// The rider for an order about to go out: active, not on hold, not one who already declined it, best score first
-// (ties to the longest-serving rider). Null when nobody can take it.
+// The rider for an order about to go out: active, not on hold (paused riders get nothing), not one who already
+// declined it. A free rider always comes before a busy one, and among the free the highest rated goes first; when
+// everyone has deliveries, the one with the fewest gets it, highest rated first again. Ties go to the
+// longest-serving rider. Null when nobody can take it.
 export async function pickRider(session, exclude = []) {
   const riders = await User.find(
     { role: 'rider', isActive: true, 'riderProfile.heldAt': null, _id: { $nin: exclude } },
@@ -63,8 +63,11 @@ export async function pickRider(session, exclude = []) {
     ratingTotals(ids),
   ]);
   const busy = new Map(load.map((r) => [String(r._id), r.n]));
-  const score = (id) => smoothedRating(ratings.get(String(id))) * 2 - (busy.get(String(id)) ?? 0);
-  return ids.reduce((best, id) => (score(id) > score(best) ? id : best));
+  const onTheWay = (id) => busy.get(String(id)) ?? 0;
+  const rating = (id) => smoothedRating(ratings.get(String(id)));
+  // `ids` is longest-serving first, so keeping the earlier rider on a full tie settles it.
+  const better = (a, b) => onTheWay(a) < onTheWay(b) || (onTheWay(a) === onTheWay(b) && rating(a) > rating(b));
+  return ids.reduce((best, id) => (better(id, best) ? id : best));
 }
 
 const declinedBy = (order) => (order.declines ?? []).map((d) => d.rider);
