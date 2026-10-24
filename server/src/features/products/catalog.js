@@ -135,7 +135,8 @@ export async function featuredProducts(req, res) {
     .sort({ updatedAt: -1 })
     .limit(MAX_FEATURED)
     .populate('seller', SELLER_FIELDS);
-  shareForAMinute(res);
+  // Not shared through the CDN: an admin featuring or unfeaturing a product should show on every homepage at once,
+  // not up to a minute later. It's at most 8 products, so the round trip is small.
   res.json({ items });
 }
 
