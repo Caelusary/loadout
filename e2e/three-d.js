@@ -66,14 +66,23 @@ export const stage = (page) => page.locator(STAGE).first();
 export async function open3D(page) {
   await viewButton(page, '3D view').click();
   await expect(viewButton(page, '3D view')).toHaveAttribute('aria-pressed', 'true');
+  // No photo in the viewer while 3D is on, loading or not: a model fading in over the photo showed both at once.
+  await expect(stage(page).locator('img')).toHaveCount(0);
   await expectModelShown(page);
 }
 
 export async function openPhoto(page) {
   await viewButton(page, 'Photo').click();
   await expect(viewButton(page, 'Photo')).toHaveAttribute('aria-pressed', 'true');
-  await expect(stage(page).locator('canvas')).toHaveCount(0);
+  // The 3D viewer stays built but hidden (switching back is then instant), and the photo is what's on top.
+  await expect(stage(page).locator('canvas')).toBeHidden();
   await expect(stage(page).locator('img').first()).toBeVisible();
+  // Nothing of the hidden 3D view sits in the photo's way: what's under the pointer at the centre is the photo.
+  const topIsCanvas = await page.evaluate((sel) => {
+    const s = document.querySelector(sel).getBoundingClientRect();
+    return document.elementFromPoint(s.left + s.width / 2, s.top + s.height / 2)?.tagName === 'CANVAS';
+  }, STAGE);
+  expect(topIsCanvas).toBe(false);
 }
 
 export { watchErrors } from './helpers.js';
