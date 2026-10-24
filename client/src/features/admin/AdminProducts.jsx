@@ -75,19 +75,7 @@ export default function AdminProducts() {
             : `${p.name} is unlisted`,
       );
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
-      // The CDN keeps /products/featured for a minute, so refetching the usual URL could bring back the old row.
-      // A one-off URL skips that cache, and the homepage shows the change as soon as the admin goes there.
-      queryClient.invalidateQueries({
-        queryKey: ['products'],
-        predicate: (q) => q.queryKey[1] !== 'featured',
-      });
-      queryClient
-        .fetchQuery({
-          queryKey: ['products', 'featured'],
-          queryFn: () => api(`/products/featured?fresh=${Date.now()}`).then((r) => r.items),
-          staleTime: 0,
-        })
-        .catch(() => queryClient.invalidateQueries({ queryKey: ['products', 'featured'] }));
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       setUnlisting(null);
       setReason('');
     },
