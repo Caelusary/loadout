@@ -220,10 +220,16 @@ export function Gallery({ product }) {
   const [failed3D, setFailed3D] = useState(false);
   const threeD = canRender3D() && !performanceMode && !failed3D;
   const showing3D = threeD && mode === '3d';
-  // The photo stays up under the 3D view until the model is drawn, then fades out: no blank frame in between.
+  // Until the model is drawn the 3D view shows a pulsing glow, then the model fades in: never a model over a photo.
   const [modelReady, setModelReady] = useState(false);
-  // With a mouse and room to spare (not data saver), the 3D view gets ready once the page has settled. Phones wait
-  // for a touch on the 3D button instead, so a shopper who only looks at photos doesn't pay for the model.
+  // Once built (on the first switch to 3D), the viewer stays on the page: switching back to Photo hides and pauses it
+  // rather than throwing it away, so switching to 3D again is instant (no new GPU context, shader compile or lighting
+  // setup each time) and the model is where it was left. It isn't built before that: a hidden GPU context on every
+  // product page costs weak laptops for shoppers who never open 3D.
+  const [viewerOn, setViewerOn] = useState(false);
+  // With a mouse and room to spare (not data saver), the model's files download once the page has settled, so the
+  // first switch only waits on the GPU. Phones wait for a touch on the 3D button instead, so a shopper who only looks
+  // at photos doesn't pay for the model.
   useEffect(() => {
     if (!threeD || navigator.connection?.saveData || !matchMedia('(pointer: fine)').matches) return;
     const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1500));
@@ -257,32 +263,46 @@ export function Gallery({ product }) {
         // Zooming the model counts as using the 3D view (the photo reports its own wheel zoom).
         onWheel={() => showing3D && !used['3d'] && setUsed((u) => ({ ...u, '3d': true }))}
       >
-        {showing3D ? (
-          <>
-            {/* The wrapper does the positioning: ProductImage sets its own box to `relative`, which overrode
-                `absolute` here, so the photo took up the stage and pushed the 3D canvas down out of view. */}
-            <div
-              aria-hidden="true"
-              className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${modelReady ? 'opacity-0' : 'opacity-100'}`}
-            >
-              <ProductImage src={current?.url} alt="" eager className="size-full" />
-            </div>
-            <ThreeGuard onFail={() => setFailed3D(true)}>
-              <Suspense fallback={null}>
-                <ModelViewer
-                  product={product}
-                  onReady={() => setModelReady(true)}
-                  onLost={() => setFailed3D(true)}
-                />
-              </Suspense>
-            </ThreeGuard>
-          </>
-        ) : (
+        {!showing3D && (
           <ZoomablePhoto
             key={current?.url}
             image={current}
             onZoom={() => !used.photo && setUsed((u) => ({ ...u, photo: true }))}
           />
+        )}
+        {/* The 3D layer, on top of the photo while shown. Hidden, it's invisible to the pointer and paused (no
+            frames), and fades back in on the next switch. */}
+        {threeD && (viewerOn || showing3D) && (
+          <div
+            aria-hidden={!showing3D}
+            className={`absolute inset-0 transition-[opacity,visibility] duration-200 ${showing3D ? 'visible opacity-100' : 'invisible opacity-0'}`}
+          >
+            {/* While the model loads, a soft neon glow breathes where it will appear (the home stage does the same),
+                and the model fades in only once it's drawn. No photo underneath: a model fading in over the photo
+                showed two products on top of each other for a moment. */}
+            {!modelReady && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 grid place-items-center"
+              >
+                <div className="h-[55%] w-[75%] animate-pulse rounded-[50%] bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-accent)_var(--stage-glow),transparent),transparent)] blur-2xl motion-reduce:animate-none" />
+              </div>
+            )}
+            <div
+              className={`absolute inset-0 transition-opacity duration-300 ${modelReady ? 'opacity-100' : 'opacity-0'}`}
+            >
+              <ThreeGuard onFail={() => setFailed3D(true)}>
+                <Suspense fallback={null}>
+                  <ModelViewer
+                    product={product}
+                    active={showing3D}
+                    onReady={() => setModelReady(true)}
+                    onLost={() => setFailed3D(true)}
+                  />
+                </Suspense>
+              </ThreeGuard>
+            </div>
+          </div>
         )}
         {threeD && (
           <div
@@ -299,7 +319,7 @@ export function Gallery({ product }) {
                 type="button"
                 aria-pressed={mode === value}
                 onClick={() => {
-                  if (value === '3d' && mode !== '3d') setModelReady(false); // a fresh viewer draws again
+                  if (value === '3d') setViewerOn(true);
                   setMode(value);
                 }}
                 // Intent to open 3D (resting on it, touching it, tabbing to it) starts loading it.
