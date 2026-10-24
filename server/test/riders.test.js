@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Notification, Order, RiderFeedback, User } from '../src/models/index.js';
-import { pickRider, smoothedRating } from '../src/features/riders/service.js';
+import { pickRider, ratingTotals, smoothedRating } from '../src/features/riders/service.js';
+import { ON_THE_WAY } from '../src/models/Order.js';
 import { users } from '../src/seed/data.js';
 import { address, productId, signIn, useSeededDb, riderStep } from './helpers.js';
 
@@ -55,6 +56,37 @@ describe('dispatch', () => {
     expect(picked).not.toBe(id('rico')); // Rico is paused after a report
     await User.updateOne({ _id: picked }, { 'riderProfile.heldAt': new Date() });
     expect(String(await pickRider())).not.toBe(picked);
+  });
+
+  it('gives each order to the best-rated free rider, and only doubles up once everyone has one', async () => {
+    // Start with nobody on a delivery, and enough waiting orders to go round twice: the ones already on the way plus
+    // some delivered ones borrowed as "shipped". All put back afterwards for the other tests.
+    const current = await Order.find({ status: { $in: ON_THE_WAY }, rider: { $ne: null } }, 'rider status').lean();
+    const borrowed = await Order.find({ status: 'delivered' }, 'rider status').limit(8).lean();
+    const onTheWay = [...current, ...borrowed];
+    await Order.updateMany({ _id: { $in: onTheWay.map((o) => o._id) } }, { $unset: { rider: 1 } });
+    await Order.updateMany({ _id: { $in: borrowed.map((o) => o._id) } }, { status: 'shipped' });
+    try {
+      const active = await User.find({ role: 'rider', isActive: true, 'riderProfile.heldAt': null }, '_id').lean();
+      const totals = await ratingTotals(active.map((r) => r._id));
+      const byRating = active
+        .map((r) => String(r._id))
+        .sort((a, b) => smoothedRating(totals.get(b)) - smoothedRating(totals.get(a)));
+      const handOut = async () => {
+        const rider = String(await pickRider());
+        const order = await Order.findOne({ _id: { $in: onTheWay.map((o) => o._id) }, rider: null });
+        await Order.updateOne({ _id: order._id }, { rider });
+        return rider;
+      };
+      // One each, best rated first, then round again in the same order. Rico (paused) never gets one.
+      const picks = [];
+      for (let i = 0; i < Math.min(onTheWay.length, byRating.length * 2); i++) picks.push(await handOut());
+      expect(picks.length).toBeGreaterThan(byRating.length); // the seed has enough to go round and start again
+      expect(picks).toEqual([...byRating, ...byRating].slice(0, picks.length));
+      expect(picks).not.toContain(id('rico'));
+    } finally {
+      await Promise.all(onTheWay.map((o) => Order.updateOne({ _id: o._id }, { rider: o.rider, status: o.status })));
+    }
   });
 });
 
