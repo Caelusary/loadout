@@ -279,29 +279,32 @@ export function Gallery({ product }) {
           >
             {/* While the model loads, a soft neon glow breathes where it will appear (the home stage does the same),
                 and the model fades in only once it's drawn. No photo underneath: a model fading in over the photo
-                showed two products on top of each other for a moment. */}
-            {!modelReady && (
+                showed two products on top of each other for a moment. The glow fades out as the model fades in, so
+                there's no blank frame between them, and stops pulsing once it's gone. */}
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-0 grid place-items-center transition-opacity duration-300 ${modelReady ? 'opacity-0' : 'opacity-100'}`}
+            >
               <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 grid place-items-center"
+                className={`h-[55%] w-[75%] rounded-[50%] bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-accent)_var(--stage-glow),transparent),transparent)] blur-2xl ${modelReady ? '' : 'animate-pulse motion-reduce:animate-none'}`}
+              />
+            </div>
+            {viewerOn && (
+              <div
+                className={`absolute inset-0 transition-opacity duration-300 ${modelReady ? 'opacity-100' : 'opacity-0'}`}
               >
-                <div className="h-[55%] w-[75%] animate-pulse rounded-[50%] bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-accent)_var(--stage-glow),transparent),transparent)] blur-2xl motion-reduce:animate-none" />
+                <ThreeGuard onFail={() => setFailed3D(true)}>
+                  <Suspense fallback={null}>
+                    <ModelViewer
+                      product={product}
+                      active={showing3D}
+                      onReady={() => setModelReady(true)}
+                      onLost={() => setFailed3D(true)}
+                    />
+                  </Suspense>
+                </ThreeGuard>
               </div>
             )}
-            <div
-              className={`absolute inset-0 transition-opacity duration-300 ${modelReady ? 'opacity-100' : 'opacity-0'}`}
-            >
-              <ThreeGuard onFail={() => setFailed3D(true)}>
-                <Suspense fallback={null}>
-                  <ModelViewer
-                    product={product}
-                    active={showing3D}
-                    onReady={() => setModelReady(true)}
-                    onLost={() => setFailed3D(true)}
-                  />
-                </Suspense>
-              </ThreeGuard>
-            </div>
           </div>
         )}
         {threeD && (
@@ -319,8 +322,11 @@ export function Gallery({ product }) {
                 type="button"
                 aria-pressed={mode === value}
                 onClick={() => {
-                  if (value === '3d') setViewerOn(true);
                   setMode(value);
+                  // Building the viewer holds up the page for a moment (GPU context, shaders), so it starts only
+                  // after the glow is on screen; the glow keeps pulsing meanwhile. Built straight away, the photo
+                  // stayed up and frozen until it was done.
+                  if (value === '3d' && !viewerOn) requestAnimationFrame(() => setTimeout(() => setViewerOn(true)));
                 }}
                 // Intent to open 3D (resting on it, touching it, tabbing to it) starts loading it.
                 onPointerEnter={value === '3d' ? () => warm3D(product) : undefined}
