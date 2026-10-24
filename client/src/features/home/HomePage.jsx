@@ -23,7 +23,9 @@ function Featured() {
         {isError ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : (
-          <ProductGrid products={data ?? []} loading={isPending} skeletonCount={4} fullRows />
+          // Every featured product shows, even on a part-filled last row: each one is an admin's pick, and trimming
+          // to whole rows hid 3 of 7 on a 4-across screen, which read as featuring not working.
+          <ProductGrid products={data ?? []} loading={isPending} skeletonCount={4} />
         )}
       </Container>
     </section>
