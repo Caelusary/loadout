@@ -41,7 +41,9 @@ export const useFeatured = () =>
   useQuery({
     queryKey: ['products', 'featured'],
     queryFn: ({ signal }) => api('/products/featured', { signal }).then((r) => r.items),
-    staleTime: 5 * 60_000,
+    // Checked again on every visit to the homepage (the cached list shows meanwhile), so featuring changes made in
+    // another tab or by another admin show up without a reload.
+    staleTime: 0,
   });
 
 export const useProduct = (slug) => useQuery(productQuery(slug));
