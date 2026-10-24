@@ -30,9 +30,13 @@ test.describe('product 3D view', () => {
 
   test('switching between Photo and 3D view keeps both working', async ({ page }) => {
     const errors = watchErrors(page);
+    await open3D(page);
+    // Tag the viewer's canvas: switching back to 3D should show this same one, not build a new viewer (the lag).
+    await page.evaluate((sel) => (document.querySelector(`${sel} canvas`).dataset.first = '1'), STAGE);
     for (let i = 0; i < 2; i++) {
-      await open3D(page);
       await openPhoto(page);
+      await open3D(page);
+      expect(await page.evaluate((sel) => document.querySelector(`${sel} canvas`).dataset.first, STAGE)).toBe('1');
     }
     await expect(viewButton(page, '3D view')).toBeVisible();
     await open3D(page);
