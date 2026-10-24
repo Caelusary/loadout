@@ -18,6 +18,9 @@ import { useToast } from '../../providers/ToastProvider.jsx';
 // The table's columns, shared with its loading placeholder so the two always match.
 // Widths fit the table to the panel (see Table): the fixed columns keep theirs and the product name takes the rest,
 // truncating, so Manage never gets pushed out of view on a laptop-width screen.
+// The homepage carousel's size; the server enforces the same limit (MAX_FEATURED in products/catalog.js).
+const MAX_FEATURED = 8;
+
 const PRODUCT_COLUMNS = [
   { label: 'Product', skeleton: 'thumb' },
   { label: 'Price', skeleton: 'short', width: 150 },
@@ -42,9 +45,25 @@ export default function AdminProducts() {
     placeholderData: keepPreviousData,
   });
 
+  // Sets fields on one product in every cached page of this table.
+  const patchRows = (id, fields) =>
+    queryClient.setQueriesData({ queryKey: ['admin', 'products'] }, (old) =>
+      old?.items ? { ...old, items: old.items.map((p) => (p._id === id ? { ...p, ...fields } : p)) } : old,
+    );
   const moderate = useMutation({
     mutationFn: ({ id, changes }) => api(`/admin/products/${id}`, { method: 'PATCH', body: changes }),
-    onSuccess: (res, { changes }) => {
+    // The row shows the change straight away instead of after the save and a refetch of the table, and goes back
+    // if the save fails.
+    onMutate: async ({ id, changes }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin', 'products'] });
+      const before = queryClient.getQueriesData({ queryKey: ['admin', 'products'] });
+      patchRows(id, changes);
+      return { before };
+    },
+    onSuccess: (res, { id, changes }) => {
+      // Only the moderation fields: the response's seller lacks the shop name the row shows.
+      const { isActive, isFeatured, unlistedBy } = res.product;
+      patchRows(id, { isActive, isFeatured, unlistedBy });
       const p = res.product;
       toast.show(
         'isFeatured' in changes
@@ -56,11 +75,26 @@ export default function AdminProducts() {
             : `${p.name} is unlisted`,
       );
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      // The CDN keeps /products/featured for a minute, so refetching the usual URL could bring back the old row.
+      // A one-off URL skips that cache, and the homepage shows the change as soon as the admin goes there.
+      queryClient.invalidateQueries({
+        queryKey: ['products'],
+        predicate: (q) => q.queryKey[1] !== 'featured',
+      });
+      queryClient
+        .fetchQuery({
+          queryKey: ['products', 'featured'],
+          queryFn: () => api(`/products/featured?fresh=${Date.now()}`).then((r) => r.items),
+          staleTime: 0,
+        })
+        .catch(() => queryClient.invalidateQueries({ queryKey: ['products', 'featured'] }));
       setUnlisting(null);
       setReason('');
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err, _vars, ctx) => {
+      ctx?.before.forEach(([key, value]) => queryClient.setQueryData(key, value));
+      toast.error(err.message);
+    },
   });
   // A seller's own unlisting is theirs to undo, so the admin can only relist what an admin took down.
   const menuFor = (p) => [
@@ -70,7 +104,11 @@ export default function AdminProducts() {
         ? [
             {
               label: p.isFeatured ? 'Remove from featured' : 'Feature on homepage',
-              onSelect: () => moderate.mutate({ id: p._id, changes: { isFeatured: !p.isFeatured } }),
+              // With the carousel full the server says no; saying so here skips the row flipping on, then back.
+              onSelect: () =>
+                !p.isFeatured && data?.counts?.featured >= MAX_FEATURED
+                  ? toast.error(`You can feature at most ${MAX_FEATURED} products. Unfeature one first.`)
+                  : moderate.mutate({ id: p._id, changes: { isFeatured: !p.isFeatured } }),
             },
           ]
         : [],
