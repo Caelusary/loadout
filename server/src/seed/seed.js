@@ -43,10 +43,11 @@ export async function seed() {
   );
   // The demo shops opened months ago, not on the day the seed ran, so "selling since" reads like a real shop.
   // Straight to the collection: Mongoose treats createdAt as read-only and would drop the change.
-  const OPENED_DAYS_AGO = { northpaw: 420, glide: 300, hush: 210, lumen: 120 };
-  // Everyone else joined over the past months too, each before their first seeded order or delivery.
+  const OPENED_DAYS_AGO = { northpaw: 420, glide: 300, hush: 210, lumen: 130 };
+  // Everyone else joined over the past months too, each before their first seeded order or delivery (riders before
+  // the oldest delivery their riderStory puts on them).
   const JOINED_DAYS_AGO = {
-    owner: 500, admin: 450, mika: 180, ramon: 240, joy: 150, paolo: 95, dante: 90, rico: 70, lea: 60, coilworks: 45,
+    owner: 500, admin: 450, mika: 180, ramon: 240, joy: 150, paolo: 95, dante: 135, rico: 130, lea: 60, coilworks: 45,
     // The earlier buyers joined a little before their first order.
     rafael: 140, bea: 133, carlo: 126, miguel: 118, jas: 109, andrea: 101, josh: 90, nina: 80,
   };
