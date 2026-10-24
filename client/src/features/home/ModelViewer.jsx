@@ -1,5 +1,5 @@
 import { Shadow, OrbitControls } from '@react-three/drei';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useState } from 'react';
 import { useReducedMotion } from './capabilities.js';
 import { watchContext } from './models/glSetup.js';
@@ -9,9 +9,25 @@ import { StudioLighting } from './models/StudioLighting.jsx';
 import { Warmup } from './models/Warmup.jsx';
 
 // Product page "3D view": one model the shopper can turn around.
+// While the viewer is hidden (the page is showing its photo) it stays built but draws nothing. Coming back, the clock
+// skips the hidden time, so the auto-spin carries on from where it was instead of jumping ahead by it. A model that
+// finished loading while hidden is compiled then, so showing it doesn't stall on its first frame.
+function Standby({ active, loaded }) {
+  const { gl, scene, camera, clock } = useThree();
+  useEffect(() => {
+    if (active) clock.getDelta();
+  }, [active, clock]);
+  useEffect(() => {
+    if (loaded && !active) gl.compileAsync(scene, camera).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the model arrives
+  }, [loaded]);
+  return null;
+}
+
 // `onReady` fires once the model is loaded and drawing, so whatever stood in for it (the product photo) can go;
-// `onLost` if the GPU drops the 3D context, so the page can go back to the photo.
-export default function ModelViewer({ product, onReady, onLost }) {
+// `onLost` if the GPU drops the 3D context, so the page can go back to the photo. `active` is false while the page
+// shows its photo instead.
+export default function ModelViewer({ product, active = true, onReady, onLost }) {
   const reducedMotion = useReducedMotion();
   // Hold frames until shaders have compiled off the main thread, so opening the 3D view doesn't stall.
   const [warm, setWarm] = useState(false);
@@ -29,7 +45,7 @@ export default function ModelViewer({ product, onReady, onLost }) {
   return (
     <Canvas
       onCreated={watchContext(onLost)}
-      frameloop={warm ? 'always' : 'never'}
+      frameloop={warm && active ? 'always' : 'never'}
       className="cursor-grab active:cursor-grabbing"
       // Capped at 1.5: on a high-DPI laptop 2x quadruples the GPU memory for little visible gain.
       dpr={[1, 1.5]}
@@ -50,6 +66,7 @@ export default function ModelViewer({ product, onReady, onLost }) {
       />
       <BrightnessProbe active={loaded} onMeasure={measured} />
       <Warmup onDone={setWarm} />
+      <Standby active={active} loaded={loaded} />
       <OrbitControls
         enablePan={false}
         // The wheel zooms in up to about twice as close; the camera starts at its farthest.
